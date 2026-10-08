@@ -156,17 +156,23 @@ def _select_school(page: Page, codigo_inep: str, tentativas: int = 3) -> bool:
     last_exc: Exception | None = None
     for _ in range(max(1, tentativas)):
         try:
-            page.goto(f"{BASE_URL}/escola/pesquisar", wait_until="domcontentloaded", timeout=15000)
+            page.goto(f"{BASE_URL}/escola/pesquisar", wait_until="domcontentloaded", timeout=30000)
+            # Aguarda o Angular terminar de carregar (networkidle). Timeout generoso
+            # pois o portal pode ser lento; não falha se exceder — apenas segue.
+            try:
+                page.wait_for_load_state("networkidle", timeout=10000)
+            except Exception:
+                pass
             _wait_loader(page)
             if _session_expirada(page):
                 raise SessaoExpirada()
-            page.wait_for_selector("input[formcontrolname='codigoEscola']", timeout=15000)
+            page.wait_for_selector("input[formcontrolname='codigoEscola']", timeout=30000)
             break
         except SessaoExpirada:
             raise
         except Exception as exc:  # noqa: BLE001
             last_exc = exc
-            page.wait_for_timeout(1000)
+            page.wait_for_timeout(3000)
             continue
     else:
         if last_exc is not None:
