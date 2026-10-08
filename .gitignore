@@ -23,7 +23,5 @@ docs_temporarios/
 .idea/
 
 # Evitar subir planilhas de dados locais ou logs
-*.xlsx
-*.xls
 *.csv
 *.log
