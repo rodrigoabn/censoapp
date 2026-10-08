@@ -1,0 +1,43 @@
+[PT]
+1. MODELO DE LICENÇA: Este software adota licenciamento duplo. O uso comunitário
+   é regido pela GNU AGPL-3.0 abaixo. Para uso comercial/governamental sem as
+   obrigações de compartilhamento de código da AGPL-3.0, entre em contato para
+   uma licença alternativa em: rodrigo.nunes@edu.campos.rj.gov.br
+
+2. ISENÇÃO DE RESPONSABILIDADE & LGPD: O software é fornecido "no estado em que
+   se encontra". Toda e qualquer responsabilidade pelo tratamento, sigilo e
+   segurança dos dados inseridos (Censo Escolar) recai exclusivamente sobre a
+   entidade/instituição operadora. Os desenvolvedores não acessam ou coletam dados.
+
+3. CONTRIBUIÇÕES: Ao submeter contribuições de código (Pull Requests), o autor
+   concede aos mantenedores o direito não exclusivo de sublicenciá-las sob os
+   termos da AGPL-3.0 e/ou sob nossa licença governamental/comercial proprietária.
+
+-----------------------------------------------------------------------------
+
+[EN]
+1. DUAL LICENSING: This software adopts a dual-licensing model. Community use is
+   governed by the GNU AGPL-3.0 below. For commercial or governmental use without
+   AGPL-3.0 copyleft obligations, please contact us at:
+   rodrigo.nunes@edu.campos.rj.gov.br
+
+2. DISCLAIMER & GDPR/LGPD: The software is provided "as-is". All responsibility
+   for personal data processing and security lies solely with the operating
+   entity/institution. The developers do not collect, store, or access any data.
+
+3. CONTRIBUTIONS: By submitting code contributions (Pull Requests), you grant
+   the maintainers the non-exclusive right to sublicense your work under AGPL-3.0
+   and/or under our alternative proprietary commercial/governmental license.
+
+=============================================================================
+             GNU AFFERO GENERAL PUBLIC LICENSE TEXT (OFFICIAL ENGLISH)
+=============================================================================
+
+                    GNU AFFERO GENERAL PUBLIC LICENSE
+                       Version 3, 19 November 2007
+
+ Copyright (C) 2007 Free Software Foundation, Inc. <https://fsf.org/>
+ Everyone is permitted to copy and distribute verbatim copies
+ of this license document, but changing it is not allowed.
+
+[For the official license text, please refer to https://www.gnu.org/licenses/agpl-3.0.txt]

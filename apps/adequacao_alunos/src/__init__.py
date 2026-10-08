@@ -1,0 +1,1 @@
+from .frontend import render_adequacao_alunos_frontend

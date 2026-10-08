@@ -1,0 +1,27 @@
+[project]
+name = "censo-seduct"
+version = "0.1.0"
+description = "Aplicações de Apoio - Censo Escolar (HUB de aplicações Streamlit)"
+readme = "README.md"
+requires-python = ">=3.13"
+license = "AGPL-3.0-or-later"
+authors = [
+    { name = "Aplicações de Apoio - Censo Escolar" },
+]
+classifiers = [
+    "Programming Language :: Python :: 3",
+    "License :: OSI Approved :: GNU Affero General Public License v3",
+    "Operating System :: OS Independent",
+]
+dependencies = [
+    "openpyxl>=3.1.5",
+    "pandas>=3.0.3",
+    "streamlit>=1.58.0",
+    "playwright==1.61.0",
+    "reportlab>=5.0.0",
+]
+
+[dependency-groups]
+dev = [
+    "pytest>=9.1.1",
+]

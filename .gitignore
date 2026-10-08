@@ -1,0 +1,29 @@
+# Ambiente virtual
+.venv/
+
+# Cache Python
+__pycache__/
+*.pyc
+
+# Segredos e credenciais
+.streamlit/secrets.toml
+apps/coleta_cadastros_escolas/docs/credenciais.json
+credenciais.json
+.env
+.env.local
+
+# Arquivos temporários e do sistema
+docs_temporarios/
+.DS_Store
+
+# Configurações de editor/agentes (evita conflito entre máquinas diferentes)
+.opencode/
+.antigravity/
+.vscode/
+.idea/
+
+# Evitar subir planilhas de dados locais ou logs
+*.xlsx
+*.xls
+*.csv
+*.log
