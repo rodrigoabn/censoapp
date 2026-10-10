@@ -603,9 +603,11 @@ st.markdown("""
 """, unsafe_allow_html=True)
 
 _MENU_GROUPS = {
-    "Coleta do Educacenso": [
+    "Coleta de Dados": [
         "Dados Cadastrais da Unidades",
         "Dados dos Gestores Escolares",
+    ],
+    "Download de Relatórios": [
         "Relatórios de Turmas",
         "Relatórios de Alunos",
         "Relatórios de Profissionais Escolares",
@@ -616,12 +618,12 @@ _MENU_GROUPS = {
         "Adequação de Relatórios de Alunos",
         "Adequação de Relatórios de Profissionais",
     ],
-    "Geração de Relatórios Gerais e de Inconsistências": [
-        "Cadastro de Unidades",
-        "Cadastro de Gestor",
-        "Cadastro de Turmas",
-        "Cadastro de Aluno",
-        "Cadastro de Profissionais Escolares",
+    "Verificação de possíveis inconsistências": [
+        "Inconsistências no Cadastro de Unidades",
+        "Inconsistências no Cadastro de Gestor",
+        "Inconsistências no Cadastro de Turmas",
+        "Inconsistências no Cadastro de Aluno",
+        "Inconsistências no Cadastro de Profissionais Escolares",
     ],
 }
 
@@ -697,14 +699,15 @@ elif page in ("Adequação de Relatório de Turmas", "Adequação de Relatórios
     }[_adeq_key]
     _adeq_func(logo_base64)
     render_license_footer()
-elif page in ("Cadastro de Unidades", "Cadastro de Gestor", "Cadastro de Turmas",
-              "Cadastro de Aluno", "Cadastro de Profissionais Escolares"):
+elif page in ("Inconsistências no Cadastro de Unidades", "Inconsistências no Cadastro de Gestor",
+              "Inconsistências no Cadastro de Turmas", "Inconsistências no Cadastro de Aluno",
+              "Inconsistências no Cadastro de Profissionais Escolares"):
     _val_key = {
-        "Cadastro de Unidades": "unidades",
-        "Cadastro de Gestor": "gestor",
-        "Cadastro de Turmas": "turmas",
-        "Cadastro de Aluno": "aluno",
-        "Cadastro de Profissionais Escolares": "profissionais",
+        "Inconsistências no Cadastro de Unidades": "unidades",
+        "Inconsistências no Cadastro de Gestor": "gestor",
+        "Inconsistências no Cadastro de Turmas": "turmas",
+        "Inconsistências no Cadastro de Aluno": "aluno",
+        "Inconsistências no Cadastro de Profissionais Escolares": "profissionais",
     }[page]
     render_validation_frontend(VALIDATIONS[_val_key], logo_base64)
     render_license_footer()
