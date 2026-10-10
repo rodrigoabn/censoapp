@@ -235,6 +235,11 @@ def build_statistics_pdf(stats: dict[str, Any]) -> bytes:
         parent=styles["TableCellSmall"],
         alignment=TA_CENTER,
     ))
+    styles.add(ParagraphStyle(
+        name="TableCellBoldCentered",
+        parent=styles["TableCellCentered"],
+        fontName="Helvetica-Bold",
+    ))
 
     metrics = [
         [
@@ -301,19 +306,47 @@ def build_statistics_pdf(stats: dict[str, Any]) -> bytes:
     ]
 
     headers = [
-        "Tipo Unidade",
+        "Tipo",
         "Nome",
         "Código INEP",
-        "Total",
+        "Total de Inconsistências",
         *[item["label"] for item in by_type.values()],
     ]
-    detail_rows = [[Paragraph(header, styles["TableHeaderSmall"]) for header in headers]]
+    category_start = 4
+    detail_rows = [
+        [
+            *[
+                Paragraph(header, styles["TableHeaderSmall"])
+                for header in headers[:category_start]
+            ],
+            Paragraph(
+                "Inconsistências separadas por tipo",
+                styles["TableHeaderSmall"],
+            ),
+            *[None] * (len(headers) - category_start - 1),
+        ],
+        [
+            *[None] * category_start,
+            *[
+                Paragraph(header, styles["TableHeaderSmall"])
+                for header in headers[category_start:]
+            ],
+        ],
+    ]
     for school in _ordered_schools(per_school):
+        total_issues = school["total_issues"]
         detail_rows.append([
             Paragraph(_school_type(school["nome_unidade"]), styles["TableCellSmall"]),
             Paragraph(escape(school["nome_unidade"]), styles["TableCellSmall"]),
             Paragraph(school["codigo_inep"], styles["TableCellCentered"]),
-            Paragraph(_table_count(school["total_issues"]), styles["TableCellCentered"]),
+            Paragraph(
+                _table_count(total_issues),
+                styles[
+                    "TableCellBoldCentered"
+                    if total_issues
+                    else "TableCellCentered"
+                ],
+            ),
             *[
                 Paragraph(
                     _table_count(school["by_type"][key]),
@@ -326,21 +359,26 @@ def build_statistics_pdf(stats: dict[str, Any]) -> bytes:
     detail_table = Table(
         detail_rows,
         colWidths=[
-            2.3 * cm,
-            4.0 * cm,
             1.4 * cm,
-            0.75 * cm,
-            *[(document.width - 8.45 * cm) / len(by_type)] * len(by_type),
+            3.4 * cm,
+            1.5 * cm,
+            2.6 * cm,
+            *[(document.width - 8.9 * cm) / len(by_type)] * len(by_type),
         ],
-        repeatRows=1,
+        repeatRows=2,
         hAlign="LEFT",
     )
     detail_table.setStyle(TableStyle([
-        ("BACKGROUND", (0, 0), (-1, 0), _NAVY),
-        ("ROWBACKGROUNDS", (0, 1), (-1, -1), [colors.white, colors.HexColor("#F3F6FA")]),
+        ("SPAN", (0, 0), (0, 1)),
+        ("SPAN", (1, 0), (1, 1)),
+        ("SPAN", (2, 0), (2, 1)),
+        ("SPAN", (3, 0), (3, 1)),
+        ("SPAN", (category_start, 0), (-1, 0)),
+        ("BACKGROUND", (0, 0), (-1, 1), _NAVY),
+        ("ROWBACKGROUNDS", (0, 2), (-1, -1), [colors.white, colors.HexColor("#F3F6FA")]),
         ("GRID", (0, 0), (-1, -1), 0.35, _GRID),
         ("VALIGN", (0, 0), (-1, -1), "MIDDLE"),
-        ("ALIGN", (2, 1), (-1, -1), "CENTER"),
+        ("ALIGN", (2, 0), (-1, -1), "CENTER"),
         ("LEFTPADDING", (0, 0), (-1, -1), 2),
         ("RIGHTPADDING", (0, 0), (-1, -1), 2),
         ("TOPPADDING", (0, 0), (-1, -1), 3),
