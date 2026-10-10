@@ -15,7 +15,7 @@ VALIDATIONS: dict[str, dict] = {
     "unidades": {
         "key": "unidades",
         "state_prefix": "vu_",
-        "title": "Inconsistências no Cadastro de Unidades",
+        "title": "Geração de Relatórios Gerais e de Inconsistências - Cadastro de Unidades",
         "subtitle": "Verifica inconsistências nos dados cadastrais das unidades escolares no Educacenso.",
         "requires_dates": True,
         "validate": validate_unidades,
@@ -23,7 +23,7 @@ VALIDATIONS: dict[str, dict] = {
     "gestor": {
         "key": "gestor",
         "state_prefix": "vg_",
-        "title": "Inconsistências no Cadastro de Gestor",
+        "title": "Geração de Relatórios Gerais e de Inconsistências - Cadastro de Gestor",
         "subtitle": "Verifica inconsistências nos dados cadastrais do gestor escolar no Educacenso.",
         "requires_dates": False,
         "validate": validate_gestor,
@@ -31,7 +31,7 @@ VALIDATIONS: dict[str, dict] = {
     "turmas": {
         "key": "turmas",
         "state_prefix": "vt_",
-        "title": "Inconsistências no Cadastro de Turmas",
+        "title": "Geração de Relatórios Gerais e de Inconsistências - Cadastro de Turmas",
         "subtitle": "Verifica inconsistências nos dados das turmas declaradas no Educacenso.",
         "requires_dates": False,
         "source": "zip",
@@ -66,7 +66,7 @@ VALIDATIONS: dict[str, dict] = {
     "aluno": {
         "key": "aluno",
         "state_prefix": "va_",
-        "title": "Inconsistências no Cadastro de Aluno",
+        "title": "Geração de Relatórios Gerais e de Inconsistências - Cadastro de Aluno",
         "subtitle": "Verifica inconsistências nos dados dos alunos declarados no Educacenso.",
         "requires_dates": False,
         "source": "zip",
@@ -107,7 +107,7 @@ VALIDATIONS: dict[str, dict] = {
     "profissionais": {
         "key": "profissionais",
         "state_prefix": "vp_",
-        "title": "Inconsistências no Cadastro de Profissionais Escolares",
+        "title": "Geração de Relatórios Gerais e de Inconsistências - Cadastro de Profissionais Escolares",
         "subtitle": "Verifica inconsistências nos dados dos profissionais escolares declarados no Educacenso.",
         "requires_dates": False,
         "source": "zip",
