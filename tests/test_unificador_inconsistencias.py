@@ -11,7 +11,12 @@ from apps.unificador_inconsistencias.src.processor import (
     build_school_reports_zip,
     read_active_schools,
 )
-from apps.unificador_inconsistencias.src.statistics_pdf import build_statistics_pdf
+from apps.unificador_inconsistencias.src.statistics_pdf import (
+    _ordered_schools,
+    _school_type,
+    _table_count,
+    build_statistics_pdf,
+)
 
 
 def _xlsx_bytes(sheet_name: str, rows: list[list[object]]) -> bytes:
@@ -23,6 +28,27 @@ def _xlsx_bytes(sheet_name: str, rows: list[list[object]]) -> bytes:
     buffer = io.BytesIO()
     workbook.save(buffer)
     return buffer.getvalue()
+
+
+def test_school_types_and_pdf_order():
+    schools = [
+        {"nome_unidade": "Escola Beta"},
+        {"nome_unidade": "CMEI Zeta"},
+        {"nome_unidade": "CEM Alfa"},
+        {"nome_unidade": "Escola Alfa"},
+    ]
+
+    assert _school_type("CEM Jardim") == "Creche"
+    assert _school_type("CMEI Jardim") == "Creche"
+    assert _school_type("Escola Jardim") == "Escola"
+    assert [school["nome_unidade"] for school in _ordered_schools(schools)] == [
+        "CEM Alfa",
+        "CMEI Zeta",
+        "Escola Alfa",
+        "Escola Beta",
+    ]
+    assert _table_count(0) == "---"
+    assert _table_count(12) == "12"
 
 
 def test_zip_has_one_five_sheet_workbook_per_active_school():

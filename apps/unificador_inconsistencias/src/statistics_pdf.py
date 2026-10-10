@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import io
 from datetime import date, datetime
+from pathlib import Path
 from typing import Any
 
 from reportlab.graphics.shapes import Drawing, Rect, String
@@ -10,6 +11,7 @@ from reportlab.lib.enums import TA_CENTER, TA_LEFT
 from reportlab.lib.pagesizes import A4
 from reportlab.lib.styles import ParagraphStyle, getSampleStyleSheet
 from reportlab.lib.units import cm
+from reportlab.lib.utils import ImageReader
 from reportlab.platypus import (
     PageBreak,
     Paragraph,
@@ -33,6 +35,24 @@ _GRID = colors.HexColor("#D8E0E8")
 
 def _percent(part: int, total: int) -> str:
     return f"{(part / total * 100) if total else 0:.1f}%"
+
+
+def _school_type(name: str) -> str:
+    return "Creche" if name.strip().upper().startswith(("CEM", "CMEI")) else "Escola"
+
+
+def _table_count(value: int) -> str:
+    return "---" if value == 0 else str(value)
+
+
+def _ordered_schools(schools: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    return sorted(
+        schools,
+        key=lambda school: (
+            _school_type(school["nome_unidade"]) != "Creche",
+            school["nome_unidade"].casefold(),
+        ),
+    )
 
 
 def _bar_chart(
@@ -71,21 +91,54 @@ def _bar_chart(
     return drawing
 
 
-def _draw_footer(canvas, document) -> None:
+def _draw_page_header_footer(canvas, document) -> None:
     canvas.saveState()
     page_width, page_height = A4
+    image_directory = Path(__file__).resolve().parents[3] / "imagem"
+    crest = ImageReader(str(image_directory / "brasao.png"))
+    crest_width = 1.5 * cm
+    crest_height = 1.7 * cm
+    canvas.drawImage(
+        crest,
+        document.leftMargin,
+        page_height - 1.75 * cm,
+        width=crest_width,
+        height=crest_height,
+        preserveAspectRatio=True,
+        anchor="c",
+        mask="auto",
+    )
+    text_x = document.leftMargin + 1.8 * cm
     canvas.setFillColor(_NAVY)
     canvas.setFont("Helvetica-Bold", 9)
-    canvas.drawCentredString(page_width / 2, page_height - 0.85 * cm, "Diretoria de TI")
-    canvas.setFont("Helvetica", 8)
-    canvas.drawCentredString(
-        page_width / 2,
-        page_height - 1.25 * cm,
-        "Gerência de Administração de Sistemas em TI",
+    canvas.drawString(
+        text_x,
+        page_height - 0.78 * cm,
+        "Secretaria Municipal de Educação, Ciência e Tecnologia",
+    )
+    canvas.setFont("Helvetica", 8.5)
+    canvas.drawString(text_x, page_height - 1.15 * cm, "Diretoria de TI")
+    canvas.drawString(
+        text_x,
+        page_height - 1.52 * cm,
+        "Gerência de Administração de Sistemas de TI",
+    )
+    logo = ImageReader(str(image_directory / "image.png"))
+    logo_width = 2.7 * cm
+    logo_height = 1.3 * cm
+    canvas.drawImage(
+        logo,
+        page_width - document.rightMargin - logo_width,
+        page_height - 1.55 * cm,
+        width=logo_width,
+        height=logo_height,
+        preserveAspectRatio=True,
+        anchor="c",
+        mask="auto",
     )
     canvas.setStrokeColor(_GRID)
     canvas.setLineWidth(0.5)
-    canvas.line(document.leftMargin, page_height - 1.55 * cm, page_width - document.rightMargin, page_height - 1.55 * cm)
+    canvas.line(document.leftMargin, page_height - 1.85 * cm, page_width - document.rightMargin, page_height - 1.85 * cm)
     canvas.setStrokeColor(_GRID)
     canvas.setLineWidth(0.5)
     canvas.line(document.leftMargin, 0.95 * cm, page_width - document.rightMargin, 0.95 * cm)
@@ -109,7 +162,7 @@ def build_statistics_pdf(stats: dict[str, Any]) -> bytes:
         pagesize=A4,
         rightMargin=1.4 * cm,
         leftMargin=1.4 * cm,
-        topMargin=2.0 * cm,
+        topMargin=2.2 * cm,
         bottomMargin=1.35 * cm,
         title="Resumo analítico de Inconsistências - Educacenso",
         author="Aplicações de Apoio - Censo Escolar",
@@ -163,18 +216,24 @@ def build_statistics_pdf(stats: dict[str, Any]) -> bytes:
     styles.add(ParagraphStyle(
         name="TableHeaderSmall",
         parent=styles["Normal"],
-        fontName="Helvetica-Bold",
-        fontSize=5.8,
-        leading=6.8,
+        fontName="Helvetica",
+        fontSize=7.2,
+        leading=8.4,
         textColor=colors.white,
         alignment=TA_CENTER,
     ))
     styles.add(ParagraphStyle(
         name="TableCellSmall",
         parent=styles["Normal"],
-        fontSize=6.2,
-        leading=7.2,
+        fontName="Helvetica",
+        fontSize=7.2,
+        leading=8.4,
         textColor=_TEXT,
+    ))
+    styles.add(ParagraphStyle(
+        name="TableCellCentered",
+        parent=styles["TableCellSmall"],
+        alignment=TA_CENTER,
     ))
 
     metrics = [
@@ -242,27 +301,36 @@ def build_statistics_pdf(stats: dict[str, Any]) -> bytes:
     ]
 
     headers = [
-        "Unidade Escolar",
+        "Tipo Unidade",
+        "Nome",
         "Código INEP",
         "Total",
         *[item["label"] for item in by_type.values()],
     ]
     detail_rows = [[Paragraph(header, styles["TableHeaderSmall"]) for header in headers]]
-    for school in per_school:
+    for school in _ordered_schools(per_school):
         detail_rows.append([
+            Paragraph(_school_type(school["nome_unidade"]), styles["TableCellSmall"]),
             Paragraph(escape(school["nome_unidade"]), styles["TableCellSmall"]),
-            Paragraph(school["codigo_inep"], styles["TableCellSmall"]),
-            str(school["total_issues"]),
-            *[str(school["by_type"][key]) for key in by_type],
+            Paragraph(school["codigo_inep"], styles["TableCellCentered"]),
+            Paragraph(_table_count(school["total_issues"]), styles["TableCellCentered"]),
+            *[
+                Paragraph(
+                    _table_count(school["by_type"][key]),
+                    styles["TableCellCentered"],
+                )
+                for key in by_type
+            ],
         ])
 
     detail_table = Table(
         detail_rows,
         colWidths=[
-            4.5 * cm,
-            1.55 * cm,
-            0.85 * cm,
-            *[2.15 * cm] * len(by_type),
+            2.3 * cm,
+            4.0 * cm,
+            1.4 * cm,
+            0.75 * cm,
+            *[(document.width - 8.45 * cm) / len(by_type)] * len(by_type),
         ],
         repeatRows=1,
         hAlign="LEFT",
@@ -272,7 +340,7 @@ def build_statistics_pdf(stats: dict[str, Any]) -> bytes:
         ("ROWBACKGROUNDS", (0, 1), (-1, -1), [colors.white, colors.HexColor("#F3F6FA")]),
         ("GRID", (0, 0), (-1, -1), 0.35, _GRID),
         ("VALIGN", (0, 0), (-1, -1), "MIDDLE"),
-        ("ALIGN", (1, 1), (-1, -1), "CENTER"),
+        ("ALIGN", (2, 1), (-1, -1), "CENTER"),
         ("LEFTPADDING", (0, 0), (-1, -1), 2),
         ("RIGHTPADDING", (0, 0), (-1, -1), 2),
         ("TOPPADDING", (0, 0), (-1, -1), 3),
@@ -280,7 +348,11 @@ def build_statistics_pdf(stats: dict[str, Any]) -> bytes:
     ]))
     story.append(detail_table)
 
-    document.build(story, onFirstPage=_draw_footer, onLaterPages=_draw_footer)
+    document.build(
+        story,
+        onFirstPage=_draw_page_header_footer,
+        onLaterPages=_draw_page_header_footer,
+    )
     return buffer.getvalue()
 
 
