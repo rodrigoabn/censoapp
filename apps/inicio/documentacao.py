@@ -248,8 +248,9 @@ def build_documentacao_pdf(logo_base64: str | None = None) -> bytes:
     _par(story, estilos["h1"], "1. Visão Geral do Sistema")
     _par(story, estilos["corpo"],
          "O projeto é um HUB de aplicações em Streamlit, gerenciado pelo gerenciador de ambientes "
-         "Python <b>uv</b>. O menu lateral esquerdo dá acesso a 10 aplicações, organizadas em três "
-         "grupos: Coleta do Educacenso, Adequação de Relatórios e Gerador de Base de Dados e Inconsistências. "
+         "Python <b>uv</b>. O menu lateral esquerdo dá acesso às aplicações organizadas em três grupos "
+         "e uma opção independente: Coleta do Educacenso, Adequação de Relatórios, "
+         "Gerador de Base de Dados e Inconsistências e Unificador de Inconsistências por Unidade Escolar. "
          "Além disso, a Tela Inicial disponibiliza esta documentação para download em PDF.")
     _par(story, estilos["corpo"],
          "Todas as aplicações de coleta operam em <b>modo leitura</b> sobre o Educacenso "
@@ -260,6 +261,8 @@ def build_documentacao_pdf(logo_base64: str | None = None) -> bytes:
             [
                 ["Tela Inicial", "Tela Inicial",
                  "Hero com a marca do projeto e botão para baixar esta documentação (PDF)."],
+                ["Unificador de Inconsistências por Unidade Escolar", "Unificador de Inconsistências por Unidade Escolar",
+                 "Recebe os relatórios XLS/XLSX e permite indicar quais não serão utilizados; as regras de unificação serão definidas posteriormente."],
                 ["Coleta do Educacenso", "Dados Cadastrais da Unidades",
                  "Raspa a ficha cadastral completa de cada escola do Educacenso e consolida em um XLSX de 6 abas."],
                 ["Coleta do Educacenso", "Dados dos Gestores Escolares",

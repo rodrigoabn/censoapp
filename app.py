@@ -26,6 +26,10 @@ from apps.verificacao_inconsistencias.src.frontend import render_validation_fron
 
 from apps.verificacao_inconsistencias.src.validations import VALIDATIONS
 
+from apps.unificador_inconsistencias.src.frontend import (
+    render_unificador_inconsistencias_frontend,
+)
+
 # Adequação de Relatórios
 from apps.adequacao_turmas.src.frontend import render_adequacao_turmas_frontend
 
@@ -654,6 +658,12 @@ for _grupo, _itens in _MENU_GROUPS.items():
     for _i, _label in enumerate(_itens):
         _nav_item(_exp, _label, f"nav_{_grupo}_{_i}")
 
+_nav_item(
+    st.sidebar,
+    "Unificador de Inconsistências por Unidade Escolar",
+    "nav_unificador_inconsistencias",
+)
+
 page = st.session_state["nav_page"]
 
 # ── Limpeza de estado ao trocar de página ─────────────────────────────
@@ -672,6 +682,9 @@ if st.session_state["prev_nav_page"] != page:
 if page == "Tela Inicial":
     # Home: hero centralizado com rodapé fixo (scroll via CSS global)
     show_home_page(logo_base64)
+    render_license_footer()
+elif page == "Unificador de Inconsistências por Unidade Escolar":
+    render_unificador_inconsistencias_frontend(logo_base64)
     render_license_footer()
 elif page == "Dados Cadastrais da Unidades":
     render_frontend(logo_base64)
