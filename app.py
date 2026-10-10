@@ -80,6 +80,12 @@ st.set_page_config(
 # ---------------------------------------------------------------------------
 st.markdown("""
 <style>
+    /* Manter o tema escuro e remover o menu de configurações do Streamlit. */
+    [data-testid="stMainMenu"],
+    #MainMenu {
+        display: none !important;
+    }
+
     /* ── Sidebar recolhível pelo usuário (botão nativo do Streamlit) ── */
     /* Largura fixa quando expandida (a animação de colapso fica a cargo do Streamlit) */
     section[data-testid="stSidebar"][aria-expanded="true"] {
