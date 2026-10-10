@@ -262,7 +262,7 @@ def build_documentacao_pdf(logo_base64: str | None = None) -> bytes:
                 ["Tela Inicial", "Tela Inicial",
                  "Hero com a marca do projeto e botão para baixar esta documentação (PDF)."],
                 ["Unificador de Inconsistências por Unidade Escolar", "Unificador de Inconsistências por Unidade Escolar",
-                 "Gera um ZIP com um XLSX por escola ativa e um PDF analítico em A4 vertical, com o brasão municipal à esquerda, a marca Censo Escolar à direita, identificação da Secretaria, Diretoria e Gerência de TI, percentuais, gráficos de barras e totais por tipo de inconsistência e unidade escolar. A listagem classifica CEM/CMEI como Creche e as demais como Escola, ordenadas por tipo e nome."],
+                 "Gera um ZIP com um XLSX por escola ativa e um PDF analítico em A4 vertical, com o brasão municipal à esquerda, a marca Censo Escolar à direita, identificação da Secretaria, Diretoria e Gerência de TI, cards com totais de Creches, Escolas e unidades gerais, gráfico de inconsistências por relatório separado por tipo de unidade e tabela detalhada por escola. A listagem classifica CEM/CMEI como Creche e as demais como Escola, ordenadas por tipo e nome."],
                 ["Coleta do Educacenso", "Dados Cadastrais da Unidades",
                  "Raspa a ficha cadastral completa de cada escola do Educacenso e consolida em um XLSX de 6 abas."],
                 ["Coleta do Educacenso", "Dados dos Gestores Escolares",

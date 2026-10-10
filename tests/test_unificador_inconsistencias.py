@@ -12,7 +12,9 @@ from apps.unificador_inconsistencias.src.processor import (
     read_active_schools,
 )
 from apps.unificador_inconsistencias.src.statistics_pdf import (
+    _counts_by_school_type,
     _ordered_schools,
+    _school_type_summary,
     _school_type,
     _table_count,
     build_statistics_pdf,
@@ -50,6 +52,35 @@ def test_school_types_and_pdf_order():
     ]
     assert _table_count(0) == "---"
     assert _table_count(12) == "12"
+
+
+def test_statistics_chart_counts_split_creche_and_escola():
+    schools = [
+        {"nome_unidade": "CEM Jardim", "by_type": {"alunos": 2}},
+        {"nome_unidade": "CEMSTIAC", "by_type": {"alunos": 3}},
+        {"nome_unidade": "Escola Jardim", "by_type": {"alunos": 4}},
+        {"nome_unidade": "CMEI Vazio", "by_type": {"alunos": 0}},
+    ]
+
+    assert _counts_by_school_type(schools, "alunos") == (2, 7)
+    schools_with_status = [
+        {"nome_unidade": "CEM Jardim", "total_issues": 2},
+        {"nome_unidade": "CMEI Vazio", "total_issues": 0},
+        {"nome_unidade": "Escola Jardim", "total_issues": 4},
+        {"nome_unidade": "CEMSTIAC", "total_issues": 1},
+    ]
+    assert _school_type_summary(schools_with_status) == {
+        "Creche": {
+            "total": 2,
+            "with_inconsistencies": 1,
+            "without_inconsistencies": 1,
+        },
+        "Escola": {
+            "total": 2,
+            "with_inconsistencies": 2,
+            "without_inconsistencies": 0,
+        },
+    }
 
 
 def test_zip_has_one_five_sheet_workbook_per_active_school():

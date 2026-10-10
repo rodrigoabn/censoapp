@@ -12,6 +12,7 @@ from reportlab.lib.pagesizes import A4
 from reportlab.lib.styles import ParagraphStyle, getSampleStyleSheet
 from reportlab.lib.units import cm
 from reportlab.lib.utils import ImageReader
+from reportlab.pdfbase.pdfmetrics import stringWidth
 from reportlab.platypus import (
     PageBreak,
     Paragraph,
@@ -24,13 +25,15 @@ from xml.sax.saxutils import escape
 
 
 _NAVY = colors.HexColor("#16324F")
-_BLUE = colors.HexColor("#2563EB")
-_TEAL = colors.HexColor("#0F766E")
-_PALE_BLUE = colors.HexColor("#EAF1F8")
-_PALE_TEAL = colors.HexColor("#E7F4F1")
-_TEXT = colors.HexColor("#263445")
-_MUTED = colors.HexColor("#64748B")
+_BLUE = colors.HexColor("#6FA8DC")
+_TEAL = colors.HexColor("#77C593")
+_TEXT = colors.black
+_MUTED = colors.black
 _GRID = colors.HexColor("#D8E0E8")
+_ROW_ALT = colors.HexColor("#F7F9FC")
+_BAR_TRACK = colors.HexColor("#EDF1F5")
+_TOTAL_BADGE = colors.HexColor("#E8EEF5")
+_CHART_FONT_SIZE = 7
 
 
 def _percent(part: int, total: int) -> str:
@@ -58,39 +61,183 @@ def _ordered_schools(schools: list[dict[str, Any]]) -> list[dict[str, Any]]:
     )
 
 
-def _bar_chart(
+def _counts_by_school_type(
+    schools: list[dict[str, Any]],
+    report_key: str,
+) -> tuple[int, int]:
+    counts = {"Creche": 0, "Escola": 0}
+    for school in schools:
+        counts[_school_type(school["nome_unidade"])] += school["by_type"][report_key]
+    return counts["Creche"], counts["Escola"]
+
+
+def _school_type_summary(schools: list[dict[str, Any]]) -> dict[str, dict[str, int]]:
+    summary = {
+        "Creche": {"total": 0, "with_inconsistencies": 0},
+        "Escola": {"total": 0, "with_inconsistencies": 0},
+    }
+    for school in schools:
+        school_type = _school_type(school["nome_unidade"])
+        summary[school_type]["total"] += 1
+        summary[school_type]["with_inconsistencies"] += int(school["total_issues"] > 0)
+    for counts in summary.values():
+        counts["without_inconsistencies"] = counts["total"] - counts["with_inconsistencies"]
+    return summary
+
+
+def _split_bar_chart(
     labels: list[str],
-    values: list[int],
-    color: colors.Color,
+    values_by_type: list[tuple[int, int]],
     width: float,
 ) -> Drawing:
-    chart_height = max(3.3 * cm, len(labels) * 0.72 * cm + 0.45 * cm)
+    chart_height = max(5.0 * cm, len(labels) * 0.9 * cm + 1.15 * cm)
     drawing = Drawing(width, chart_height)
-    label_width = 4.8 * cm
-    top = chart_height - 0.3 * cm
-    row_height = (chart_height - 0.45 * cm) / max(len(labels), 1)
-    max_value = max(values, default=0)
-    bar_width = width - label_width - 1.2 * cm
+    label_width = 4.25 * cm
+    total_width = 1.45 * cm
+    column_gap = 0.28 * cm
+    bar_width = width - label_width - total_width - column_gap - 0.2 * cm
+    rows_bottom = 0.45 * cm
+    rows_top = chart_height - 0.92 * cm
+    row_height = (rows_top - rows_bottom) / max(len(labels), 1)
+    max_value = max((sum(values) for values in values_by_type), default=0)
 
-    for index, (label, value) in enumerate(zip(labels, values)):
-        y = top - (index + 1) * row_height + 0.2 * cm
-        drawing.add(String(0, y + 0.04 * cm, label, fontName="Helvetica", fontSize=7, fillColor=_TEXT))
-        current_bar_width = bar_width * value / max_value if max_value else 0
-        if current_bar_width:
+    header_y = chart_height - 0.58 * cm
+    drawing.add(String(
+        0.12 * cm,
+        header_y,
+        "RELATÓRIO",
+        fontName="Helvetica-Bold",
+        fontSize=_CHART_FONT_SIZE,
+        fillColor=_MUTED,
+    ))
+    drawing.add(String(
+        label_width,
+        header_y,
+        "DISTRIBUIÇÃO POR TIPO DE UNIDADE",
+        fontName="Helvetica-Bold",
+        fontSize=_CHART_FONT_SIZE,
+        fillColor=_MUTED,
+    ))
+    drawing.add(String(
+        width - total_width / 2,
+        header_y,
+        "TOTAL",
+        fontName="Helvetica-Bold",
+        fontSize=_CHART_FONT_SIZE,
+        fillColor=_MUTED,
+        textAnchor="middle",
+    ))
+
+    for index, (label, values) in enumerate(zip(labels, values_by_type)):
+        creche_count, school_count = values
+        total = creche_count + school_count
+        row_bottom = rows_top - (index + 1) * row_height
+        center_y = row_bottom + row_height / 2
+        bar_height = 0.43 * cm
+        bar_y = center_y - bar_height / 2
+        if index % 2:
+            drawing.add(Rect(
+                0,
+                row_bottom,
+                width,
+                row_height,
+                fillColor=_ROW_ALT,
+                strokeColor=None,
+            ))
+        drawing.add(String(
+            0.12 * cm,
+            center_y - 2.5,
+            label,
+            fontName="Helvetica-Bold",
+            fontSize=_CHART_FONT_SIZE,
+            fillColor=_TEXT,
+        ))
+        drawing.add(Rect(
+            label_width,
+            bar_y,
+            bar_width,
+            bar_height,
+            fillColor=_BAR_TRACK,
+            strokeColor=None,
+            rx=3,
+            ry=3,
+        ))
+        total_bar_width = bar_width * total / max_value if max_value else 0
+        creche_width = total_bar_width * creche_count / total if total else 0
+        school_width = total_bar_width - creche_width
+        if creche_width:
             drawing.add(Rect(
                 label_width,
-                y,
-                current_bar_width,
-                0.32 * cm,
-                fillColor=color,
+                bar_y,
+                creche_width,
+                bar_height,
+                fillColor=_BLUE,
                 strokeColor=None,
-                rx=2,
-                ry=2,
             ))
-        value_x = label_width + current_bar_width + 0.18 * cm
-        drawing.add(
-            String(value_x, y + 0.04 * cm, f"{value:,}".replace(",", "."), fontName="Helvetica-Bold", fontSize=7, fillColor=_TEXT)
-        )
+        if school_width:
+            drawing.add(Rect(
+                label_width + creche_width,
+                bar_y,
+                school_width,
+                bar_height,
+                fillColor=_TEAL,
+                strokeColor=None,
+            ))
+
+        for count, segment_start, segment_width in (
+            (creche_count, label_width, creche_width),
+            (school_count, label_width + creche_width, school_width),
+        ):
+            if not segment_width:
+                continue
+            text = str(count)
+            if stringWidth(text, "Helvetica-Bold", _CHART_FONT_SIZE) <= segment_width - 3:
+                drawing.add(String(
+                    segment_start + segment_width / 2,
+                    center_y - 2.3,
+                    text,
+                    fontName="Helvetica-Bold",
+                    fontSize=_CHART_FONT_SIZE,
+                    fillColor=_TEXT,
+                    textAnchor="middle",
+                ))
+        badge_x = width - total_width + 0.12 * cm
+        badge_width = total_width - 0.24 * cm
+        badge_height = 0.52 * cm
+        drawing.add(Rect(
+            badge_x,
+            center_y - badge_height / 2,
+            badge_width,
+            badge_height,
+            fillColor=_TOTAL_BADGE,
+            strokeColor=None,
+            rx=4,
+            ry=4,
+        ))
+        drawing.add(String(
+            badge_x + badge_width / 2,
+            center_y - 2.5,
+            f"{total}",
+            fontName="Helvetica-Bold",
+            fontSize=_CHART_FONT_SIZE,
+            fillColor=colors.black,
+            textAnchor="middle",
+        ))
+        drawing.add(Rect(
+            0,
+            row_bottom,
+            width,
+            0.3,
+            fillColor=_GRID,
+            strokeColor=None,
+        ))
+
+    legend_y = 0.12 * cm
+    legend_x = label_width
+    drawing.add(Rect(legend_x, legend_y, 0.22 * cm, 0.22 * cm, fillColor=_BLUE, strokeColor=None))
+    drawing.add(String(legend_x + 0.3 * cm, legend_y + 0.03 * cm, "Creche", fontName="Helvetica", fontSize=_CHART_FONT_SIZE, fillColor=_TEXT))
+    drawing.add(Rect(legend_x + 1.4 * cm, legend_y, 0.22 * cm, 0.22 * cm, fillColor=_TEAL, strokeColor=None))
+    drawing.add(String(legend_x + 1.7 * cm, legend_y + 0.03 * cm, "Escola", fontName="Helvetica", fontSize=_CHART_FONT_SIZE, fillColor=_TEXT))
     return drawing
 
 
@@ -154,8 +301,6 @@ def _draw_page_header_footer(canvas, document) -> None:
 
 def build_statistics_pdf(stats: dict[str, Any]) -> bytes:
     total_units = stats["total_units"]
-    units_with = stats["units_with_inconsistencies"]
-    units_without = stats["units_without_inconsistencies"]
     by_type = stats["by_type"]
     per_school = stats["per_school"]
 
@@ -177,7 +322,7 @@ def build_statistics_pdf(stats: dict[str, Any]) -> bytes:
         fontName="Helvetica-Bold",
         fontSize=15,
         leading=18,
-        textColor=_NAVY,
+        textColor=colors.black,
         alignment=TA_LEFT,
         spaceAfter=3,
     ))
@@ -186,7 +331,7 @@ def build_statistics_pdf(stats: dict[str, Any]) -> bytes:
         parent=styles["Normal"],
         fontSize=7.5,
         leading=9,
-        textColor=_MUTED,
+        textColor=colors.black,
         spaceAfter=8,
     ))
     styles.add(ParagraphStyle(
@@ -195,7 +340,7 @@ def build_statistics_pdf(stats: dict[str, Any]) -> bytes:
         fontName="Helvetica-Bold",
         fontSize=9.5,
         leading=11,
-        textColor=_NAVY,
+        textColor=colors.black,
         spaceBefore=5,
         spaceAfter=5,
     ))
@@ -205,7 +350,7 @@ def build_statistics_pdf(stats: dict[str, Any]) -> bytes:
         fontName="Helvetica-Bold",
         fontSize=14,
         leading=16,
-        textColor=_NAVY,
+        textColor=colors.black,
         alignment=TA_CENTER,
     ))
     styles.add(ParagraphStyle(
@@ -213,7 +358,7 @@ def build_statistics_pdf(stats: dict[str, Any]) -> bytes:
         parent=styles["Normal"],
         fontSize=7.5,
         leading=9,
-        textColor=_MUTED,
+        textColor=colors.black,
         alignment=TA_CENTER,
     ))
     styles.add(ParagraphStyle(
@@ -244,32 +389,57 @@ def build_statistics_pdf(stats: dict[str, Any]) -> bytes:
         fontName="Helvetica-Bold",
     ))
 
+    school_summary = _school_type_summary(per_school)
     metrics = [
         [
-            Paragraph(f"{units_without:,}".replace(",", "."), styles["MetricValue"]),
-            Paragraph(f"{units_with:,}".replace(",", "."), styles["MetricValue"]),
-            Paragraph(f"{total_units:,}".replace(",", "."), styles["MetricValue"]),
+            Paragraph(
+                f"{school_summary['Creche']['total']:,}".replace(",", "."),
+                styles["MetricValue"],
+            ),
+            Paragraph(
+                f"{school_summary['Escola']['total']:,}".replace(",", "."),
+                styles["MetricValue"],
+            ),
+            Paragraph(
+                f"{total_units:,}".replace(",", "."),
+                styles["MetricValue"],
+            ),
         ],
         [
             Paragraph(
-                f"Unidades sem inconsistências<br/><b>{_percent(units_without, total_units)}</b> do total",
+                f"<b>Creches</b><br/>"
+                f"Com inconsistências: {school_summary['Creche']['with_inconsistencies']} "
+                f"({_percent(school_summary['Creche']['with_inconsistencies'], school_summary['Creche']['total'])})<br/>"
+                f"Sem inconsistências: {school_summary['Creche']['without_inconsistencies']} "
+                f"({_percent(school_summary['Creche']['without_inconsistencies'], school_summary['Creche']['total'])})",
                 styles["MetricLabel"],
             ),
             Paragraph(
-                f"Unidades com inconsistências<br/><b>{_percent(units_with, total_units)}</b> do total",
+                f"<b>Escolas</b><br/>"
+                f"Com inconsistências: {school_summary['Escola']['with_inconsistencies']} "
+                f"({_percent(school_summary['Escola']['with_inconsistencies'], school_summary['Escola']['total'])})<br/>"
+                f"Sem inconsistências: {school_summary['Escola']['without_inconsistencies']} "
+                f"({_percent(school_summary['Escola']['without_inconsistencies'], school_summary['Escola']['total'])})",
                 styles["MetricLabel"],
             ),
-            Paragraph("Unidades escolares analisadas", styles["MetricLabel"]),
+            Paragraph(
+                f"<b>Total geral</b><br/>"
+                f"Com inconsistências: {stats['units_with_inconsistencies']} "
+                f"({_percent(stats['units_with_inconsistencies'], total_units)})<br/>"
+                f"Sem inconsistências: {stats['units_without_inconsistencies']} "
+                f"({_percent(stats['units_without_inconsistencies'], total_units)})",
+                styles["MetricLabel"],
+            ),
         ],
     ]
     metrics_table = Table(
         metrics,
         colWidths=[document.width / 3] * 3,
-        rowHeights=[0.8 * cm, 0.85 * cm],
+        rowHeights=[0.8 * cm, 1.35 * cm],
     )
     metrics_table.setStyle(TableStyle([
-        ("BACKGROUND", (0, 0), (0, -1), _PALE_TEAL),
-        ("BACKGROUND", (1, 0), (1, -1), _PALE_BLUE),
+        ("BACKGROUND", (0, 0), (0, -1), _BLUE),
+        ("BACKGROUND", (1, 0), (1, -1), _TEAL),
         ("BACKGROUND", (2, 0), (2, -1), colors.HexColor("#F1F5F9")),
         ("BOX", (0, 0), (-1, -1), 0.6, _GRID),
         ("INNERGRID", (0, 0), (-1, -1), 0.6, colors.white),
@@ -283,23 +453,22 @@ def build_statistics_pdf(stats: dict[str, Any]) -> bytes:
         f"{item['label']} (não utilizado)" if not item["used"] else item["label"]
         for item in by_type.values()
     ]
-    units_by_type = [item["units"] for item in by_type.values()]
-    issues_by_type = [item["issues"] for item in by_type.values()]
+    report_keys = list(by_type)
+    issues_by_type = [
+        _counts_by_school_type(per_school, key)
+        for key in report_keys
+    ]
 
     story = [
         Paragraph("Resumo analítico de Inconsistências - Educacenso", styles["ReportTitle"]),
         Paragraph(
-            f"Gerado em {datetime.now():%d/%m/%Y %H:%M} · "
-            "Os totais consideram os relatórios enviados; categorias marcadas como não utilizadas "
-            "não entram na contagem.",
+            f"Gerado em {datetime.now():%d/%m/%Y %H:%M}",
             styles["ReportSubtitle"],
         ),
         metrics_table,
-        Spacer(1, 0.25 * cm),
-        Paragraph("Unidades com inconsistências por tipo de relatório", styles["SectionTitle"]),
-        _bar_chart(type_labels, units_by_type, _BLUE, available_chart_width),
+        Spacer(1, 1.25 * cm),
         Paragraph("Total de inconsistências por tipo de relatório", styles["SectionTitle"]),
-        _bar_chart(type_labels, issues_by_type, _TEAL, available_chart_width),
+        _split_bar_chart(type_labels, issues_by_type, available_chart_width),
         PageBreak(),
         Paragraph("Inconsistências por unidade escolar", styles["ReportTitle"]),
         Paragraph(
