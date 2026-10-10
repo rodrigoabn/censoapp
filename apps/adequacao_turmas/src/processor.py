@@ -59,7 +59,6 @@ def adequar_turmas(dataframes: dict[str, pd.DataFrame]) -> dict[str, pd.DataFram
             cols_manter = [c for i, c in enumerate(df.columns) if i not in (2, 4)]
             df = df[cols_manter]
 
-        
         # --- Passo 3: Excluir linhas de rodapé ---
         # As 4 últimas linhas começam com: "Fonte", "Nota", "1 - Os dados", "Emitido"
         # Identificamos o índice da última linha cujo valor da coluna "Ordem" seja um número
