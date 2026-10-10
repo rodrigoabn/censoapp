@@ -262,7 +262,7 @@ def build_documentacao_pdf(logo_base64: str | None = None) -> bytes:
                 ["Tela Inicial", "Tela Inicial",
                  "Hero com a marca do projeto e botão para baixar esta documentação (PDF)."],
                 ["Unificador de Inconsistências por Unidade Escolar", "Unificador de Inconsistências por Unidade Escolar",
-                 "Recebe os relatórios XLS/XLSX e permite indicar quais não serão utilizados; as regras de unificação serão definidas posteriormente."],
+                 "Gera um ZIP com um XLSX por escola ativa e um PDF analítico em A4 vertical, com cabeçalho da Diretoria de TI, percentuais, gráficos de barras e totais por tipo de inconsistência e unidade escolar."],
                 ["Coleta do Educacenso", "Dados Cadastrais da Unidades",
                  "Raspa a ficha cadastral completa de cada escola do Educacenso e consolida em um XLSX de 6 abas."],
                 ["Coleta do Educacenso", "Dados dos Gestores Escolares",
@@ -297,7 +297,7 @@ def build_documentacao_pdf(logo_base64: str | None = None) -> bytes:
         "Python 3.13 ou superior;",
         "Gerenciador de pacotes e ambientes uv;",
         "Streamlit (>= 1.58);",
-        "pandas (>= 3.0), openpyxl (>= 3.1);",
+        "pandas (>= 3.0), openpyxl (>= 3.1), xlrd (>= 2.0.2) para arquivos XLS;",
         "playwright (== 1.61) para automação do navegador;",
         "reportlab para geração desta documentação em PDF;",
         "Chromium, instalado automaticamente na primeira execução (ver seção 3.2).",
@@ -763,6 +763,8 @@ def build_documentacao_pdf(logo_base64: str | None = None) -> bytes:
         "Saída de escolas: XLSX único com 6 abas (CSV para openpyxl);",
         "Saída de relatórios: ZIP de CSVs via zipper.py;",
         "Saída de recibos: ZIP de PDFs via zipper.py;",
+        "Unificador: relação de escolas ativas com código INEP de 8 dígitos iniciado por 33 na primeira coluna e nome na segunda; relatórios de inconsistências em XLS/XLSX;",
+        "Saída do unificador: ZIP com um XLSX por unidade e abas Cadastro da Unidade, Gestores, Turmas, Alunos e Professores; abas ignoradas indicam 'Relatório não gerado' e escolas sem achados indicam 'Unidade não possui inconsistência';",
         "Saída Google Sheets (sheets.py): escreve na planilha do usuário quando credenciais são fornecidas.",
     ])
 
@@ -771,8 +773,8 @@ def build_documentacao_pdf(logo_base64: str | None = None) -> bytes:
     # ==================================================================
     _par(story, estilos["h1"], "9. Testes")
     _bullets(story, estilos["item"], [
-        "Apenas tests/security/ existe no projeto;",
-        "33 testes de segurança, pulados por padrão (exigem SECURITY_LIVE=1);",
+        "6 testes unitários locais para o unificador de inconsistências;",
+        "33 testes de segurança em tests/security/, pulados por padrão (exigem SECURITY_LIVE=1);",
         "Alvo padrão: https://censoescolar.streamlit.app/ (sobrescrevível com SECURITY_TARGET);",
         "Não intrusivos: poucas requisições, sem fuzzing nem brute-force;",
         "Níveis: \"app\" versus \"plataforma\" nos achados;",

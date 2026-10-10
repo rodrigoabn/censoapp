@@ -15,6 +15,7 @@ achado como nível "app" ou "plataforma".
 from __future__ import annotations
 
 import os
+from pathlib import Path
 
 import pytest
 import requests
@@ -59,9 +60,16 @@ def pytest_configure(config: pytest.Config) -> None:
 
 def pytest_collection_modifyitems(config, items):
     """Pula toda a suíte se SECURITY_LIVE!=1 ou se o alvo estiver inacessível."""
+    security_root = Path(__file__).parent
+    security_items = [
+        item for item in items if security_root in Path(item.path).parents
+    ]
+    if not security_items:
+        return
+
     if not _live_enabled():
         skip = pytest.mark.skip(reason="Defina SECURITY_LIVE=1 para rodar contra produção.")
-        for item in items:
+        for item in security_items:
             item.add_marker(skip)
         return
 
@@ -69,5 +77,5 @@ def pytest_collection_modifyitems(config, items):
         requests.get(target_url(), timeout=TIMEOUT, headers={"User-Agent": USER_AGENT})
     except requests.RequestException as exc:  # alvo inacessível
         skip = pytest.mark.skip(reason=f"Alvo inacessível: {exc}")
-        for item in items:
+        for item in security_items:
             item.add_marker(skip)
