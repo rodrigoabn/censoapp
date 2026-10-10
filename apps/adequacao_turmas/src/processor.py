@@ -53,12 +53,13 @@ def adequar_turmas(dataframes: dict[str, pd.DataFrame]) -> dict[str, pd.DataFram
         if len(df) > 14:
             df = df.iloc[14:].reset_index(drop=True)
 
-        # --- Passo 2: Excluir a 3ª e 4ª coluna (1-indexed) ---
-        # Em 0-indexed: colunas 2 e 3
-        if len(df.columns) >= 4:
-            cols_manter = [c for i, c in enumerate(df.columns) if i not in (2, 3)]
+        # --- Passo 2: Excluir a 3ª e 5ª coluna (1-indexed) ---
+        # Em 0-indexed: colunas 2 e 4
+        if len(df.columns) >= 5:
+            cols_manter = [c for i, c in enumerate(df.columns) if i not in (2, 4)]
             df = df[cols_manter]
 
+        
         # --- Passo 3: Excluir linhas de rodapé ---
         # As 4 últimas linhas começam com: "Fonte", "Nota", "1 - Os dados", "Emitido"
         # Identificamos o índice da última linha cujo valor da coluna "Ordem" seja um número
