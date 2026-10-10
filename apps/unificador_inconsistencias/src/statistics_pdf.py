@@ -38,7 +38,10 @@ def _percent(part: int, total: int) -> str:
 
 
 def _school_type(name: str) -> str:
-    return "Creche" if name.strip().upper().startswith(("CEM", "CMEI")) else "Escola"
+    normalized_name = name.strip().upper()
+    if normalized_name == "CEMSTIAC":
+        return "Escola"
+    return "Creche" if normalized_name.startswith(("CEM", "CMEI")) else "Escola"
 
 
 def _table_count(value: int) -> str:

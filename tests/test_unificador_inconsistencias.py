@@ -40,6 +40,7 @@ def test_school_types_and_pdf_order():
 
     assert _school_type("CEM Jardim") == "Creche"
     assert _school_type("CMEI Jardim") == "Creche"
+    assert _school_type("CEMSTIAC") == "Escola"
     assert _school_type("Escola Jardim") == "Escola"
     assert [school["nome_unidade"] for school in _ordered_schools(schools)] == [
         "CEM Alfa",
