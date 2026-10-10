@@ -609,11 +609,9 @@ st.markdown("""
 """, unsafe_allow_html=True)
 
 _MENU_GROUPS = {
-    "Coleta de Dados": [
+    "Coleta do Educacenso": [
         "Dados Cadastrais da Unidades",
         "Dados dos Gestores Escolares",
-    ],
-    "Download de Relatórios": [
         "Relatórios de Turmas",
         "Relatórios de Alunos",
         "Relatórios de Profissionais Escolares",
