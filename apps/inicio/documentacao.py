@@ -249,7 +249,7 @@ def build_documentacao_pdf(logo_base64: str | None = None) -> bytes:
     _par(story, estilos["corpo"],
          "O projeto é um HUB de aplicações em Streamlit, gerenciado pelo gerenciador de ambientes "
          "Python <b>uv</b>. O menu lateral esquerdo dá acesso a 10 aplicações, organizadas em três "
-         "grupos: Coleta do Educacenso, Adequação de Relatórios e Verificação de possíveis inconsistências. "
+         "grupos: Coleta do Educacenso, Adequação de Relatórios e Gerador de Base de Dados e Inconsistências. "
          "Além disso, a Tela Inicial disponibiliza esta documentação para download em PDF.")
     _par(story, estilos["corpo"],
          "Todas as aplicações de coleta operam em <b>modo leitura</b> sobre o Educacenso "
@@ -272,15 +272,15 @@ def build_documentacao_pdf(logo_base64: str | None = None) -> bytes:
                  "Baixa o relatório CSV de relação profissional-escola de cada escola e empacota em ZIP."],
                 ["Coleta do Educacenso", "Recibos de Fechamento (1ª Etapa)",
                  "Baixa o recibo de fechamento (PDF) de cada escola e empacota em ZIP."],
-                ["Verificação de possíveis inconsistências", "Inconsistências no Cadastro de Unidades",
+                ["Gerador de Base de Dados e Inconsistências", "Cadastro de Unidades",
                  "Valida as 5 abas do cadastro da escola e gera relatório XLSX das inconsistências."],
-                ["Verificação de possíveis inconsistências", "Inconsistências no Cadastro de Gestor",
+                ["Gerador de Base de Dados e Inconsistências", "Cadastro de Gestor",
                  "Valida as 3 abas do cadastro do gestor e gera relatório XLSX."],
-                ["Verificação de possíveis inconsistências", "Inconsistências no Cadastro de Turmas",
+                ["Gerador de Base de Dados e Inconsistências", "Cadastro de Turmas",
                  "Valida a tabela de turmas (curricular e escolarização) e gera relatório XLSX."],
-                ["Verificação de possíveis inconsistências", "Inconsistências no Cadastro de Aluno",
+                ["Gerador de Base de Dados e Inconsistências", "Cadastro de Aluno",
                  "Valida a tabela de alunos e gera relatório XLSX, além de relatórios de apoio."],
-                ["Verificação de possíveis inconsistências", "Inconsistências no Cadastro de Profissionais Escolares",
+                ["Gerador de Base de Dados e Inconsistências", "Cadastro de Profissionais Escolares",
                  "Valida a tabela de profissionais escolares e gera relatório XLSX."],
             ],
             col_widths=[3.4, 4.6, 9.0])

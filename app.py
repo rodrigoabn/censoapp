@@ -622,12 +622,12 @@ _MENU_GROUPS = {
         "Adequação de Relatórios de Alunos",
         "Adequação de Relatórios de Profissionais",
     ],
-    "Verificação de possíveis inconsistências": [
-        "Inconsistências no Cadastro de Unidades",
-        "Inconsistências no Cadastro de Gestor",
-        "Inconsistências no Cadastro de Turmas",
-        "Inconsistências no Cadastro de Aluno",
-        "Inconsistências no Cadastro de Profissionais Escolares",
+    "Gerador de Base de Dados e Inconsistências": [
+        "Cadastro de Unidades",
+        "Cadastro de Gestor",
+        "Cadastro de Turmas",
+        "Cadastro de Aluno",
+        "Cadastro de Profissionais Escolares",
     ],
 }
 
@@ -703,15 +703,14 @@ elif page in ("Adequação de Relatório de Turmas", "Adequação de Relatórios
     }[_adeq_key]
     _adeq_func(logo_base64)
     render_license_footer()
-elif page in ("Inconsistências no Cadastro de Unidades", "Inconsistências no Cadastro de Gestor",
-              "Inconsistências no Cadastro de Turmas", "Inconsistências no Cadastro de Aluno",
-              "Inconsistências no Cadastro de Profissionais Escolares"):
+elif page in ("Cadastro de Unidades", "Cadastro de Gestor", "Cadastro de Turmas",
+              "Cadastro de Aluno", "Cadastro de Profissionais Escolares"):
     _val_key = {
-        "Inconsistências no Cadastro de Unidades": "unidades",
-        "Inconsistências no Cadastro de Gestor": "gestor",
-        "Inconsistências no Cadastro de Turmas": "turmas",
-        "Inconsistências no Cadastro de Aluno": "aluno",
-        "Inconsistências no Cadastro de Profissionais Escolares": "profissionais",
+        "Cadastro de Unidades": "unidades",
+        "Cadastro de Gestor": "gestor",
+        "Cadastro de Turmas": "turmas",
+        "Cadastro de Aluno": "aluno",
+        "Cadastro de Profissionais Escolares": "profissionais",
     }[page]
     render_validation_frontend(VALIDATIONS[_val_key], logo_base64)
     render_license_footer()
