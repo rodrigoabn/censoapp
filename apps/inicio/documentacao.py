@@ -248,8 +248,8 @@ def build_documentacao_pdf(logo_base64: str | None = None) -> bytes:
     _par(story, estilos["h1"], "1. Visão Geral do Sistema")
     _par(story, estilos["corpo"],
          "O projeto é um HUB de aplicações em Streamlit, gerenciado pelo gerenciador de ambientes "
-         "Python <b>uv</b>. O menu lateral esquerdo dá acesso a 10 aplicações, organizadas em três "
-         "grupos: Coleta de Dados, Download de Relatórios e Verificação de possíveis inconsistências. "
+         "Python <b>uv</b>. O menu lateral esquerdo dá acesso às aplicações, organizadas em três "
+         "grupos: Coleta do Educacenso, Adequação de Relatórios e Verificação de possíveis inconsistências. "
          "Além disso, a Tela Inicial disponibiliza esta documentação para download em PDF.")
     _par(story, estilos["corpo"],
          "Todas as aplicações de coleta operam em <b>modo leitura</b> sobre o Educacenso "
@@ -260,17 +260,17 @@ def build_documentacao_pdf(logo_base64: str | None = None) -> bytes:
             [
                 ["Tela Inicial", "Tela Inicial",
                  "Hero com a marca do projeto e botão para baixar esta documentação (PDF)."],
-                ["Coleta de Dados", "Dados Cadastrais da Unidades",
+                ["Coleta do Educacenso", "Dados Cadastrais da Unidades",
                  "Raspa a ficha cadastral completa de cada escola do Educacenso e consolida em um XLSX de 6 abas."],
-                ["Coleta de Dados", "Dados dos Gestores Escolares",
+                ["Coleta do Educacenso", "Dados dos Gestores Escolares",
                  "Coleta o vínculo do gestor escolar (e as abas Identificação e Dados pessoais) em XLSX de 3 abas."],
-                ["Download de Relatórios", "Relatórios de Turmas",
+                ["Coleta do Educacenso", "Relatórios de Turmas",
                  "Baixa o relatório CSV de relação turma-escola de cada escola e empacota em ZIP."],
-                ["Download de Relatórios", "Relatórios de Alunos",
+                ["Coleta do Educacenso", "Relatórios de Alunos",
                  "Baixa o relatório CSV de relação aluno-escola de cada escola e empacota em ZIP."],
-                ["Download de Relatórios", "Relatórios de Profissionais Escolares",
+                ["Coleta do Educacenso", "Relatórios de Profissionais Escolares",
                  "Baixa o relatório CSV de relação profissional-escola de cada escola e empacota em ZIP."],
-                ["Download de Relatórios", "Recibos de Fechamento (1ª Etapa)",
+                ["Coleta do Educacenso", "Recibos de Fechamento (1ª Etapa)",
                  "Baixa o recibo de fechamento (PDF) de cada escola e empacota em ZIP."],
                 ["Verificação de possíveis inconsistências", "Inconsistências no Cadastro de Unidades",
                  "Valida as 5 abas do cadastro da escola e gera relatório XLSX das inconsistências."],
