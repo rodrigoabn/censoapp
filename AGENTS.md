@@ -29,7 +29,7 @@ uv add <pacote>                                     # adicionar dependência
 - **Hierarquia de exceções**: `SessaoExpirada`, `LoginFalhou`, `ReciboIndisponivel`, `PreenchimentoNaoIniciado`
 - **Logs personalizados em português** (`logger = logging.getLogger("coleta_*")`)
 - **Reuso de sessão com retry**: `run_scraping()` mantém um browser context, refaz login se expirar
-- **Arquivos temporários**: apps escrevem CSVs em `/tmp/educacenso_tmp` ou `/tmp/educacenso_relatorios_tmp` durante coleta, depois consolidam no final
+- **Arquivos temporários**: cada execução cria uma pasta exclusiva (`nova_pasta_temporaria()`, prefixos `educacenso_*_tmp_`) em `/tmp` para os CSVs/PDFs da coleta; a consolidação (`build_xlsx`/`build_zip`) remove a pasta no final
 
 ## Entrada/Saída de dados
 
