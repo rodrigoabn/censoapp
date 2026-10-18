@@ -6,6 +6,7 @@ import base64
 from PIL import Image
 from apps.inicio.inicio import show_home_page
 from hub_sessao import liberar_execucoes
+from auth_gate import exigir_autenticacao
 
 # ---------------------------------------------------------------------------
 # Registro da aplicação "COLETA DE DADOS CADASTRAIS DAS ESCOLAS" como pacote importável (src)
@@ -79,6 +80,11 @@ st.set_page_config(
     layout="wide",
     initial_sidebar_state="expanded"
 )
+
+# ---------------------------------------------------------------------------
+# Portão de autenticação — nada abaixo disto pode renderizar sem login
+# ---------------------------------------------------------------------------
+exigir_autenticacao(st)
 
 # ---------------------------------------------------------------------------
 # CSS Global — Tema Azul
