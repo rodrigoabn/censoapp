@@ -288,6 +288,13 @@ def _monitor() -> None:
         total = shared.get("total", 0)
         done = shared.get("done", False)
 
+    # Coleta encerrada: finaliza e re-renderiza (o formulário com os downloads
+    # persistentes volta à tela; o monitor sai de cena por inteiro).
+    if done:
+        _finalize(count)
+        st.rerun()
+        return
+
     # Botão de interrupção.
     if not ss.ws_stop.is_set():
         if st.button("⛔ Interromper coleta", key="ws_stop_btn"):
@@ -309,10 +316,6 @@ def _monitor() -> None:
     if last:
         i, tot, nome, codigo, estado = last
         st.write(f"Escola {i}/{tot} — {nome} ({codigo}): {estado}")
-
-    if done:
-        _finalize(count)
-        return
 
     time.sleep(0.5)
     st.rerun()

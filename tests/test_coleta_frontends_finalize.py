@@ -1,11 +1,16 @@
-"""_finalize dos 4 frontends de coleta: arquivo principal, planilha de não
-coletadas e limpeza dos temporários.
+"""_finalize e encerramento do monitor dos 4 frontends de coleta.
 
-Cobre o comportamento visível ao usuário que só rodava de verdade na E2E:
-quando há falhas, além do arquivo principal é oferecida a planilha "escolas
-não coletadas"; quando não há coleta nenhuma, os temporários são removidos e a
-pendente continua sendo oferecida (as flags `*_finalized`/`*_pending` são o que
-o bloco de persistência do render usa para reexibir o botão após o rerun).
+`_finalize`: arquivo principal, planilha de não coletadas e limpeza dos
+temporários. Cobre o comportamento visível ao usuário que só rodava de verdade
+na E2E: quando há falhas, além do arquivo principal é oferecida a planilha
+"escolas não coletadas"; quando não há coleta nenhuma, os temporários são
+removidos e a pendente continua sendo oferecida (as flags
+`*_finalized`/`*_pending` são o que o bloco de persistência do render usa para
+reexibir o botão após o rerun).
+
+`_monitor` com `done`: finaliza e pede rerun (a tela volta ao formulário com os
+downloads persistentes), sem deixar o botão de interromper nem a barra de
+progresso presos após a conclusão.
 """
 
 from __future__ import annotations
@@ -15,6 +20,7 @@ import threading
 import zipfile
 
 import openpyxl
+import pytest
 
 from apps.coleta_gestor.src import exporter as ges_exporter
 from apps.coleta_gestor.src import frontend as ges_frontend
@@ -52,10 +58,16 @@ class _EstadoFalso:
         self._dados[chave] = valor
 
 
+class _RerunFalso(Exception):
+    """Interrompe o script como o st.rerun real (que levanta RerunException)."""
+
+
 class _StFalso:
     def __init__(self, estado):
         self.session_state = estado
         self.erros, self.sucessos, self.markdowns, self.downloads = [], [], [], []
+        self.botoes, self.progressos, self.avisos, self.escritos = [], [], [], []
+        self.rerun_chamado = False
 
     def error(self, msg):
         self.erros.append(msg)
@@ -68,6 +80,23 @@ class _StFalso:
 
     def download_button(self, **kwargs):
         self.downloads.append(kwargs)
+
+    def button(self, label, **kwargs):
+        self.botoes.append(label)
+        return False
+
+    def progress(self, valor):
+        self.progressos.append(valor)
+
+    def warning(self, msg):
+        self.avisos.append(msg)
+
+    def write(self, msg):
+        self.escritos.append(msg)
+
+    def rerun(self):
+        self.rerun_chamado = True
+        raise _RerunFalso()
 
 
 def test_finalize_cadastros_gera_xlsx_e_pendentes(monkeypatch):
@@ -318,3 +347,109 @@ def test_finalize_recibos_sem_coleta_limpa_temp_e_mantem_pendentes(monkeypatch):
     assert estado["rec_finalized"] is True and estado["rec_pending"] is not None
     assert any("Arquivo Zip não gerado" in m for m in st_falso.markdowns)
     assert [d["label"] for d in st_falso.downloads] == ["Baixar escolas não coletadas (XLSX)"]
+
+
+def test_monitor_cadastros_com_done_finaliza_e_pede_rerun(monkeypatch):
+    pasta = cad_exporter.nova_pasta_temporaria()  # vazia: nada foi coletado
+
+    estado = _EstadoFalso(
+        ws_stop=threading.Event(),
+        ws_lock=threading.Lock(),
+        ws_shared={"error": None, "failures": FALHAS, "count": 0, "total": 0, "done": True},
+        ws_tmp_dir=pasta,
+        ws_running=True,
+    )
+    st_falso = _StFalso(estado)
+    monkeypatch.setattr(cad_frontend, "st", st_falso)
+
+    with pytest.raises(_RerunFalso):
+        cad_frontend._monitor()
+
+    assert st_falso.rerun_chamado is True
+    assert st_falso.botoes == []      # sem "⛔ Interromper coleta" preso na tela
+    assert st_falso.progressos == []  # sem barra de progresso presa
+    assert estado.ws_running is False
+    assert estado.ws_finalized is True and estado.ws_pending is not None
+    assert not pasta.exists()  # _finalize rodou de verdade
+
+
+def test_monitor_gestor_com_done_finaliza_e_pede_rerun(monkeypatch):
+    pasta = ges_exporter.nova_pasta_temporaria()
+
+    estado = _EstadoFalso(
+        cg_stop=threading.Event(),
+        cg_lock=threading.Lock(),
+        cg_shared={"error": None, "failures": FALHAS, "count": 0, "total": 0, "done": True},
+        cg_tmp_dir=pasta,
+        cg_running=True,
+    )
+    st_falso = _StFalso(estado)
+    monkeypatch.setattr(ges_frontend, "st", st_falso)
+
+    with pytest.raises(_RerunFalso):
+        ges_frontend._monitor()
+
+    assert st_falso.rerun_chamado is True
+    assert st_falso.botoes == []
+    assert st_falso.progressos == []
+    assert estado.cg_running is False
+    assert estado.cg_finalized is True and estado.cg_pending is not None
+    assert not pasta.exists()
+
+
+def test_monitor_relatorios_com_done_finaliza_e_pede_rerun(monkeypatch):
+    pasta = rel_zipper.nova_pasta_temporaria()
+    config = {"state_prefix": "rel_", "zip_prefix": "relatorios_turmas"}
+
+    estado = _EstadoFalso(
+        **{
+            "rel_stop": threading.Event(),
+            "rel_lock": threading.Lock(),
+            "rel_shared": {
+                "error": None, "failures": FALHAS, "count": 0, "total": 0, "done": True,
+            },
+            "rel_tmp_dir": pasta,
+            "rel_running": True,
+        }
+    )
+    st_falso = _StFalso(estado)
+    monkeypatch.setattr(rel_frontend, "st", st_falso)
+
+    with pytest.raises(_RerunFalso):
+        rel_frontend._monitor(config)
+
+    assert st_falso.rerun_chamado is True
+    assert st_falso.botoes == []
+    assert st_falso.progressos == []
+    assert estado["rel_running"] is False
+    assert estado["rel_finalized"] is True and estado["rel_pending"] is not None
+    assert not pasta.exists()
+
+
+def test_monitor_recibos_com_done_finaliza_e_pede_rerun(monkeypatch):
+    pasta = rec_zipper.nova_pasta_temporaria()
+    config = {"state_prefix": "rec_", "zip_prefix": "recibos_fechamento"}
+
+    estado = _EstadoFalso(
+        **{
+            "rec_stop": threading.Event(),
+            "rec_lock": threading.Lock(),
+            "rec_shared": {
+                "error": None, "failures": FALHAS, "count": 0, "total": 0, "done": True,
+            },
+            "rec_tmp_dir": pasta,
+            "rec_running": True,
+        }
+    )
+    st_falso = _StFalso(estado)
+    monkeypatch.setattr(rec_frontend, "st", st_falso)
+
+    with pytest.raises(_RerunFalso):
+        rec_frontend._monitor(config)
+
+    assert st_falso.rerun_chamado is True
+    assert st_falso.botoes == []
+    assert st_falso.progressos == []
+    assert estado["rec_running"] is False
+    assert estado["rec_finalized"] is True and estado["rec_pending"] is not None
+    assert not pasta.exists()
