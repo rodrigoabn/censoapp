@@ -53,6 +53,34 @@ def output_filename() -> str:
     return f"vinculo_gestor_educacenso_{_file_date()}.xlsx"
 
 
+def pending_filename() -> str:
+    return f"vinculo_gestor_escolas_nao_coletadas_{_file_date()}.xlsx"
+
+
+def build_pending_xlsx(failures: list[dict]) -> bytes:
+    """Gera um XLSX com as escolas processadas que não tiveram dados coletados.
+
+    Colunas: Código do Inep | Nome da Unidade | Motivo.
+    """
+    wb = openpyxl.Workbook()
+    ws = wb.active
+    ws.title = "Escolas não coletadas"
+    ws.append(["Código do Inep", "Nome da Unidade", "Motivo"])
+    for f in failures:
+        ws.append([
+            f.get("codigo_inep", ""),
+            f.get("nome_unidade", ""),
+            f.get("motivo", ""),
+        ])
+
+    _ajustar_larguras(ws)
+
+    buffer = io.BytesIO()
+    wb.save(buffer)
+    buffer.seek(0)
+    return buffer.getvalue()
+
+
 def _sheet_file(sheet: str) -> str:
     """Nome de arquivo seguro para a aba (mantém legível, sem caracteres inválidos)."""
     name = "".join(ch if ch.isalnum() or ch in " -_" else "_" for ch in sheet)

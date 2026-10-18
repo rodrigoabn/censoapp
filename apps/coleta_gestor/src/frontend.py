@@ -159,6 +159,16 @@ def render_gestor_frontend(logo_base64=None):
             key="cg_download_persist",
         )
 
+    if st.session_state.cg_finalized and st.session_state.cg_pending:
+        pending_bytes, pending_nome = st.session_state.cg_pending
+        st.download_button(
+            label="Baixar escolas não coletadas (XLSX)",
+            data=pending_bytes,
+            file_name=pending_nome,
+            mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+            key="cg_download_pending_persist",
+        )
+
     if not submitted:
         return
 
@@ -200,12 +210,15 @@ def _scrape_worker(login, senha, escolas, stop_event, lock, shared, tmp_dir):
         with sync_playwright() as p:
             browser = p.chromium.launch(headless=True)
             try:
-                outputs = run_scraping(
+                outputs, failures = run_scraping(
                     browser, login, senha, escolas,
                     on_progress=hook, stop_check=stop_event.is_set,
                 )
             finally:
                 browser.close()
+
+        with lock:
+            shared["failures"] = failures
 
         for _, dados in outputs:
             try:
@@ -229,7 +242,7 @@ def _start_scraping(login: str, senha: str, escolas: list[dict]) -> None:
     shared: dict = {
         "current": None, "last": None, "count": 0,
         "total": len(escolas), "done": False, "error": None,
-        "interrupted": False,
+        "interrupted": False, "failures": [],
     }
 
     thread = threading.Thread(
@@ -246,6 +259,7 @@ def _start_scraping(login: str, senha: str, escolas: list[dict]) -> None:
     st.session_state.cg_finalized = False
     st.session_state.cg_xlsx = None
     st.session_state.cg_tmp_dir = pasta
+    st.session_state.cg_pending = None
 
     thread.start()
 
@@ -297,6 +311,7 @@ def _finalize(count: int) -> None:
 
     with ss.cg_lock:
         error = ss.cg_shared.get("error")
+        failures = ss.cg_shared.get("failures", [])
 
     ss.cg_running = False
 
@@ -304,28 +319,57 @@ def _finalize(count: int) -> None:
         st.error(f"Falha na coleta: {error}")
 
     try:
-        xlsx_bytes = exporter.build_xlsx(tmp_dir=ss.cg_tmp_dir)
-        nome_arquivo = exporter.output_filename()
-        ss.cg_xlsx = (xlsx_bytes, nome_arquivo)
         ss.cg_finalized = True
 
-        if interrupted:
-            st.success(
-                f"Coleta interrompida. {count} escola(s) coletada(s) no arquivo "
-                f"'{nome_arquivo}'. A escola em andamento foi descartada."
+        if count > 0:
+            xlsx_bytes = exporter.build_xlsx(tmp_dir=ss.cg_tmp_dir)
+            nome_arquivo = exporter.output_filename()
+            ss.cg_xlsx = (xlsx_bytes, nome_arquivo)
+
+            if interrupted:
+                st.success(
+                    f"Coleta interrompida. {count} escola(s) coletada(s) no arquivo "
+                    f"'{nome_arquivo}'. A escola em andamento foi descartada."
+                )
+            else:
+                st.success(
+                    f"Concluído. {count} escola(s) no arquivo '{nome_arquivo}', "
+                    "pronto para download."
+                )
+
+            st.download_button(
+                label="Baixar XLSX",
+                data=xlsx_bytes,
+                file_name=nome_arquivo,
+                mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                key="cg_download",
             )
         else:
-            st.success(
-                f"Concluído. {count} escola(s) no arquivo '{nome_arquivo}', "
-                "pronto para download."
+            # Nenhuma escola coletada: não gera XLSX principal.
+            exporter.remover_temp(ss.cg_tmp_dir)
+            ss.cg_xlsx = None
+            st.markdown(
+                "<span style='color:#ef4444'>Arquivo XLSX não gerado. "
+                "Motivo: Nenhuma escola coletada.</span>",
+                unsafe_allow_html=True,
             )
 
-        st.download_button(
-            label="Baixar XLSX",
-            data=xlsx_bytes,
-            file_name=nome_arquivo,
-            mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-            key="cg_download",
-        )
+        # Planilha (download separado) com as escolas que falharam.
+        if failures:
+            pending_bytes = exporter.build_pending_xlsx(failures)
+            pending_nome = exporter.pending_filename()
+            ss.cg_pending = (pending_bytes, pending_nome)
+            st.markdown(
+                f"<span style='color:#ef4444'>{len(failures)} escola(s) "
+                "não tiveram dados coletados.</span>",
+                unsafe_allow_html=True,
+            )
+            st.download_button(
+                label="Baixar escolas não coletadas (XLSX)",
+                data=pending_bytes,
+                file_name=pending_nome,
+                mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                key="cg_download_pending",
+            )
     except Exception as exc:  # noqa: BLE001
         st.error(f"Falha ao gerar o XLSX: {exc}")
