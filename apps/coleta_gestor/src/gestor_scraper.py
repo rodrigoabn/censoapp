@@ -17,6 +17,7 @@ escrita permitida é no XLSX de saída (exporter.py).
 from __future__ import annotations
 
 import logging
+import os
 import re
 import time
 
@@ -687,6 +688,14 @@ def _marcar_nao_processadas(failures: list[dict], restantes: list[dict]) -> None
     )
 
 
+def _pausa_entre_escolas() -> float:
+    """Pausa entre escolas (CENSO_SLEEP_ESCOLAS; default 0.3s)."""
+    try:
+        return float(os.environ.get("CENSO_SLEEP_ESCOLAS", "0.3"))
+    except ValueError:
+        return 0.3
+
+
 def _log_tempo_escola(codigo: str, t0: float) -> None:
     """Loga o tempo decorrido de processamento de uma escola (em segundos)."""
     logger.info(f"[{codigo}] escola processada em {time.monotonic() - t0:.1f}s")
@@ -865,7 +874,7 @@ def run_scraping(
             _log_tempo_escola(codigo, t0)
 
         # Pequena pausa entre escolas para não sobrecarregar o portal.
-        time.sleep(0.3)
+        time.sleep(_pausa_entre_escolas())
 
     # ── Encerra a sessão única ao final ───────────────────────────────────
     _safe_cleanup(context, page)
