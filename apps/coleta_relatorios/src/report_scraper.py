@@ -84,6 +84,12 @@ def _session_expirada(page: Page) -> bool:
         return False
 
 
+def _raise_if_expired(page: Page) -> None:
+    """Levanta SessaoExpirada quando a página voltou para a tela de login."""
+    if _session_expirada(page):
+        raise SessaoExpirada()
+
+
 def _login_and_read(page: Page, login: str, senha: str) -> None:
     _assert_read_only()
     page.goto(f"{BASE_URL}/escola/pesquisar", wait_until="domcontentloaded", timeout=30000)
@@ -207,6 +213,7 @@ def _download_report_csv(page: Page, report_url: str) -> bytes:
     _assert_read_only()
     page.goto(report_url, wait_until="domcontentloaded", timeout=30000)
     _wait_loader(page)
+    _raise_if_expired(page)
     try:
         page.wait_for_selector("button:has-text('Gerar relatório')", timeout=10000)
     except Exception:
@@ -216,6 +223,7 @@ def _download_report_csv(page: Page, report_url: str) -> bytes:
     try:
         page.get_by_role("button", name="Gerar relatório").first.click(timeout=5000)
     except PlaywrightTimeoutError:
+        _raise_if_expired(page)
         raise PreenchimentoNaoIniciado()
 
     # Disputa o desfecho após "Gerar relatório": snackbar de erro
@@ -235,15 +243,23 @@ def _download_report_csv(page: Page, report_url: str) -> bytes:
     csv_direto = page.locator('button:has(span.mat-button-wrapper:has-text("Gerar CSV"))').first
     if csv_direto.count() > 0 and csv_direto.is_visible():
         # NOVO FLUXO: botão direto "Gerar CSV" existe
-        with page.expect_download(timeout=60000) as dl_info:
-            csv_direto.click(timeout=15000)
+        try:
+            with page.expect_download(timeout=60000) as dl_info:
+                csv_direto.click(timeout=15000)
+        except PlaywrightTimeoutError:
+            _raise_if_expired(page)
+            raise
         download = dl_info.value
         path = download.path()
         with open(path, "rb") as f:
             return f.read()
 
     # FALLBACK: fluxo antigo (Gerar Excel -> menuitem CSV)
-    page.get_by_role("button", name="Gerar Excel").first.click(timeout=15000)
+    try:
+        page.get_by_role("button", name="Gerar Excel").first.click(timeout=15000)
+    except PlaywrightTimeoutError:
+        _raise_if_expired(page)
+        raise
     _wait_loader(page)
     try:
         page.wait_for_selector("[role='menuitem']:has-text('CSV')", timeout=5000)
@@ -251,8 +267,12 @@ def _download_report_csv(page: Page, report_url: str) -> bytes:
         pass
 
     # 3. CSV (item de menu) -> dispara o download
-    with page.expect_download(timeout=60000) as dl_info:
-        page.get_by_role("menuitem", name="CSV").first.click(timeout=15000)
+    try:
+        with page.expect_download(timeout=60000) as dl_info:
+            page.get_by_role("menuitem", name="CSV").first.click(timeout=15000)
+    except PlaywrightTimeoutError:
+        _raise_if_expired(page)
+        raise
     download = dl_info.value
     path = download.path()
     with open(path, "rb") as f:
@@ -295,6 +315,14 @@ def run_report_scraping(
 
     if not logged_in:
         logger.error("Falha no login inicial. Abortando coleta de relatórios.")
+        failures.extend(
+            {
+                "codigo_inep": e["codigo_inep"],
+                "nome_unidade": e.get("nome_unidade", ""),
+                "motivo": "Falha no login",
+            }
+            for e in escolas
+        )
         _safe_cleanup(context, page)
         return outputs, failures
 

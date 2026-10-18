@@ -88,6 +88,12 @@ def _session_expirada(page: Page) -> bool:
         return False
 
 
+def _raise_if_expired(page: Page) -> None:
+    """Levanta SessaoExpirada quando a página voltou para a tela de login."""
+    if _session_expirada(page):
+        raise SessaoExpirada()
+
+
 def _login_and_read(page: Page, login: str, senha: str) -> None:
     _assert_read_only()
     page.goto(f"{BASE_URL}/escola/pesquisar", wait_until="domcontentloaded", timeout=30000)
@@ -239,6 +245,7 @@ def _download_receipt_pdf(context, page: Page, receipt_url: str) -> bytes:
     _assert_read_only()
     page.goto(receipt_url, wait_until="domcontentloaded", timeout=30000)
     _wait_loader(page)
+    _raise_if_expired(page)
 
     # ── Loop dentro do contexto: procura o link do recibo ───────────────────
     link = None
@@ -249,6 +256,7 @@ def _download_receipt_pdf(context, page: Page, receipt_url: str) -> bytes:
         page.wait_for_timeout(_RECIBO_INTERVALO_MS)
         _wait_loader(page)
     if link is None:
+        _raise_if_expired(page)
         raise ReciboIndisponivel()
 
     # ── Clica no link e captura o download do PDF ───────────────────────────
@@ -259,6 +267,7 @@ def _download_receipt_pdf(context, page: Page, receipt_url: str) -> bytes:
         with open(download.path(), "rb") as f:
             data = f.read()
     except PlaywrightTimeoutError:
+        _raise_if_expired(page)
         raise ReciboIndisponivel()
 
     if not data or data[:4] != b"%PDF":
@@ -302,6 +311,14 @@ def run_receipt_scraping(
 
     if not logged_in:
         logger.error("Falha no login inicial. Abortando coleta de recibos.")
+        failures.extend(
+            {
+                "codigo_inep": e["codigo_inep"],
+                "nome_unidade": e.get("nome_unidade", ""),
+                "motivo": "Falha no login",
+            }
+            for e in escolas
+        )
         _safe_cleanup(context, page)
         return outputs, failures
 
