@@ -665,6 +665,11 @@ def _marcar_nao_processadas(failures: list[dict], restantes: list[dict]) -> None
     )
 
 
+def _log_tempo_escola(codigo: str, t0: float) -> None:
+    """Loga o tempo decorrido de processamento de uma escola (em segundos)."""
+    logger.info(f"[{codigo}] escola processada em {time.monotonic() - t0:.1f}s")
+
+
 def run_scraping(
     browser: Browser,
     login: str,
@@ -682,6 +687,7 @@ def run_scraping(
     (código do Inep, nome e motivo), para a planilha de "não coletadas".
     """
     _assert_read_only()
+    t_inicio = time.monotonic()
     outputs: list[tuple[dict, dict]] = []
     failures: list[dict] = []
 
@@ -719,6 +725,7 @@ def run_scraping(
     for i, escola in enumerate(escolas, 1):
         codigo = escola["codigo_inep"]
         nome = escola.get("nome_unidade", "")
+        t0 = time.monotonic()
 
         if stop_check and stop_check():
             _marcar_nao_processadas(failures, escolas[i - 1:])
@@ -742,6 +749,7 @@ def run_scraping(
                 )
                 if on_progress:
                     on_progress(i, len(escolas), codigo, nome, f"erro: sessão expirada — {exc}")
+                _log_tempo_escola(codigo, t0)
                 continue
 
         try:
@@ -819,11 +827,18 @@ def run_scraping(
             )
             if on_progress:
                 on_progress(i, len(escolas), codigo, nome, f"erro: {exc}")
+        finally:
+            _log_tempo_escola(codigo, t0)
 
         # Pequena pausa entre escolas para não sobrecarregar o portal.
         time.sleep(0.3)
 
     # ── Encerra a sessão única ao final ───────────────────────────────────
     _safe_cleanup(context, page)
-    logger.info("Coleta concluída. Sessão encerrada.")
+    tempo_total = time.monotonic() - t_inicio
+    logger.info(
+        f"Coleta concluída: {len(outputs)} escola(s) coletada(s), {len(failures)} falha(s), "
+        f"{tempo_total:.1f}s no total ({tempo_total / max(1, len(escolas)):.1f}s por escola em média). "
+        "Sessão encerrada."
+    )
     return outputs, failures
