@@ -3,10 +3,14 @@
 ## Comandos principais
 
 ```bash
-uv run streamlit run app.py                        # inicia o HUB
-uv run python -m pytest                             # testes de segurança (pulados sem SECURITY_LIVE=1)
-SECURITY_LIVE=1 uv run python -m pytest tests/security/  # auditoria ao vivo
+uv run streamlit run app.py                         # inicia o HUB (local)
+uv run python -m pytest                             # suíte offline (segurança pulada sem SECURITY_LIVE=1)
+uv run ruff check .                                 # lint (config no pyproject)
+SECURITY_LIVE=1 uv run python -m pytest tests/security/  # auditoria ao vivo (alvo: ver "Testes")
 uv add <pacote>                                     # adicionar dependência
+
+docker compose up -d --build                        # intranet: app + Caddy (runbook: docs/deploy.md)
+docker compose logs -f app                          # logs ao vivo; arquivo em ./logs/censoapp.log
 ```
 
 ## Arquitetura
@@ -42,15 +46,26 @@ uv add <pacote>                                     # adicionar dependência
 ## Ambiente e secrets
 
 - **Credenciais**: `apps/coleta_cadastros_escolas/docs/credenciais.json` (gitignored)
-- **`.streamlit/secrets.toml`** (gitignored)
+- **`.streamlit/secrets.toml`** (gitignored) — no container é montado **somente-leitura** em `/app/.streamlit/`; exemplo comentado em `.streamlit/secrets.toml.example`
 - **Dependências de sistema para Playwright** em `packages.txt` (libnss3, libnspr4, etc.)
-- Chromium instalado automaticamente na primeira execução via `playwright install chromium` (ver `_ensure_chromium()`)
+- Chromium instalado automaticamente na primeira execução via `playwright install chromium` (ver `_ensure_chromium()`); na imagem Docker ele já vem embutido
+
+## Implantação (intranet) — Fase 2
+
+- **Runbook completo**: `docs/deploy.md` (TLS interno do Caddy, secrets, despublicação do Streamlit Cloud, cabeçalhos/CSP, troubleshooting).
+- **Compose**: `docker-compose.yml` — app Streamlit + proxy `caddy`; copie `.env.example` → `.env`. `./logs` e `.streamlit/secrets.toml` são montados como volumes (o arquivo de secrets **precisa existir antes do primeiro `up`**, senão o Docker cria um diretório no lugar).
+- **Autenticação** (`auth_gate.py`, chamado no topo do `app.py`, antes de qualquer render): modo detectado pela config e forçável por `CENSO_AUTH_MODE`:
+  - `oidc` — seção `[auth]` nos secrets (SSO via `st.login`); **fecha por padrão** se forçado sem `[auth]`;
+  - `senha` — seção `[auth_simples]` (senha única compartilhada; fallback enquanto não houver OIDC);
+  - `aberto` — sem secrets (uso local; mostra aviso na sidebar).
+- **Logging** (`logging_setup.py`, idempotente a cada rerun): arquivo rotativo `censoapp.log` (5 MB × 5) em `CENSO_LOG_DIR` (no container: `/app/logs`); nunca registrar PII.
+- **CI**: `.github/workflows/ci.yml` (push/PR → `uv sync --frozen` + `ruff check .` + `pytest -q`).
 
 ## Testes
 
-- Apenas `tests/security/` existe
-- **Pulados por padrão** — exigem `SECURITY_LIVE=1`
-- Alvo: `https://censoescolar.streamlit.app/` (sobrescreve com `SECURITY_TARGET`)
+- `tests/` cobre a suíte offline (fakes, sem rede); `tests/security/` é ao vivo
+- **Testes de segurança pulados por padrão** — exigem `SECURITY_LIVE=1`
+- Alvo via `SECURITY_TARGET` (ex.: `https://censo.<interno>/`); o default `censoescolar.streamlit.app` é **legado** (instância a despublicar — checklist em `docs/deploy.md`); com TLS interno, use `REQUESTS_CA_BUNDLE` apontando para a CA do Caddy
 - Não intrusivos: poucas requisições, sem fuzzing/brute-force
 - Níveis: "app" vs "plataforma" nos achados
 

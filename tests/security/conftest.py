@@ -1,7 +1,13 @@
 """Configuração compartilhada dos testes dinâmicos de segurança.
 
-Alvo padrão: aplicação em produção no Streamlit Community Cloud.
-Sobrescreva com a variável de ambiente SECURITY_TARGET.
+Alvo: o HUB na intranet — defina sempre `SECURITY_TARGET`, por exemplo:
+
+    SECURITY_LIVE=1 SECURITY_TARGET=https://censo.seduct.intra/ \
+        uv run python -m pytest tests/security/
+
+O alvo padrão abaixo é **legado** (instância antiga no Streamlit Community
+Cloud, a ser despublicada — checklist em docs/deploy.md). Com TLS interno (CA
+do Caddy), aponte `REQUESTS_CA_BUNDLE` para o certificado raiz (ver runbook).
 
 Os testes só executam quando SECURITY_LIVE=1 (evita bater na produção
 acidentalmente). São NÃO INTRUSIVOS: poucas requisições, sem fuzzing e sem
@@ -68,7 +74,7 @@ def pytest_collection_modifyitems(config, items):
         return
 
     if not _live_enabled():
-        skip = pytest.mark.skip(reason="Defina SECURITY_LIVE=1 para rodar contra produção.")
+        skip = pytest.mark.skip(reason="Defina SECURITY_LIVE=1 para rodar contra o alvo.")
         for item in security_items:
             item.add_marker(skip)
         return
