@@ -715,7 +715,7 @@ def run_scraping(
                     {
                         "codigo_inep": codigo,
                         "nome_unidade": nome,
-                        "motivo": f"Erro (re-login): {exc}",
+                        "motivo": f"Erro (re-login): {str(exc) or type(exc).__name__}",
                     }
                 )
                 if on_progress:
@@ -748,6 +748,20 @@ def run_scraping(
             logger.warning(f"[{codigo}] Sessão expirada ao abrir a ficha. Re-logando e repetindo...")
             try:
                 _login_and_read(page, login, senha)
+            except Exception as exc_re:  # noqa: BLE001
+                logger.error(f"[{codigo}] Falha no re-login: {exc_re}")
+                failures.append(
+                    {
+                        "codigo_inep": codigo,
+                        "nome_unidade": nome,
+                        "motivo": f"Erro (re-login): {str(exc_re) or type(exc_re).__name__}",
+                    }
+                )
+                if on_progress:
+                    on_progress(i, len(escolas), codigo, nome, f"erro: sessão expirada — {exc_re}")
+                continue
+
+            try:
                 dados = scrape_gestor_school(page, codigo, nome)
                 if dados is None:
                     logger.warning(f"[{codigo}] Escola não encontrada após re-login.")

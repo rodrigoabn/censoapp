@@ -98,3 +98,42 @@ def test_planilha_de_nao_coletadas_tem_cabecalho_e_linhas():
     assert [c.value for c in ws[1]] == ["Código do Inep", "Nome da Unidade", "Motivo"]
     assert [c.value for c in ws[2]] == ["111", "Escola Um", "Falha no login"]
     assert exporter.pending_filename().startswith("cadastro_escola_escolas_nao_coletadas_")
+
+
+def test_re_login_falho_apos_sessao_expirada(monkeypatch):
+    chamadas = {"login": 0}
+
+    def _login(page, login, senha):
+        chamadas["login"] += 1
+        if chamadas["login"] > 1:
+            raise scraper.LoginFalhou()
+
+    monkeypatch.setattr(scraper, "_login_and_read", _login)
+    monkeypatch.setattr(scraper, "_session_expirada", lambda page: False)
+
+    def _scrape(page, codigo, nome):
+        raise scraper.SessaoExpirada()
+
+    monkeypatch.setattr(scraper, "scrape_school", _scrape)
+    outputs, failures = scraper.run_scraping(_BrowserFalso(), "l", "s", ESCOLAS[:1])
+    assert outputs == []
+    assert failures == [
+        {"codigo_inep": "111", "nome_unidade": "Escola Um", "motivo": "Erro (re-login): LoginFalhou"}
+    ]
+
+
+def test_re_login_falho_na_checagem_previa(monkeypatch):
+    chamadas = {"login": 0}
+
+    def _login(page, login, senha):
+        chamadas["login"] += 1
+        if chamadas["login"] > 1:
+            raise scraper.LoginFalhou()
+
+    monkeypatch.setattr(scraper, "_login_and_read", _login)
+    monkeypatch.setattr(scraper, "_session_expirada", lambda page: True)
+    outputs, failures = scraper.run_scraping(_BrowserFalso(), "l", "s", ESCOLAS[:1])
+    assert outputs == []
+    assert failures == [
+        {"codigo_inep": "111", "nome_unidade": "Escola Um", "motivo": "Erro (re-login): LoginFalhou"}
+    ]
