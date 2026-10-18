@@ -55,6 +55,20 @@ def _ajustar_larguras(ws, min_width: int = 10, max_width: int = 50, pad: int = 2
         ws.column_dimensions[letter].width = min(max(max(compr) + pad, min_width), max_width)
 
 
+def _texto_seguro(valor):
+    """Evita que célula iniciada com '=' vire fórmula (mesmo padrão do unificador)."""
+    if isinstance(valor, str) and valor.startswith("="):
+        return "'" + valor
+    return valor
+
+
+def _neutralizar_formulas(ws) -> None:
+    """Passe final sobre as células: neutraliza textos iniciados com '='."""
+    for row in ws.iter_rows():
+        for cell in row:
+            cell.value = _texto_seguro(cell.value)
+
+
 @st.cache_data(show_spinner=False, max_entries=12)
 def _unificado_xlsx(df) -> bytes:
     buffer = io.BytesIO()
@@ -62,6 +76,7 @@ def _unificado_xlsx(df) -> bytes:
     buffer.seek(0)
     wb = load_workbook(buffer)
     for ws in wb.worksheets:
+        _neutralizar_formulas(ws)
         _ajustar_larguras(ws)
     out = io.BytesIO()
     wb.save(out)
@@ -169,6 +184,7 @@ def _build_xlsx(resultados: list[dict], modo: str = "padrao") -> bytes:
                 r.get("tipo_validacao", ""),
                 r.get("detalhes", ""),
             ])
+    _neutralizar_formulas(ws)
     _ajustar_larguras(ws)
     buffer = io.BytesIO()
     wb.save(buffer)
@@ -197,6 +213,7 @@ def _duplicadas_xlsx(registros: list[dict]) -> bytes:
             r.get("codigo_turma", ""),
             r.get("nome_turma", ""),
         ])
+    _neutralizar_formulas(ws)
     _ajustar_larguras(ws)
     buffer = io.BytesIO()
     wb.save(buffer)
@@ -225,6 +242,7 @@ def _levantamento_cor_raca_xlsx(registros: list[dict]) -> bytes:
             r.get("nao_declarado", 0),
             r.get("sem_informacao", 0),
         ])
+    _neutralizar_formulas(ws)
     _ajustar_larguras(ws)
     buffer = io.BytesIO()
     wb.save(buffer)
@@ -249,6 +267,7 @@ def _sem_cpf_xlsx(registros: list[dict]) -> bytes:
             r.get("nome", ""),
             r.get("cpf", ""),
         ])
+    _neutralizar_formulas(ws)
     _ajustar_larguras(ws)
     buffer = io.BytesIO()
     wb.save(buffer)
