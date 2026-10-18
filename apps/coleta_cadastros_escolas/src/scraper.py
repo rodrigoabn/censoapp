@@ -451,9 +451,12 @@ def _marcar_nao_processadas(failures: list[dict], restantes: list[dict]) -> None
 def _pausa_entre_escolas() -> float:
     """Pausa entre escolas (CENSO_SLEEP_ESCOLAS; default 0.3s)."""
     try:
-        return float(os.environ.get("CENSO_SLEEP_ESCOLAS", "0.3"))
+        pausa = float(os.environ.get("CENSO_SLEEP_ESCOLAS", "0.3"))
     except ValueError:
         return 0.3
+    if not (0 <= pausa < float("inf")):
+        return 0.3
+    return pausa
 
 
 def _log_tempo_escola(codigo: str, t0: float) -> None:

@@ -31,3 +31,9 @@ def test_pausa_default_e_valor_invalido(monkeypatch, modulo):
 
     monkeypatch.setenv("CENSO_SLEEP_ESCOLAS", "muito")
     assert modulo._pausa_entre_escolas() == 0.3
+
+    monkeypatch.setenv("CENSO_SLEEP_ESCOLAS", "nan")
+    assert modulo._pausa_entre_escolas() == 0.3
+
+    monkeypatch.setenv("CENSO_SLEEP_ESCOLAS", "-1")
+    assert modulo._pausa_entre_escolas() == 0.3
