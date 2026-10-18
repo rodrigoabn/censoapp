@@ -402,7 +402,7 @@ def build_documentacao_pdf(logo_base64: str | None = None) -> bytes:
     _bullets(story, estilos["item"], [
         "Extrai campos por aba via JavaScript no navegador (mat-form-field, mat-checkbox, mat-radio-button);",
         "Aceita automaticamente o Termo de Sigilo quando apresentado;",
-        "Arquivos temporários por aba em /tmp/educacenso_tmp (CSV utf-8) e consolidação final em XLSX;",
+        "Arquivos temporários por aba em pasta exclusiva de cada execução (sob /tmp, CSV utf-8) e consolidação final em XLSX;",
         "Exceções tratadas: SessaoExpirada (relogin automático), LoginFalhou;",
         "Pausa de 0,3s entre escolas.",
     ])
@@ -428,7 +428,7 @@ def build_documentacao_pdf(logo_base64: str | None = None) -> bytes:
         "abertura do cadastro do gestor (abas Identificação/Dados pessoais);",
         "Nunca salva o formulário: fecha sempre com \"Cancelar\"/\"Fechar\";",
         "Detecta escola fechada e relogin automático em caso de sessão expirada;",
-        "Arquivos temporários em /tmp/educacenso_gestor_tmp.",
+        "Arquivos temporários em pasta exclusiva de cada execução (sob /tmp).",
     ])
 
     # ------------------------------------------------------------------
@@ -456,7 +456,7 @@ def build_documentacao_pdf(logo_base64: str | None = None) -> bytes:
         "Navegação por escola e geração do relatório (Gerar relatório, Gerar Excel, menu CSV);",
         "Download capturado via expect_download no contexto do navegador;",
         "Exceções: PreenchimentoNaoIniciado, RelatorioInexistente, SessaoExpirada, LoginFalhou;",
-        "Arquivos temporários em /tmp/educacenso_relatorios_tmp.",
+        "Arquivos temporários em pasta exclusiva de cada execução (sob /tmp).",
     ])
 
     # ------------------------------------------------------------------
@@ -475,7 +475,7 @@ def build_documentacao_pdf(logo_base64: str | None = None) -> bytes:
         "Procura o link do recibo em até 15 tentativas (intervalo de 1s);",
         "Valida os bytes do download (assinatura %PDF); conteúdo inválido é tratado como indisponível;",
         "Exceções: ReciboIndisponivel, LoginFalhou, SessaoExpirada;",
-        "Arquivos temporários em /tmp/educacenso_recibos_fechamento_tmp.",
+        "Arquivos temporários em pasta exclusiva de cada execução (sob /tmp).",
     ])
 
     # ==================================================================
@@ -753,8 +753,8 @@ def build_documentacao_pdf(logo_base64: str | None = None) -> bytes:
     _par(story, estilos["h2"], "8.2 Reuso de sessão e temporários")
     _bullets(story, estilos["item"], [
         "run_scraping() mantém um contexto de navegador e refaz o login se a sessão expirar;",
-        "Arquivos temporários: /tmp/educacenso_tmp, /tmp/educacenso_gestor_tmp, "
-        "/tmp/educacenso_relatorios_tmp e /tmp/educacenso_recibos_fechamento_tmp;",
+        "Arquivos temporários: uma pasta exclusiva por execução para cada coletor "
+        "(sob /tmp);",
         "Consolidação final no fim da coleta (exporter.py para XLSX via openpyxl, zipper.py para ZIP).",
     ])
     _par(story, estilos["h2"], "8.3 Entrada e saída de dados")

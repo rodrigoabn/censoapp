@@ -20,7 +20,14 @@ from pathlib import Path
 import openpyxl
 from openpyxl.utils import get_column_letter
 
-TMP_DIR = Path(tempfile.gettempdir()) / "educacenso_recibos_fechamento_tmp"
+def nova_pasta_temporaria() -> Path:
+    """Cria a pasta temporária exclusiva desta execução de coleta."""
+    return Path(tempfile.mkdtemp(prefix="educacenso_recibos_fechamento_tmp_"))
+
+
+def remover_temp(tmp_dir: Path) -> None:
+    """Remove a pasta temporária da execução (se existir)."""
+    shutil.rmtree(tmp_dir, ignore_errors=True)
 
 
 def _file_date() -> str:
@@ -81,14 +88,7 @@ def pdf_filename(codigo: str, nome: str) -> str:
     return f"{codigo}_{nome}.pdf" if nome else f"{codigo}.pdf"
 
 
-def reset_temp(tmp_dir: Path = TMP_DIR) -> None:
-    """Remove PDFs temporários de uma execução anterior (início do lote)."""
-    if tmp_dir.exists():
-        shutil.rmtree(tmp_dir, ignore_errors=True)
-    tmp_dir.mkdir(parents=True, exist_ok=True)
-
-
-def append_pdf(codigo: str, nome: str, data: bytes, tmp_dir: Path = TMP_DIR) -> None:
+def append_pdf(codigo: str, nome: str, data: bytes, tmp_dir: Path) -> None:
     """Grava o PDF de UMA escola na pasta temporária."""
     tmp_dir.mkdir(parents=True, exist_ok=True)
     path = tmp_dir / pdf_filename(codigo, nome)
@@ -102,13 +102,13 @@ def append_pdf(codigo: str, nome: str, data: bytes, tmp_dir: Path = TMP_DIR) -> 
     path.write_bytes(data)
 
 
-def count_temp(tmp_dir: Path = TMP_DIR) -> int:
+def count_temp(tmp_dir: Path) -> int:
     if not tmp_dir.exists():
         return 0
     return sum(1 for _ in tmp_dir.glob("*.pdf"))
 
 
-def build_zip(tmp_dir: Path = TMP_DIR) -> bytes:
+def build_zip(tmp_dir: Path) -> bytes:
     """Compacta todos os PDF temporários em um ZIP e retorna os bytes.
 
     Remove os PDFs temporários ao final.

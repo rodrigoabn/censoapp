@@ -169,7 +169,7 @@ def render_report_frontend(config: dict, logo_base64=None):
     st.rerun()
 
 
-def _scrape_worker(config, login, senha, escolas, stop_event, lock, shared):
+def _scrape_worker(config, login, senha, escolas, stop_event, lock, shared, tmp_dir):
     """Executa a coleta em thread de background.
 
     NÃO acessa `st.*` (thread-safety). Comunica-se apenas via `shared` (dict
@@ -206,7 +206,7 @@ def _scrape_worker(config, login, senha, escolas, stop_event, lock, shared):
 
         for escola, data in outputs:
             try:
-                zipper.append_csv(escola["codigo_inep"], escola.get("nome_unidade", ""), data)
+                zipper.append_csv(escola["codigo_inep"], escola.get("nome_unidade", ""), data, tmp_dir)
             except Exception as exc:  # noqa: BLE001
                 with lock:
                     shared.setdefault("warnings", []).append(str(exc))
@@ -220,7 +220,7 @@ def _scrape_worker(config, login, senha, escolas, stop_event, lock, shared):
 
 def _start_scraping(config: dict, login: str, senha: str, escolas: list[dict]) -> None:
     p = config["state_prefix"]
-    zipper.reset_temp()
+    pasta = zipper.nova_pasta_temporaria()
 
     stop_event = threading.Event()
     lock = threading.Lock()
@@ -232,7 +232,7 @@ def _start_scraping(config: dict, login: str, senha: str, escolas: list[dict]) -
 
     thread = threading.Thread(
         target=_scrape_worker,
-        args=(config, login, senha, escolas, stop_event, lock, shared),
+        args=(config, login, senha, escolas, stop_event, lock, shared, pasta),
         daemon=True,
     )
 
@@ -244,6 +244,7 @@ def _start_scraping(config: dict, login: str, senha: str, escolas: list[dict]) -
     st.session_state[f"{p}finalized"] = False
     st.session_state[f"{p}zip"] = None
     st.session_state[f"{p}pending"] = None
+    st.session_state[f"{p}tmp_dir"] = pasta
 
     thread.start()
 
@@ -327,7 +328,7 @@ def _finalize(config: dict, count: int) -> None:
         ss[f"{p}finalized"] = True
 
         if count > 0:
-            zip_bytes = zipper.build_zip()
+            zip_bytes = zipper.build_zip(tmp_dir=ss[f"{p}tmp_dir"])
             nome_arquivo = zipper.output_filename(config["zip_prefix"])
             ss[f"{p}zip"] = (zip_bytes, nome_arquivo)
 
@@ -351,7 +352,7 @@ def _finalize(config: dict, count: int) -> None:
             )
         else:
             # Nenhum CSV coletado: não gera ZIP; limpa temporários.
-            zipper.reset_temp()
+            zipper.remover_temp(ss[f"{p}tmp_dir"])
             ss[f"{p}zip"] = None
             st.markdown(
                 "<span style='color:#ef4444'>Arquivo Zip não gerado. "

@@ -21,7 +21,17 @@ from openpyxl.utils import get_column_letter
 
 from . import modelo
 
-TMP_DIR = Path(tempfile.gettempdir()) / "educacenso_gestor_tmp"
+
+def nova_pasta_temporaria() -> Path:
+    """Cria a pasta temporária exclusiva desta execução de coleta."""
+    return Path(tempfile.mkdtemp(prefix="educacenso_gestor_tmp_"))
+
+
+def remover_temp(tmp_dir: Path) -> None:
+    """Remove a pasta temporária da execução (se existir)."""
+    shutil.rmtree(tmp_dir, ignore_errors=True)
+
+
 SHEET = modelo.GESTOR_SHEET
 
 
@@ -49,7 +59,7 @@ def _sheet_file(sheet: str) -> str:
     return f"{name}.csv"
 
 
-def append_school_temp(dados: dict[str, dict], tmp_dir: Path = TMP_DIR) -> None:
+def append_school_temp(dados: dict[str, dict], tmp_dir: Path) -> None:
     """Append os dados de UMA escola em um CSV temporário por aba do modelo.
 
     `dados` é {nome_da_aba: {coluna: valor}}.
@@ -69,7 +79,7 @@ def append_school_temp(dados: dict[str, dict], tmp_dir: Path = TMP_DIR) -> None:
             writer.writerow({c: row.get(c, "") for c in cols})
 
 
-def build_xlsx(tmp_dir: Path = TMP_DIR, model=None) -> bytes:
+def build_xlsx(tmp_dir: Path, model=None) -> bytes:
     """Consolida os CSVs temporários em um único XLSX (todas as abas do modelo)
     e retorna os bytes. Remove os CSVs temporários ao final.
     """
@@ -103,10 +113,3 @@ def build_xlsx(tmp_dir: Path = TMP_DIR, model=None) -> bytes:
         shutil.rmtree(tmp_dir, ignore_errors=True)
 
     return buffer.getvalue()
-
-
-def reset_temp(tmp_dir: Path = TMP_DIR) -> None:
-    """Remove CSVs temporários de uma execução anterior (início do lote)."""
-    if tmp_dir.exists():
-        shutil.rmtree(tmp_dir, ignore_errors=True)
-    tmp_dir.mkdir(parents=True, exist_ok=True)

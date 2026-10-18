@@ -180,7 +180,7 @@ def render_gestor_frontend(logo_base64=None):
     st.rerun()
 
 
-def _scrape_worker(login, senha, escolas, stop_event, lock, shared):
+def _scrape_worker(login, senha, escolas, stop_event, lock, shared, tmp_dir):
     """Executa a coleta em thread de background (não acessa st.*)."""
     from playwright.sync_api import sync_playwright
     from .gestor_scraper import run_scraping
@@ -209,7 +209,7 @@ def _scrape_worker(login, senha, escolas, stop_event, lock, shared):
 
         for _, dados in outputs:
             try:
-                exporter.append_school_temp(dados)
+                exporter.append_school_temp(dados, tmp_dir)
             except Exception as exc:  # noqa: BLE001
                 with lock:
                     shared.setdefault("warnings", []).append(str(exc))
@@ -222,7 +222,7 @@ def _scrape_worker(login, senha, escolas, stop_event, lock, shared):
 
 
 def _start_scraping(login: str, senha: str, escolas: list[dict]) -> None:
-    exporter.reset_temp()
+    pasta = exporter.nova_pasta_temporaria()
 
     stop_event = threading.Event()
     lock = threading.Lock()
@@ -234,7 +234,7 @@ def _start_scraping(login: str, senha: str, escolas: list[dict]) -> None:
 
     thread = threading.Thread(
         target=_scrape_worker,
-        args=(login, senha, escolas, stop_event, lock, shared),
+        args=(login, senha, escolas, stop_event, lock, shared, pasta),
         daemon=True,
     )
 
@@ -245,6 +245,7 @@ def _start_scraping(login: str, senha: str, escolas: list[dict]) -> None:
     st.session_state.cg_running = True
     st.session_state.cg_finalized = False
     st.session_state.cg_xlsx = None
+    st.session_state.cg_tmp_dir = pasta
 
     thread.start()
 
@@ -303,7 +304,7 @@ def _finalize(count: int) -> None:
         st.error(f"Falha na coleta: {error}")
 
     try:
-        xlsx_bytes = exporter.build_xlsx()
+        xlsx_bytes = exporter.build_xlsx(tmp_dir=ss.cg_tmp_dir)
         nome_arquivo = exporter.output_filename()
         ss.cg_xlsx = (xlsx_bytes, nome_arquivo)
         ss.cg_finalized = True

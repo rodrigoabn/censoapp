@@ -191,7 +191,7 @@ def render_frontend(logo_base64=None):
     st.rerun()
 
 
-def _scrape_worker(login, senha, escolas, stop_event, lock, shared):
+def _scrape_worker(login, senha, escolas, stop_event, lock, shared, tmp_dir):
     """Executa a coleta em thread de background.
 
     NÃO acessa `st.*` (thread-safety). Comunica-se apenas via `shared` (dict
@@ -225,7 +225,7 @@ def _scrape_worker(login, senha, escolas, stop_event, lock, shared):
 
         for _, dados in outputs:
             try:
-                exporter.append_school_temp(dados)
+                exporter.append_school_temp(dados, tmp_dir)
             except Exception as exc:  # noqa: BLE001
                 with lock:
                     shared.setdefault("warnings", []).append(str(exc))
@@ -238,7 +238,7 @@ def _scrape_worker(login, senha, escolas, stop_event, lock, shared):
 
 
 def _start_scraping(login: str, senha: str, escolas: list[dict]) -> None:
-    exporter.reset_temp()
+    pasta = exporter.nova_pasta_temporaria()
 
     stop_event = threading.Event()
     lock = threading.Lock()
@@ -250,7 +250,7 @@ def _start_scraping(login: str, senha: str, escolas: list[dict]) -> None:
 
     thread = threading.Thread(
         target=_scrape_worker,
-        args=(login, senha, escolas, stop_event, lock, shared),
+        args=(login, senha, escolas, stop_event, lock, shared, pasta),
         daemon=True,
     )
 
@@ -261,6 +261,7 @@ def _start_scraping(login: str, senha: str, escolas: list[dict]) -> None:
     st.session_state.ws_running = True
     st.session_state.ws_finalized = False
     st.session_state.ws_xlsx = None
+    st.session_state.ws_tmp_dir = pasta
 
     thread.start()
 
@@ -321,7 +322,7 @@ def _finalize(count: int) -> None:
         st.error(f"Falha na coleta: {error}")
 
     try:
-        xlsx_bytes = exporter.build_xlsx()
+        xlsx_bytes = exporter.build_xlsx(tmp_dir=ss.ws_tmp_dir)
         nome_arquivo = exporter.output_filename()
         ss.ws_xlsx = (xlsx_bytes, nome_arquivo)
         ss.ws_finalized = True
