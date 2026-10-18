@@ -342,6 +342,7 @@ _SAFE_FILENAME = [
     pytest.param("", "unidade_escolar", id="vazio"),
     pytest.param("Esc\tola", "Esc_ola", id="controle"),
     pytest.param("Escola Normal", "Escola Normal", id="espacos-preservados"),
+    pytest.param("Cafe\u0301 da Escola", "Caf\u00e9 da Escola", id="nfc-normaliza"),
     pytest.param("A" * 200, "A" * 180, id="truncamento"),
 ]
 

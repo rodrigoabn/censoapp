@@ -139,6 +139,28 @@ def test_read_school_list_ignora_linhas_sem_codigo(wb_bytes):
     ]
 
 
+def test_read_school_list_ignora_codigo_placeholder_textual(wb_bytes):
+    data = wb_bytes({"Escolas": [
+        ["Código do Inep", "Nome da Unidade"],
+        ["nan", "Placeholder nan"],
+        ["none", "Placeholder none"],
+        ["456", "Escola B"],
+    ]})
+    assert read_school_list(io.BytesIO(data)) == [
+        {"codigo_inep": "456", "nome_unidade": "Escola B"},
+    ]
+
+
+def test_read_school_list_nome_vazio_vira_string_vazia(wb_bytes):
+    data = wb_bytes({"Escolas": [
+        ["Código do Inep", "Nome da Unidade"],
+        ["123", ""],
+    ]})
+    assert read_school_list(io.BytesIO(data)) == [
+        {"codigo_inep": "123", "nome_unidade": ""},
+    ]
+
+
 def test_read_school_list_sem_coluna_nome(wb_bytes):
     data = wb_bytes({"Escolas": [["Código do Inep"], ["123"]]})
     assert read_school_list(io.BytesIO(data)) == [

@@ -183,6 +183,20 @@ def test_criterio_proibido_exige_caixa_exata(wb_bytes):
     assert validate_gestor(wb_bytes(abas), []) == []
 
 
+def test_codigo_e_nome_lidos_por_posicao(wb_bytes):
+    """As colunas 0/1 trazem código e nome por posição — os cabeçalhos não importam."""
+    abas = _molde()
+    for linhas in abas.values():
+        linhas[0][0] = "Nº"
+        linhas[0][1] = "Escola"
+    _definir(abas, SHEET_VINCULO, H_ACESSO, PROIBIDO_ELEITORAL)
+    resultados = validate_gestor(wb_bytes(abas), [])
+    assert len(resultados) == 1
+    (r,) = resultados
+    assert r["codigo_inep"] == CODIGO
+    assert r["nome_unidade"] == NOME
+
+
 _NEGATIVOS = [
     # ── Vínculo do gestor ────────────────────────────────────────────
     pytest.param(

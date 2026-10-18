@@ -159,6 +159,8 @@ _NEGATIVOS = [
     pytest.param({"Nome da turma": "1AM0"}, [MSG_NOME_TAMANHO], id="nome-curto"),
     pytest.param({"Nome da turma": "1AM001"}, [MSG_NOME_TAMANHO], id="nome-longo"),
     pytest.param({"Nome da turma": "1AM 1"}, [MSG_NOME_ESPACO], id="nome-com-espaco"),
+    pytest.param({"Nome da turma": "1AM01 "}, [MSG_NOME_ESPACO], id="nome-espaco-fim"),
+    pytest.param({"Nome da turma": " 1AM01"}, [MSG_NOME_ESPACO], id="nome-espaco-inicio"),
     pytest.param({"Nome da turma": "1AX01"}, [MSG_CHAR3], id="char3-invalido"),
     pytest.param({"Etapa Agregada": ORGANIZACAO_EJA}, [MSG_EJA_FORMAS], id="eja-sem-semestral"),
     pytest.param(

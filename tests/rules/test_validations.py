@@ -6,7 +6,10 @@ contrato de cada entrada (`key`, `state_prefix`, `requires_dates`, `title`,
 planilha. O caso mais delicado é `expected_columns`: a checagem de estrutura do
 upload usa essa lista como referência — uma coluna consumida pelos validadores
 mas ausente dela produz falso alarme para o usuário; por isso o teste afirma
-que ela **contém** todas as colunas que cada validador lê.
+que ela **contém** todas as colunas que cada validador lê. E, para
+turmas/aluno/profissionais, afirma também **igualdade** (conteúdo e ordem) com
+as listas canônicas de `tests/colunas_canonicas.py` — as mesmas colunas-alvo
+dos processadores de adequação.
 
 Observações pinadas:
 
@@ -36,6 +39,11 @@ from apps.verificacao_inconsistencias.src.rules import (
     validate_unidades,
 )
 from apps.verificacao_inconsistencias.src.validations import VALIDATIONS
+from tests.colunas_canonicas import (
+    ALUNOS_COLUNAS,
+    PROFISSIONAIS_COLUNAS,
+    TURMAS_COLUNAS,
+)
 
 _SPLIT_FLAGS = ("split_tipo_turma", "split_aluno", "split_profissionais")
 
@@ -182,3 +190,14 @@ def test_expected_columns_cobrem_colunas_consumidas(chave):
     entrada = VALIDATIONS[chave]
     faltando = _colunas_consumidas_por(chave) - set(entrada["expected_columns"])
     assert not faltando, f"colunas consumidas fora de expected_columns: {sorted(faltando)}"
+
+
+@pytest.mark.parametrize("chave,canonica", [
+    pytest.param("turmas", TURMAS_COLUNAS, id="turmas"),
+    pytest.param("aluno", ALUNOS_COLUNAS, id="aluno"),
+    pytest.param("profissionais", PROFISSIONAIS_COLUNAS, id="profissionais"),
+])
+def test_expected_columns_igual_as_listas_canonicas(chave, canonica):
+    """`expected_columns` idêntica (conteúdo e ordem) às colunas-alvo dos
+    processadores de adequação — editar um lado exige editar o outro."""
+    assert VALIDATIONS[chave]["expected_columns"] == canonica

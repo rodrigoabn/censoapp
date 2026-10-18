@@ -164,7 +164,7 @@ def test_aba_ausente_anexa_erro(wb_bytes, aba):
     r = resultados[0]
     assert r["tipo_validacao"] == TIPO_POR_ABA[aba]
     assert r["status"] == "erro"
-    # "Executado" é o único caso com "nao" sem acento (typo do módulo).
+    # "Equipamentos" é a única aba com "nao" sem acento (typo do módulo).
     if aba == SHEET_NAME_EQUIP:
         esperado = f"Aba '{aba}' nao encontrada no arquivo."
     else:
@@ -220,6 +220,21 @@ def test_valor_numerico_vira_texto(wb_bytes):
     assert [r["detalhes"] for r in resultados] == [
         "Coluna 'Estadual': esperado vazio, encontrado '123'"
     ]
+
+
+def test_codigo_e_nome_lidos_por_posicao(wb_bytes):
+    """As colunas 0/1 trazem código e nome por posição — os cabeçalhos não importam."""
+    abas = _molde()
+    for linhas in abas.values():
+        linhas[0][0] = "Nº"
+        linhas[0][1] = "Escola"
+    _definir(abas, SHEET_NAME, H_REGULAMENTACAO, "Não")
+    resultados = validate_unidades(wb_bytes(abas), [])
+    assert [r["detalhes"] for r in resultados] == [
+        f"Coluna '{H_REGULAMENTACAO}': esperado 'Sim', encontrado 'Não'",
+    ]
+    assert resultados[0]["codigo_inep"] == CODIGO
+    assert resultados[0]["nome_unidade"] == NOME
 
 
 _NEGATIVOS = [
