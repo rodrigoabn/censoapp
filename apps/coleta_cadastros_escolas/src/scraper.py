@@ -397,17 +397,17 @@ def _map_to_model(sheet: str, fields: list[dict]) -> dict:
     return row
 
 
-def scrape_school(page: Page, codigo_inep: str, nome_unidade: str) -> dict[str, dict]:
-    """Extrai os dados de UMA escola para as 6 abas do modelo (apenas leitura)."""
+def scrape_school(page: Page, codigo_inep: str, nome_unidade: str) -> dict[str, dict] | None:
+    """Extrai os dados de UMA escola para as 6 abas do modelo (apenas leitura).
+
+    Devolve None quando a ficha da escola não abre (não encontrada), para que
+    o chamador registre a falha na planilha de escolas não coletadas.
+    """
     _assert_read_only()
     result: dict[str, dict] = {}
 
     if not _open_school_ficha(page, codigo_inep):
-        for tab in TAB_NAMES:
-            sheet_name = modelo.resolve_sheet_name(tab)
-            cols = modelo.load_model().get(sheet_name, [])
-            result[sheet_name] = {c: "" for c in cols}
-        return result
+        return None
 
     for tab in TAB_NAMES:
         sheet_name = modelo.resolve_sheet_name(tab)
@@ -434,16 +434,18 @@ def run_scraping(
     escolas: list[dict],
     on_progress=None,
     stop_check=None,
-) -> list[tuple[dict, dict]]:
+) -> tuple[list[tuple[dict, dict]], list[dict]]:
     """Varre a lista de escolas em loop, com sessão única reutilizada.
 
     Fluxo: login uma única vez → loop de escolas (navega para /escola/pesquisar
     entre cada uma) → re-login automático apenas se a sessão Keycloak expirar.
 
-    Para cada escola: extrai dados e devolve (escola, dados_extraidos).
+    Devolve (outputs, failures): as escolas coletadas e as que falharam
+    (código do Inep, nome e motivo), para a planilha de "não coletadas".
     """
     _assert_read_only()
     outputs: list[tuple[dict, dict]] = []
+    failures: list[dict] = []
 
     # ── Login inicial ──────────────────────────────────────────────────────
     context = browser.new_context()
@@ -462,8 +464,16 @@ def run_scraping(
 
     if not logged_in:
         logger.error("Falha no login inicial. Abortando coleta.")
+        failures.extend(
+            {
+                "codigo_inep": e["codigo_inep"],
+                "nome_unidade": e.get("nome_unidade", ""),
+                "motivo": "Falha no login",
+            }
+            for e in escolas
+        )
         _safe_cleanup(context, page)
-        return outputs
+        return outputs, failures
 
     logger.info("Login realizado com sucesso. Iniciando loop de escolas.")
 
@@ -484,6 +494,13 @@ def run_scraping(
                 _login_and_read(page, login, senha)
                 logger.info(f"[{codigo}] Re-login concluído.")
             except Exception as exc:
+                failures.append(
+                    {
+                        "codigo_inep": codigo,
+                        "nome_unidade": nome,
+                        "motivo": f"Erro (re-login): {exc}",
+                    }
+                )
                 if on_progress:
                     on_progress(i, len(escolas), codigo, nome, f"erro: sessão expirada — {exc}")
                 continue
@@ -496,6 +513,15 @@ def run_scraping(
                     on_progress(i, len(escolas), codigo, nome, "interrompido")
                 break
 
+            if dados is None:
+                logger.warning(f"[{codigo}] Escola não encontrada.")
+                failures.append(
+                    {"codigo_inep": codigo, "nome_unidade": nome, "motivo": "Escola não encontrada"}
+                )
+                if on_progress:
+                    on_progress(i, len(escolas), codigo, nome, "erro: escola não encontrada")
+                continue
+
             outputs.append((escola, dados))
             if on_progress:
                 on_progress(i, len(escolas), codigo, nome, "concluído")
@@ -507,15 +533,37 @@ def run_scraping(
             try:
                 _login_and_read(page, login, senha)
                 dados = scrape_school(page, codigo, nome)
-                outputs.append((escola, dados))
-                if on_progress:
-                    on_progress(i, len(escolas), codigo, nome, "concluído")
+                if dados is None:
+                    logger.warning(f"[{codigo}] Escola não encontrada após re-login.")
+                    failures.append(
+                        {
+                            "codigo_inep": codigo,
+                            "nome_unidade": nome,
+                            "motivo": "Escola não encontrada",
+                        }
+                    )
+                    if on_progress:
+                        on_progress(i, len(escolas), codigo, nome, "erro: escola não encontrada")
+                else:
+                    outputs.append((escola, dados))
+                    if on_progress:
+                        on_progress(i, len(escolas), codigo, nome, "concluído")
             except Exception as exc2:  # noqa: BLE001
                 logger.error(f"[{codigo}] Falha após re-login: {exc2}")
+                failures.append(
+                    {
+                        "codigo_inep": codigo,
+                        "nome_unidade": nome,
+                        "motivo": f"Erro (após re-login): {exc2}",
+                    }
+                )
                 if on_progress:
                     on_progress(i, len(escolas), codigo, nome, f"erro: {exc2}")
         except Exception as exc:  # noqa: BLE001
             logger.error(f"[{codigo}] Erro durante coleta: {exc}")
+            failures.append(
+                {"codigo_inep": codigo, "nome_unidade": nome, "motivo": f"Erro: {exc}"}
+            )
             if on_progress:
                 on_progress(i, len(escolas), codigo, nome, f"erro: {exc}")
 
@@ -525,4 +573,4 @@ def run_scraping(
     # ── Encerra a sessão única ao final ───────────────────────────────────
     _safe_cleanup(context, page)
     logger.info("Coleta concluída. Sessão encerrada.")
-    return outputs
+    return outputs, failures
