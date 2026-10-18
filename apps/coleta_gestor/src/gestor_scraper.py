@@ -495,23 +495,8 @@ def _scrape_gestor_vinculo(page: Page, codigo_inep: str, nome_unidade: str) -> d
     return mapped
 
 
-def _scrape_gestor_edit_form(page: Page, codigo_inep: str, nome_unidade: str) -> dict[str, dict]:
-    """Fase B — abre o formulário de cadastro do gestor (ícone 'edit') e coleta
-    as abas 'Identificação' e 'Dados pessoais' (e quaisquer outras abas
-    existentes no formulário), espelhando o padrão do coleta_cadastros_escolas.
-
-    Retorna {nome_da_aba: {coluna: valor}}. Não altera nenhum dado (modo
-    leitura). Ao final, clica em 'Cancelar' para fechar o formulário.
-    """
-    _assert_read_only()
-    model = modelo.load_model()
-    result: dict[str, dict] = {}
-
-    n = _abrir_pesquisa_gestor(page)
-    if n == 0:
-        return result
-
-    # Abrir o cadastro do gestor (ícone "edit" ou "visibility").
+def _buscar_icone_edicao(page: Page):
+    """Localiza o ícone que abre o cadastro do gestor (cascata de seletores)."""
     edit_icon = page.locator("mat-icon[mattooltip*='dados cadastrais']").first
     if not edit_icon.count():
         edit_icon = page.locator("mat-icon[mattooltip*='editar os dados cadastrais']").first
@@ -521,6 +506,40 @@ def _scrape_gestor_edit_form(page: Page, codigo_inep: str, nome_unidade: str) ->
         edit_icon = page.locator("mat-icon:has-text('edit')").first
     if not edit_icon.count():
         edit_icon = page.locator("mat-icon:has-text('visibility')").first
+    return edit_icon
+
+
+def _scrape_gestor_edit_form(
+    page: Page, codigo_inep: str, nome_unidade: str, reload: bool = True
+) -> dict[str, dict]:
+    """Fase B — abre o formulário de cadastro do gestor (ícone 'edit') e coleta
+    as abas 'Identificação' e 'Dados pessoais' (e quaisquer outras abas
+    existentes no formulário), espelhando o padrão do coleta_cadastros_escolas.
+
+    Com `reload=False`, reaproveita a lista que a Fase A acabou de deixar
+    aberta na página e só navega de novo se o ícone não estiver disponível.
+
+    Retorna {nome_da_aba: {coluna: valor}}. Não altera nenhum dado (modo
+    leitura). Ao final, clica em 'Cancelar' para fechar o formulário.
+    """
+    _assert_read_only()
+    model = modelo.load_model()
+    result: dict[str, dict] = {}
+
+    if reload:
+        n = _abrir_pesquisa_gestor(page)
+        if n == 0:
+            return result
+
+    # Abrir o cadastro do gestor (ícone "edit" ou "visibility").
+    edit_icon = _buscar_icone_edicao(page)
+    if not edit_icon.count() and not reload:
+        # Fallback: a lista não está na página (Fase B fora de sequência) —
+        # navega até ela e rebusca o ícone.
+        n = _abrir_pesquisa_gestor(page)
+        if n == 0:
+            return result
+        edit_icon = _buscar_icone_edicao(page)
     if edit_icon.count():
         edit_icon.click(force=True)
     _wait_loader(page)
@@ -631,7 +650,7 @@ def scrape_gestor_school(page: Page, codigo_inep: str, nome_unidade: str) -> dic
 
     # Fase B: formulário de cadastro (Identificação + Dados pessoais).
     try:
-        edit_rows = _scrape_gestor_edit_form(page, codigo_inep, nome_unidade)
+        edit_rows = _scrape_gestor_edit_form(page, codigo_inep, nome_unidade, reload=False)
         for sh, row in edit_rows.items():
             result[sh] = row
     except Exception:
