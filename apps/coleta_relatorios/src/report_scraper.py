@@ -279,6 +279,26 @@ def _download_report_csv(page: Page, report_url: str) -> bytes:
         return f.read()
 
 
+_MOTIVO_INTERROMPIDO = "Coleta interrompida (não processada)"
+
+
+def _marcar_nao_processadas(failures: list[dict], restantes: list[dict]) -> None:
+    """Registra como não processadas as escolas que sobrarem quando o loop para.
+
+    Usado nos dois pontos de parada: antes de iniciar a escola (nada foi
+    coletado) e depois de coletá-la (o dado parcial é descartado — a escola
+    entra na lista para ser recoletada).
+    """
+    failures.extend(
+        {
+            "codigo_inep": escola["codigo_inep"],
+            "nome_unidade": escola.get("nome_unidade", ""),
+            "motivo": _MOTIVO_INTERROMPIDO,
+        }
+        for escola in restantes
+    )
+
+
 def run_report_scraping(
     browser: Browser,
     login: str,
@@ -334,6 +354,7 @@ def run_report_scraping(
         nome = escola.get("nome_unidade", "")
 
         if stop_check and stop_check():
+            _marcar_nao_processadas(failures, escolas[i - 1:])
             break
         if on_progress:
             on_progress(i - 1, len(escolas), codigo, nome, "Coletando dados ...")
@@ -363,6 +384,7 @@ def run_report_scraping(
             if stop_check and stop_check():
                 if on_progress:
                     on_progress(i, len(escolas), codigo, nome, "interrompido")
+                _marcar_nao_processadas(failures, escolas[i - 1:])
                 break
 
             outputs.append((escola, data))

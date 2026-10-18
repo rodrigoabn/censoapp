@@ -329,7 +329,8 @@ def _finalize(count: int) -> None:
             if interrupted:
                 st.success(
                     f"Coleta interrompida. {count} escola(s) coletada(s) no arquivo "
-                    f"'{nome_arquivo}'. A escola em andamento foi descartada."
+                    f"'{nome_arquivo}'. A escola em andamento foi descartada; as demais "
+                    "foram marcadas como não coletadas."
                 )
             else:
                 st.success(

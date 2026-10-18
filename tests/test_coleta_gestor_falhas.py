@@ -145,3 +145,51 @@ def test_planilha_de_nao_coletadas_neutraliza_formulas():
     ])
     ws = openpyxl.load_workbook(io.BytesIO(data)).active
     assert ws["B2"].value == "'=1+1"
+
+
+def test_interrupcao_antes_da_primeira_escola_marca_todas_como_nao_processadas(monkeypatch):
+    monkeypatch.setattr(gestor_scraper, "_login_and_read", lambda *a, **k: None)
+    outputs, failures = gestor_scraper.run_scraping(
+        _BrowserFalso(), "l", "s", ESCOLAS, stop_check=lambda: True
+    )
+    assert outputs == []
+    assert failures == [
+        {
+            "codigo_inep": "111",
+            "nome_unidade": "Escola Um",
+            "motivo": "Coleta interrompida (não processada)",
+        },
+        {
+            "codigo_inep": "222",
+            "nome_unidade": "Escola Dois",
+            "motivo": "Coleta interrompida (não processada)",
+        },
+    ]
+
+
+def test_interrupcao_apos_coletar_descarta_a_atual_e_marca_a_restante(monkeypatch):
+    monkeypatch.setattr(gestor_scraper, "_login_and_read", lambda *a, **k: None)
+    monkeypatch.setattr(gestor_scraper, "_session_expirada", lambda page: False)
+    monkeypatch.setattr(
+        gestor_scraper,
+        "scrape_gestor_school",
+        lambda page, codigo, nome: {"Ficha": {"Código do Inep": codigo}},
+    )
+
+    chamadas = {"n": 0}
+
+    def _stop():
+        chamadas["n"] += 1
+        return chamadas["n"] > 3  # True só depois de coletar a 2ª escola
+
+    outputs, failures = gestor_scraper.run_scraping(
+        _BrowserFalso(), "l", "s", ESCOLAS, stop_check=_stop
+    )
+    assert [e["codigo_inep"] for e, _ in outputs] == ["111"]
+    assert failures == [
+        {
+            "codigo_inep": "222",
+            "nome_unidade": "Escola Dois",
+            "motivo": "Coleta interrompida (não processada)",
+        }
+    ]

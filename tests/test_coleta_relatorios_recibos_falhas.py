@@ -153,3 +153,89 @@ def test_planilha_de_nao_coletadas_de_recibos_neutraliza_formulas():
     ])
     ws = openpyxl.load_workbook(io.BytesIO(data)).active
     assert ws["B2"].value == "'=1+1"
+
+
+DUAS_ESCOLAS = [
+    {"codigo_inep": "111", "nome_unidade": "Escola Um"},
+    {"codigo_inep": "222", "nome_unidade": "Escola Dois"},
+]
+
+
+def test_interrupcao_em_relatorios_marca_as_escolas_restantes(monkeypatch):
+    monkeypatch.setattr(report_scraper, "_login_and_read", lambda *a, **k: None)
+    outputs, failures = report_scraper.run_report_scraping(
+        _BrowserFalso(), "l", "s", ESCOLAS, "https://exemplo/relatorio", stop_check=lambda: True
+    )
+    assert outputs == []
+    assert failures == [
+        {
+            "codigo_inep": "111",
+            "nome_unidade": "Escola Um",
+            "motivo": "Coleta interrompida (não processada)",
+        }
+    ]
+
+
+def test_interrupcao_em_recibos_marca_as_escolas_restantes(monkeypatch):
+    monkeypatch.setattr(receipt_scraper, "_login_and_read", lambda *a, **k: None)
+    outputs, failures = receipt_scraper.run_receipt_scraping(
+        _BrowserFalso(), "l", "s", ESCOLAS, "https://exemplo/fechamento", stop_check=lambda: True
+    )
+    assert outputs == []
+    assert failures == [
+        {
+            "codigo_inep": "111",
+            "nome_unidade": "Escola Um",
+            "motivo": "Coleta interrompida (não processada)",
+        }
+    ]
+
+
+def test_interrupcao_apos_baixar_relatorio_descarta_a_atual_e_marca_a_restante(monkeypatch):
+    monkeypatch.setattr(report_scraper, "_login_and_read", lambda *a, **k: None)
+    monkeypatch.setattr(report_scraper, "_session_expirada", lambda page: False)
+    monkeypatch.setattr(report_scraper, "_select_school", lambda page, codigo: True)
+    monkeypatch.setattr(report_scraper, "_download_report_csv", lambda page, url: b"csv")
+
+    chamadas = {"n": 0}
+
+    def _stop():
+        chamadas["n"] += 1
+        return chamadas["n"] > 3  # True só depois de baixar o relatório da 2ª escola
+
+    outputs, failures = report_scraper.run_report_scraping(
+        _BrowserFalso(), "l", "s", DUAS_ESCOLAS, "https://exemplo/relatorio", stop_check=_stop
+    )
+    assert [e["codigo_inep"] for e, _ in outputs] == ["111"]
+    assert failures == [
+        {
+            "codigo_inep": "222",
+            "nome_unidade": "Escola Dois",
+            "motivo": "Coleta interrompida (não processada)",
+        }
+    ]
+
+
+def test_interrupcao_apos_baixar_recibo_descarta_a_atual_e_marca_a_restante(monkeypatch):
+    monkeypatch.setattr(receipt_scraper, "_login_and_read", lambda *a, **k: None)
+    monkeypatch.setattr(receipt_scraper, "_session_expirada", lambda page: False)
+    monkeypatch.setattr(receipt_scraper, "_select_school", lambda page, codigo: True)
+    monkeypatch.setattr(receipt_scraper, "_download_receipt_pdf", lambda *a, **k: b"pdf")
+
+    chamadas = {"n": 0}
+
+    def _stop():
+        chamadas["n"] += 1
+        return chamadas["n"] > 3  # True só depois de baixar o recibo da 2ª escola
+
+    outputs, failures = receipt_scraper.run_receipt_scraping(
+        _BrowserFalso(), "l", "s", DUAS_ESCOLAS, "https://exemplo/fechamento", stop_check=_stop
+    )
+    assert [e["codigo_inep"] for e, _ in outputs] == ["111"]
+    assert failures == [
+        {
+            "codigo_inep": "222",
+            "nome_unidade": "Escola Dois",
+            "motivo": "Coleta interrompida (não processada)",
+        }
+    ]
