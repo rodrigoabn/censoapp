@@ -5,6 +5,7 @@ import streamlit as st
 import base64
 from PIL import Image
 from apps.inicio.inicio import show_home_page
+from hub_sessao import liberar_execucoes
 
 # ---------------------------------------------------------------------------
 # Registro da aplicação "COLETA DE DADOS CADASTRAIS DAS ESCOLAS" como pacote importável (src)
@@ -670,6 +671,8 @@ page = st.session_state["nav_page"]
 if "prev_nav_page" not in st.session_state:
     st.session_state["prev_nav_page"] = page
 if st.session_state["prev_nav_page"] != page:
+    # Sinaliza parada de execuções em andamento antes de limpar o estado.
+    liberar_execucoes(st.session_state)
     keep = {"nav_page", "prev_nav_page"}
     for k in list(st.session_state.keys()):
         if k not in keep:
