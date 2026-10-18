@@ -452,6 +452,17 @@ def _log_tempo_escola(codigo: str, t0: float) -> None:
     logger.info(f"[{codigo}] escola processada em {time.monotonic() - t0:.1f}s")
 
 
+def _registrar_sucesso(outputs, on_school_done, escola, dados) -> None:
+    """Grava incrementalmente (se houver callback) e acumula para o retorno.
+
+    O callback roda ANTES do append: se a gravação falhar, a exceção vira
+    falha da escola (entra em 'não coletadas') — nada some em silêncio.
+    """
+    if on_school_done is not None:
+        on_school_done(escola, dados)
+    outputs.append((escola, dados))
+
+
 def run_scraping(
     browser: Browser,
     login: str,
@@ -459,6 +470,7 @@ def run_scraping(
     escolas: list[dict],
     on_progress=None,
     stop_check=None,
+    on_school_done=None,
 ) -> tuple[list[tuple[dict, dict]], list[dict]]:
     """Varre a lista de escolas em loop, com sessão única reutilizada.
 
@@ -552,7 +564,7 @@ def run_scraping(
                     on_progress(i, len(escolas), codigo, nome, "erro: escola não encontrada")
                 continue
 
-            outputs.append((escola, dados))
+            _registrar_sucesso(outputs, on_school_done, escola, dados)
             if on_progress:
                 on_progress(i, len(escolas), codigo, nome, "concluído")
 
@@ -589,7 +601,7 @@ def run_scraping(
                     if on_progress:
                         on_progress(i, len(escolas), codigo, nome, "erro: escola não encontrada")
                 else:
-                    outputs.append((escola, dados))
+                    _registrar_sucesso(outputs, on_school_done, escola, dados)
                     if on_progress:
                         on_progress(i, len(escolas), codigo, nome, "concluído")
             except Exception as exc2:  # noqa: BLE001

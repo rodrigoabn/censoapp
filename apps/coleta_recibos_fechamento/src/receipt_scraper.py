@@ -305,6 +305,17 @@ def _log_tempo_escola(codigo: str, t0: float) -> None:
     logger.info(f"[{codigo}] escola processada em {time.monotonic() - t0:.1f}s")
 
 
+def _registrar_sucesso(outputs, on_school_done, escola, dados) -> None:
+    """Grava incrementalmente (se houver callback) e acumula para o retorno.
+
+    O callback roda ANTES do append: se a gravação falhar, a exceção vira
+    falha da escola (entra em 'não coletadas') — nada some em silêncio.
+    """
+    if on_school_done is not None:
+        on_school_done(escola, dados)
+    outputs.append((escola, dados))
+
+
 def run_receipt_scraping(
     browser: Browser,
     login: str,
@@ -313,6 +324,7 @@ def run_receipt_scraping(
     receipt_url: str,
     on_progress=None,
     stop_check=None,
+    on_school_done=None,
 ) -> tuple[list[tuple[dict, bytes]], list[dict]]:
     """Varre a lista de escolas em loop, com sessão única reutilizada.
 
@@ -396,7 +408,7 @@ def run_receipt_scraping(
                 _marcar_nao_processadas(failures, escolas[i - 1:])
                 break
 
-            outputs.append((escola, data))
+            _registrar_sucesso(outputs, on_school_done, escola, data)
             if on_progress:
                 on_progress(i, len(escolas), codigo, nome, "concluído")
 
@@ -414,7 +426,7 @@ def run_receipt_scraping(
                 if not _select_school(page, codigo):
                     raise ReciboIndisponivel()
                 data = _download_receipt_pdf(context, page, receipt_url)
-                outputs.append((escola, data))
+                _registrar_sucesso(outputs, on_school_done, escola, data)
                 if on_progress:
                     on_progress(i, len(escolas), codigo, nome, "concluído")
             except Exception as exc2:  # noqa: BLE001

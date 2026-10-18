@@ -224,26 +224,23 @@ def _scrape_worker(config, login, senha, escolas, stop_event, lock, shared, tmp_
                 if estado == "concluído":
                     shared["count"] = shared.get("count", 0) + 1
 
+    def _gravar(escola, dados):
+        zipper.append_pdf(escola["codigo_inep"], escola.get("nome_unidade", ""), dados, tmp_dir)
+
     try:
         with sync_playwright() as pw:
             browser = pw.chromium.launch(headless=True)
             try:
-                outputs, failures = run_receipt_scraping(
+                _outputs, failures = run_receipt_scraping(
                     browser, login, senha, escolas, config["url"],
                     on_progress=hook, stop_check=stop_event.is_set,
+                    on_school_done=_gravar,
                 )
             finally:
                 browser.close()
 
         with lock:
             shared["failures"] = failures
-
-        for escola, data in outputs:
-            try:
-                zipper.append_pdf(escola["codigo_inep"], escola.get("nome_unidade", ""), data, tmp_dir)
-            except Exception as exc:  # noqa: BLE001
-                with lock:
-                    shared.setdefault("warnings", []).append(str(exc))
     except Exception as exc:  # noqa: BLE001
         with lock:
             shared["error"] = str(exc)

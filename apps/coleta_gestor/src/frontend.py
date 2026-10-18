@@ -206,26 +206,23 @@ def _scrape_worker(login, senha, escolas, stop_event, lock, shared, tmp_dir):
                 if estado == "concluído":
                     shared["count"] = shared.get("count", 0) + 1
 
+    def _gravar(escola, dados):
+        exporter.append_school_temp(dados, tmp_dir)
+
     try:
         with sync_playwright() as p:
             browser = p.chromium.launch(headless=True)
             try:
-                outputs, failures = run_scraping(
+                _outputs, failures = run_scraping(
                     browser, login, senha, escolas,
                     on_progress=hook, stop_check=stop_event.is_set,
+                    on_school_done=_gravar,
                 )
             finally:
                 browser.close()
 
         with lock:
             shared["failures"] = failures
-
-        for _, dados in outputs:
-            try:
-                exporter.append_school_temp(dados, tmp_dir)
-            except Exception as exc:  # noqa: BLE001
-                with lock:
-                    shared.setdefault("warnings", []).append(str(exc))
     except Exception as exc:  # noqa: BLE001
         with lock:
             shared["error"] = str(exc)
