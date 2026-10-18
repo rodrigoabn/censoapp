@@ -53,7 +53,7 @@ docker compose logs -f app                          # logs ao vivo; arquivo em .
 ## Implantação (intranet) — Fase 2
 
 - **Runbook completo**: `docs/deploy.md` (TLS interno do Caddy, secrets, despublicação do Streamlit Cloud, cabeçalhos/CSP, troubleshooting).
-- **Compose**: `docker-compose.yml` — app Streamlit + proxy `caddy`; copie `.env.example` → `.env`. `./logs` e `.streamlit/secrets.toml` são montados como volumes (o arquivo de secrets **precisa existir antes do primeiro `up`**, senão o Docker cria um diretório no lugar).
+- **Compose**: `docker-compose.yml` — app Streamlit + proxy `caddy`; copie `.env.example` → `.env`. `./logs` e `.streamlit/secrets.toml` são montados como volumes (o arquivo de secrets **precisa existir antes do primeiro `up`**, senão o Docker cria um diretório no lugar; crie `logs/` com uid 1000 — se não for gravável, o log cai para o stderr e o HUB segue no ar).
 - **Autenticação** (`auth_gate.py`, chamado no topo do `app.py`, antes de qualquer render): modo detectado pela config e forçável por `CENSO_AUTH_MODE`:
   - `oidc` — seção `[auth]` nos secrets (SSO via `st.login`); **fecha por padrão** se forçado sem `[auth]`;
   - `senha` — seção `[auth_simples]` (senha única compartilhada; fallback enquanto não houver OIDC);

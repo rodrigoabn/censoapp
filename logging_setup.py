@@ -3,6 +3,10 @@
 - `CENSO_LOG_DIR`  — diretório do arquivo (default `logs/`, relativo ao cwd).
 - `CENSO_LOG_LEVEL` — nível do logger raiz (default `INFO`).
 
+Se o diretório não puder ser gravado (ex.: `./logs` criado pelo Docker como
+root), cai para um handler de stderr com aviso — o HUB nunca deixa de subir
+por causa do log.
+
 A função é idempotente de propósito: o script do Streamlit roda de novo a cada
 interação (rerun), e cada execução chama `configurar_logging()` — o handler do
 arquivo é criado uma única vez por processo.
@@ -41,21 +45,36 @@ def configurar_logging(log_dir=None, level=None, env=None) -> Path:
     env = dict(os.environ) if env is None else env
     if log_dir is None:
         log_dir = env.get(_ENV_DIR, "logs")
-    destino = Path(log_dir)
-    destino.mkdir(parents=True, exist_ok=True)
-    caminho = destino / ARQUIVO
+    caminho = Path(log_dir) / ARQUIVO
 
     raiz = logging.getLogger()
+    criado = False
+    erro = None
     if not any(getattr(h, _MARCADOR, False) for h in raiz.handlers):
-        handler = RotatingFileHandler(
-            caminho,
-            maxBytes=MAX_BYTES,
-            backupCount=BACKUPS,
-            encoding="utf-8",
-        )
+        try:
+            caminho.parent.mkdir(parents=True, exist_ok=True)
+            handler: logging.Handler = RotatingFileHandler(
+                caminho,
+                maxBytes=MAX_BYTES,
+                backupCount=BACKUPS,
+                encoding="utf-8",
+            )
+        except OSError as exc:
+            # Ex.: ./logs criado pelo Docker como root (ver docs/deploy.md).
+            # O HUB não pode deixar de subir por causa do log: cai para o stderr.
+            erro = exc
+            handler = logging.StreamHandler()
         handler.setFormatter(logging.Formatter(FORMATO))
         setattr(handler, _MARCADOR, True)
         raiz.addHandler(handler)
+        criado = True
 
     raiz.setLevel(_nivel_do_env(env) if level is None else level)
+
+    # Uma linha por processo (depois do setLevel, senão o INFO seria descartado).
+    if criado and erro is not None:
+        raiz.warning("Não foi possível gravar %s (%s); log indo para o stderr.", caminho, erro)
+    elif criado:
+        raiz.info("Log gravando em %s", caminho)
+
     return caminho

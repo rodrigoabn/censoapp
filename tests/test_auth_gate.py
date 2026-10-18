@@ -54,8 +54,11 @@ class _StFalso:
         respostas=None,
         respostas_input=None,
         estado=None,
+        secrets_ruim=False,
     ):
-        self.secrets = secrets if secrets is not None else {}
+        self._secrets = None
+        if not secrets_ruim:
+            self.secrets = secrets if secrets is not None else {}
         self.user = _UsuarioFalso(logado, nome, email)
         self.session_state = estado if estado is not None else _EstadoFalso()
         self.sidebar = _SidebarFalso(self)
@@ -65,6 +68,17 @@ class _StFalso:
         self.markdowns = []
         self.botoes, self.botoes_sidebar, self.inputs = [], [], []
         self.login_chamadas, self.logout_chamadas = 0, 0
+
+    @property
+    def secrets(self):
+        """`secrets_ruim=True` simula ambiente sem secrets (st.secrets levanta)."""
+        if self._secrets is None:
+            raise RuntimeError("secrets indisponível")
+        return self._secrets
+
+    @secrets.setter
+    def secrets(self, valor):
+        self._secrets = valor
 
     def error(self, msg):
         self.erros.append(msg)
@@ -170,7 +184,8 @@ def test_senha_correta_libera_a_sessao():
         respostas={"Entrar": True},
         respostas_input={"Senha de acesso": "correta"},
     )
-    exigir_autenticacao(st, env={})  # não para
+    with pytest.raises(_ParouExecucao):  # st.rerun() logo após liberar
+        exigir_autenticacao(st, env={})
     assert st.session_state.get("auth_ok") is True
 
 
@@ -184,3 +199,42 @@ def test_senha_logado_sair_revoga():
     with pytest.raises(_ParouExecucao):  # st.rerun() depois de revogar
         exigir_autenticacao(st, env={})
     assert estado.get("auth_ok") is False
+
+
+def test_senha_com_acentos_funciona():
+    st = _StFalso(
+        secrets={"auth_simples": {"senha": "Censo@2026ç"}},
+        respostas={"Entrar": True},
+        respostas_input={"Senha de acesso": "Censo@2026ç"},
+    )
+    with pytest.raises(_ParouExecucao):  # st.rerun() logo após liberar
+        exigir_autenticacao(st, env={})
+    assert st.session_state.get("auth_ok") is True
+
+
+def test_senha_forcada_sem_config_mostra_erro_claro():
+    st = _StFalso()
+    with pytest.raises(_ParouExecucao):
+        exigir_autenticacao(st, env={"CENSO_AUTH_MODE": "senha"})
+    assert st.erros and "auth_simples" in st.erros[0]
+
+
+def test_senha_configurada_vazia_mostra_erro_claro():
+    st = _StFalso(secrets={"auth_simples": {}})
+    with pytest.raises(_ParouExecucao):
+        exigir_autenticacao(st, env={})
+    assert st.erros and "senha" in st.erros[0].lower()
+
+
+def test_secrets_indisponivel_nao_derruba_o_hub():
+    st = _StFalso(secrets_ruim=True)
+    exigir_autenticacao(st, env={})  # cai no modo aberto, sem exceção
+    assert st.erros == []
+    assert any("não configurada" in c for c in st.captions)
+
+
+def test_authlib_disponivel_para_o_modo_oidc():
+    """st.login() (modo oidc) exige Authlib (extra "auth" do streamlit)."""
+    from streamlit.auth_util import is_authlib_installed
+
+    assert is_authlib_installed()

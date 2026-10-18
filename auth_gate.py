@@ -115,15 +115,29 @@ def exigir_autenticacao(st, env=None) -> None:
         return
 
     # modo == "senha"
+    if "auth_simples" not in secrets:
+        st.error(
+            "Autenticação por senha ativada (CENSO_AUTH_MODE=senha), mas a seção "
+            "[auth_simples] não está configurada em .streamlit/secrets.toml."
+        )
+        st.stop()
+
+    esperada = str(secrets.get("auth_simples", {}).get("senha", ""))
+    if not esperada:
+        st.error(
+            "A seção [auth_simples] não define 'senha' em .streamlit/secrets.toml."
+        )
+        st.stop()
+
     if st.session_state.get(_CHAVE_SESSAO):
         _render_usuario(st, "sessão autenticada", _revoga_senha(st))
         return
 
     senha = st.text_input(_LABEL_SENHA, type="password")
     if st.button(_ROTULO_ENTRAR, key="auth_entrar"):
-        esperada = str(secrets.get("auth_simples", {}).get("senha", ""))
-        if esperada and hmac.compare_digest(str(senha or ""), esperada):
+        # compare_digest exige bytes: o encode libera qualquer senha (acentos etc.)
+        if hmac.compare_digest(str(senha or "").encode("utf-8"), esperada.encode("utf-8")):
             st.session_state[_CHAVE_SESSAO] = True
-            return  # liberado: o app continua a renderizar nesta execução
+            st.rerun()
         st.error("Senha incorreta.")
     st.stop()

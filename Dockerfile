@@ -34,6 +34,7 @@ RUN /app/.venv/bin/python -m playwright install chromium \
 COPY . .
 
 RUN useradd --create-home --shell /bin/bash appuser \
+    && mkdir -p /app/logs \
     && chown -R appuser:appuser /app
 USER appuser
 

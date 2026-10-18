@@ -53,13 +53,16 @@ def test_cria_arquivo_e_formata_linha(tmp_path):
 
     conteudo = caminho.read_text(encoding="utf-8")
     assert "INFO coleta_teste escola 123 coletada" in conteudo
+    assert "Log gravando em" in conteudo  # linha única de boot por processo
 
 
 def test_idempotente_entre_chamadas(tmp_path):
+    caminho = configurar_logging(log_dir=tmp_path, env={})
     configurar_logging(log_dir=tmp_path, env={})
-    configurar_logging(log_dir=tmp_path, env={})
+    _flush()
 
     assert len(_hub_handlers()) == 1
+    assert caminho.read_text(encoding="utf-8").count("Log gravando em") == 1
 
 
 def test_rotaciona_ao_exceder_max_bytes(tmp_path):
@@ -86,3 +89,20 @@ def test_env_resolve_diretorio_e_nivel(tmp_path):
     log.debug("não deve aparecer")
     _flush()
     assert "não deve aparecer" not in caminho.read_text(encoding="utf-8")
+
+
+def test_diretorio_sem_escrita_cai_para_stderr_sem_derrubar(tmp_path):
+    bloqueado = tmp_path / "bloqueado"
+    bloqueado.mkdir()
+    bloqueado.chmod(0o500)  # dono sem permissão de escrita
+    try:
+        caminho = configurar_logging(log_dir=bloqueado, env={})
+
+        # O handler virou stderr (sem arquivo), então `baseFilename` não existe.
+        handler = _hub_handlers()[0]
+        assert not hasattr(handler, "baseFilename")
+        assert caminho == bloqueado / "censoapp.log"
+        assert not caminho.exists()
+        assert len(_hub_handlers()) == 1
+    finally:
+        bloqueado.chmod(0o700)

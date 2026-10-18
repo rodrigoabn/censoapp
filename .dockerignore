@@ -3,11 +3,18 @@
 # Git / editor / harness
 .git
 .gitignore
+.github
 .opencode
 .superpowers
 .devcontainer
 .vscode
 .idea
+
+# Meta/documentação que não faz parte da imagem
+AGENTS.md
+README.md
+requirements-dev.txt
+.streamlit/secrets.toml.example
 
 # Ambientes e caches Python
 .venv
