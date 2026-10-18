@@ -2,11 +2,16 @@
 
 from __future__ import annotations
 
+import io
+
+import openpyxl
 import pytest
 from playwright.sync_api import TimeoutError as PlaywrightTimeoutError
 
 from apps.coleta_recibos_fechamento.src import receipt_scraper
+from apps.coleta_recibos_fechamento.src import zipper as rec_zipper
 from apps.coleta_relatorios.src import report_scraper
+from apps.coleta_relatorios.src import zipper as rel_zipper
 
 ESCOLAS = [{"codigo_inep": "111", "nome_unidade": "Escola Um"}]
 
@@ -132,3 +137,19 @@ def test_recibo_indisponivel_segue_quando_sessao_ok(monkeypatch):
         receipt_scraper._download_receipt_pdf(
             _ContextoFalso(), _PaginaFalsa(), "https://exemplo/fechamento"
         )
+
+
+def test_planilha_de_nao_coletadas_de_relatorios_neutraliza_formulas():
+    data = rel_zipper.build_pending_xlsx([
+        {"codigo_inep": "111", "nome_unidade": "=1+1", "motivo": "Falha no login"},
+    ])
+    ws = openpyxl.load_workbook(io.BytesIO(data)).active
+    assert ws["B2"].value == "'=1+1"
+
+
+def test_planilha_de_nao_coletadas_de_recibos_neutraliza_formulas():
+    data = rec_zipper.build_pending_xlsx([
+        {"codigo_inep": "111", "nome_unidade": "=1+1", "motivo": "Falha no login"},
+    ])
+    ws = openpyxl.load_workbook(io.BytesIO(data)).active
+    assert ws["B2"].value == "'=1+1"

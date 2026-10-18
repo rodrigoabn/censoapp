@@ -137,3 +137,11 @@ def test_re_login_falho_na_checagem_previa(monkeypatch):
     assert failures == [
         {"codigo_inep": "111", "nome_unidade": "Escola Um", "motivo": "Erro (re-login): LoginFalhou"}
     ]
+
+
+def test_planilha_de_nao_coletadas_neutraliza_formulas():
+    data = exporter.build_pending_xlsx([
+        {"codigo_inep": "111", "nome_unidade": "=1+1", "motivo": "Falha no login"},
+    ])
+    ws = openpyxl.load_workbook(io.BytesIO(data)).active
+    assert ws["B2"].value == "'=1+1"

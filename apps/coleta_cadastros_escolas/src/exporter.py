@@ -54,6 +54,14 @@ def pending_filename() -> str:
     return f"cadastro_escola_escolas_nao_coletadas_{_file_date()}.xlsx"
 
 
+def _neutralizar_formulas(ws) -> None:
+    """Neutraliza textos iniciados com '=' para não virarem fórmula no Excel."""
+    for row in ws.iter_rows():
+        for cell in row:
+            if isinstance(cell.value, str) and cell.value.startswith("="):
+                cell.value = "'" + cell.value
+
+
 def build_pending_xlsx(failures: list[dict]) -> bytes:
     """Gera um XLSX com as escolas processadas que não tiveram dados coletados.
 
@@ -70,6 +78,7 @@ def build_pending_xlsx(failures: list[dict]) -> bytes:
             f.get("motivo", ""),
         ])
 
+    _neutralizar_formulas(ws)
     _ajustar_larguras(ws)
 
     buffer = io.BytesIO()
