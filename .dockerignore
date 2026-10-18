@@ -1,0 +1,31 @@
+# Contexto do build enxuto: nada de git, ambientes, caches, testes ou segredos.
+
+# Git / editor / harness
+.git
+.gitignore
+.opencode
+.superpowers
+.devcontainer
+.vscode
+.idea
+
+# Ambientes e caches Python
+.venv
+__pycache__
+*.pyc
+.pytest_cache
+
+# Testes (não fazem parte da imagem)
+tests
+
+# Segredos — NUNCA entram na imagem (montados no compose)
+.streamlit/secrets.toml
+credenciais.json
+apps/coleta_cadastros_escolas/docs/credenciais.json
+.env
+.env.local
+
+# Logs e artefatos locais
+*.log
+logs/
+docs/escolas_ativas_*.xlsx
