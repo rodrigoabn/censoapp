@@ -25,3 +25,4 @@ docs_temporarios/
 # Evitar subir planilhas de dados locais ou logs
 *.csv
 *.log
+logs/

@@ -7,6 +7,7 @@ from PIL import Image
 from apps.inicio.inicio import show_home_page
 from hub_sessao import liberar_execucoes
 from auth_gate import exigir_autenticacao
+from logging_setup import configurar_logging
 
 # ---------------------------------------------------------------------------
 # Registro da aplicação "COLETA DE DADOS CADASTRAIS DAS ESCOLAS" como pacote importável (src)
@@ -82,8 +83,10 @@ st.set_page_config(
 )
 
 # ---------------------------------------------------------------------------
-# Portão de autenticação — nada abaixo disto pode renderizar sem login
+# Logging do HUB (arquivo rotativo; sem PII) e portão de autenticação —
+# nada abaixo disto pode renderizar sem login
 # ---------------------------------------------------------------------------
+configurar_logging()
 exigir_autenticacao(st)
 
 # ---------------------------------------------------------------------------
