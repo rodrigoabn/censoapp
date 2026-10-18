@@ -25,4 +25,20 @@ dependencies = [
 [dependency-groups]
 dev = [
     "pytest>=9.1.1",
+    "ruff>=0.17.1",
 ]
+
+[tool.ruff]
+# Lint focado em erros reais (E4/E7/E9/F) + ordenação de imports (I).
+# Estilo/formatação ampla fica fora por enquanto, para não gerar ruído.
+target-version = "py313"
+line-length = 100
+
+[tool.ruff.lint]
+select = ["E4", "E7", "E9", "F", "I"]
+# E402: imports intencionalmente DEPOIS do shim de sys.path em app.py e nos
+# frontends de cadastros/gestor (o shim precisa vir antes).
+ignore = ["E402"]
+
+[tool.ruff.lint.isort]
+known-first-party = ["apps", "src"]

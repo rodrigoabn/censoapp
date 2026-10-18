@@ -1,7 +1,7 @@
 from __future__ import annotations
 
-import zipfile
 import io
+import zipfile
 
 import pandas as pd
 

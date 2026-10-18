@@ -8,7 +8,6 @@ Educacenso nem em Planilha Google (cláusula pétrea).
 
 from __future__ import annotations
 
-import base64
 import subprocess
 import sys
 import threading
@@ -64,9 +63,8 @@ def _chromium_already_installed() -> bool:
     )
     return any(candidate.exists() for candidate in candidates)
 
-from src.upload import read_school_list
 from src import exporter
-
+from src.upload import read_school_list
 
 # Estilo escopado mínimo para destacar o botão de submissão dentro do tema do HUB.
 _SUBMIT_CSS = """
@@ -209,6 +207,7 @@ def _scrape_worker(login, senha, escolas, stop_event, lock, shared, tmp_dir):
     concluídas — a escola em andamento no momento da parada é descartada.
     """
     from playwright.sync_api import sync_playwright
+
     from src.scraper import run_scraping
 
     def hook(i, total, codigo, nome, estado):
@@ -291,7 +290,6 @@ def _monitor() -> None:
         count = shared.get("count", 0)
         total = shared.get("total", 0)
         done = shared.get("done", False)
-        error = shared.get("error")
 
     # Botão de interrupção.
     if not ss.ws_stop.is_set():

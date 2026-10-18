@@ -12,13 +12,14 @@ NUNCA preenche, marca ou submete dados de questionário no site.
 
 from __future__ import annotations
 
-import time
 import logging
+import time
 
-from playwright.sync_api import Browser, Page, TimeoutError as PlaywrightTimeoutError
+from playwright.sync_api import Browser, Page
+from playwright.sync_api import TimeoutError as PlaywrightTimeoutError
 
 import src.modelo as modelo
-from src.auth import BASE_URL, READ_ONLY, _assert_read_only
+from src.auth import BASE_URL, _assert_read_only
 
 logger = logging.getLogger("coleta_cadastros_escolas")
 
@@ -116,11 +117,6 @@ _EXTRACT_JS = """() => {
   });
   return out;
 }"""
-
-
-def _assert_read_only() -> None:
-    if not READ_ONLY:
-        raise RuntimeError("MODO LEITURA violado: escrita no site proibida.")
 
 
 def _safe_cleanup(context, page) -> None:

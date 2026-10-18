@@ -191,12 +191,10 @@ class _DocTemplate(object):
 
 def build_documentacao_pdf(logo_base64: str | None = None) -> bytes:
     """Gera e retorna os bytes do PDF da documentação completa."""
-    from reportlab.lib.pagesizes import A4
     from reportlab.lib.units import cm
     from reportlab.platypus import (
         Image,
         PageBreak,
-        Paragraph,
     )
     from reportlab.platypus.tableofcontents import TableOfContents
 
@@ -224,7 +222,7 @@ def build_documentacao_pdf(logo_base64: str | None = None) -> bytes:
     _par(story, estilos["cap_titulo"], "APLICAÇÕES DE APOIO<br/>CENSO ESCOLAR")
     _par(story, estilos["cap_sub"], "Documentação Técnica e Manual do Usuário")
     story.append(_esp(10))
-    _par(story, estilos["cap_meta"], f"Versão: 1.0")
+    _par(story, estilos["cap_meta"], "Versão: 1.0")
     _par(story, estilos["cap_meta"], f"Data: {datetime.now().strftime('%d/%m/%Y')}")
     _par(story, estilos["cap_meta"], "Autor: Rodrigo Nunes")
     _par(story, estilos["cap_meta"], "Secretaria Municipal de Educação - Campos dos Goytacazes/RJ")

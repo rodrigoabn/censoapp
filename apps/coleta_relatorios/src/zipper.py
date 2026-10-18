@@ -20,6 +20,7 @@ from pathlib import Path
 import openpyxl
 from openpyxl.utils import get_column_letter
 
+
 def nova_pasta_temporaria() -> Path:
     """Cria a pasta temporária exclusiva desta execução de coleta."""
     return Path(tempfile.mkdtemp(prefix="educacenso_relatorios_tmp_"))

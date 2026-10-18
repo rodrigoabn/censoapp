@@ -17,10 +17,11 @@ NUNCA preenche, marca ou submete dados de questionário no site. A única saída
 
 from __future__ import annotations
 
-import time
 import logging
+import time
 
-from playwright.sync_api import Browser, Page, TimeoutError as PlaywrightTimeoutError
+from playwright.sync_api import Browser, Page
+from playwright.sync_api import TimeoutError as PlaywrightTimeoutError
 
 from .auth import BASE_URL, READ_ONLY
 

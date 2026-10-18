@@ -6,7 +6,6 @@ Não intrusivo: um pedido por método, sem corpo.
 from __future__ import annotations
 
 import pytest
-
 from conftest import TIMEOUT
 
 pytestmark = pytest.mark.live

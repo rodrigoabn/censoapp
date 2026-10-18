@@ -1,12 +1,13 @@
+import base64
 import sys
 from pathlib import Path
 
 import streamlit as st
-import base64
 from PIL import Image
+
 from apps.inicio.inicio import show_home_page
-from hub_sessao import liberar_execucoes
 from auth_gate import exigir_autenticacao
+from hub_sessao import liberar_execucoes
 from logging_setup import configurar_logging
 
 # ---------------------------------------------------------------------------
@@ -16,29 +17,22 @@ _WEB_SCRAPING_PATH = Path(__file__).resolve().parent / "apps" / "coleta_cadastro
 if str(_WEB_SCRAPING_PATH) not in sys.path:
     sys.path.insert(0, str(_WEB_SCRAPING_PATH))
 
-from src.frontend import render_frontend
-
-from apps.coleta_gestor.src.frontend import render_gestor_frontend
-
-from apps.coleta_relatorios.src.frontend import render_report_frontend
-from apps.coleta_relatorios.src.reports import REPORTS
-
-from apps.coleta_recibos_fechamento.src.frontend import render_receipt_frontend
-
-from apps.verificacao_inconsistencias.src.frontend import render_validation_frontend
-
-from apps.verificacao_inconsistencias.src.validations import VALIDATIONS
-
-from apps.unificador_inconsistencias.src.frontend import (
-    render_unificador_inconsistencias_frontend,
-)
+from apps.adequacao_alunos.src.frontend import render_adequacao_alunos_frontend
+from apps.adequacao_profissionais.src.frontend import render_adequacao_profissionais_frontend
 
 # Adequação de Relatórios
 from apps.adequacao_turmas.src.frontend import render_adequacao_turmas_frontend
+from apps.coleta_gestor.src.frontend import render_gestor_frontend
+from apps.coleta_recibos_fechamento.src.frontend import render_receipt_frontend
+from apps.coleta_relatorios.src.frontend import render_report_frontend
+from apps.coleta_relatorios.src.reports import REPORTS
+from apps.unificador_inconsistencias.src.frontend import (
+    render_unificador_inconsistencias_frontend,
+)
+from apps.verificacao_inconsistencias.src.frontend import render_validation_frontend
+from apps.verificacao_inconsistencias.src.validations import VALIDATIONS
+from src.frontend import render_frontend
 
-from apps.adequacao_alunos.src.frontend import render_adequacao_alunos_frontend
-
-from apps.adequacao_profissionais.src.frontend import render_adequacao_profissionais_frontend
 
 # ---------------------------------------------------------------------------
 # Utilitários

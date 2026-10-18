@@ -16,8 +16,8 @@ import time
 
 import streamlit as st
 
-from .upload import read_school_list
 from . import zipper
+from .upload import read_school_list
 
 
 @st.cache_resource(show_spinner="Preparando navegador (primeira execução)...")
@@ -178,6 +178,7 @@ def _scrape_worker(config, login, senha, escolas, stop_event, lock, shared, tmp_
     concluídas — a escola em andamento no momento da parada é descartada.
     """
     from playwright.sync_api import sync_playwright
+
     from .report_scraper import run_report_scraping
 
     def hook(i, total, codigo, nome, estado):

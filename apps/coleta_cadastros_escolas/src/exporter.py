@@ -129,7 +129,7 @@ def build_xlsx(tmp_dir: Path, model=None) -> bytes:
         if path.exists():
             with path.open(encoding="utf-8") as f:
                 reader = csv.reader(f)
-                header = next(reader, None)  # pula cabeçalho do CSV
+                next(reader, None)  # pula cabeçalho do CSV
                 for r in reader:
                     ws.append(r)
 

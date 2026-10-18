@@ -14,8 +14,8 @@ from apps.unificador_inconsistencias.src.processor import (
 from apps.unificador_inconsistencias.src.statistics_pdf import (
     _counts_by_school_type,
     _ordered_schools,
-    _school_type_summary,
     _school_type,
+    _school_type_summary,
     _table_count,
     build_statistics_pdf,
 )

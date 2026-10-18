@@ -17,9 +17,9 @@ from pathlib import Path
 
 import streamlit as st
 
+from . import zipper
 from .config import CONFIG
 from .upload import read_school_list
-from . import zipper
 
 
 @st.cache_resource(show_spinner="Preparando navegador (primeira execução)...")
@@ -210,6 +210,7 @@ def _scrape_worker(config, login, senha, escolas, stop_event, lock, shared, tmp_
     concluídas — a escola em andamento no momento da parada é descartada.
     """
     from playwright.sync_api import sync_playwright
+
     from .receipt_scraper import run_receipt_scraping
 
     def hook(i, total, codigo, nome, estado):

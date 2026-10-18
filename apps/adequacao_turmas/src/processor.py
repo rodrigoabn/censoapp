@@ -1,7 +1,8 @@
 from __future__ import annotations
 
-import pandas as pd
 import re
+
+import pandas as pd
 
 
 def adequar_turmas(dataframes: dict[str, pd.DataFrame]) -> dict[str, pd.DataFrame]:

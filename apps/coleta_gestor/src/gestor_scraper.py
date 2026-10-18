@@ -16,14 +16,15 @@ escrita permitida é no XLSX de saída (exporter.py).
 
 from __future__ import annotations
 
+import logging
 import re
 import time
-import logging
 
-from playwright.sync_api import Browser, Page, TimeoutError as PlaywrightTimeoutError
+from playwright.sync_api import Browser, Page
+from playwright.sync_api import TimeoutError as PlaywrightTimeoutError
 
 from . import modelo
-from .auth import BASE_URL, READ_ONLY, _assert_read_only
+from .auth import BASE_URL, _assert_read_only
 
 logger = logging.getLogger("coleta_gestor")
 

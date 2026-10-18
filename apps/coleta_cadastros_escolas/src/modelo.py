@@ -7,8 +7,9 @@ onde gravar cada dado na Planilha Google. Nenhuma escrita é feita aqui.
 
 from __future__ import annotations
 
-import openpyxl
 from pathlib import Path
+
+import openpyxl
 
 DOCS_DIR = Path(__file__).resolve().parent.parent / "docs"
 MODELO_PATH = DOCS_DIR / "modelo_coleta.xlsx"

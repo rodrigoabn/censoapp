@@ -9,7 +9,6 @@ from urllib.parse import urlparse
 
 import pytest
 import requests
-
 from conftest import TIMEOUT, USER_AGENT, target_url
 
 pytestmark = pytest.mark.live

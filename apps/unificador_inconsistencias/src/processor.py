@@ -11,7 +11,6 @@ import openpyxl
 import pandas as pd
 from openpyxl.utils import get_column_letter
 
-
 SHEETS = {
     "unidades": "Cadastro da Unidade",
     "gestores": "Gestores",

@@ -56,9 +56,8 @@ def _chromium_already_installed() -> bool:
     return any(candidate.exists() for candidate in candidates)
 
 
-from .upload import read_school_list
 from . import exporter
-
+from .upload import read_school_list
 
 _SUBMIT_CSS = """
 <style>
@@ -193,6 +192,7 @@ def render_gestor_frontend(logo_base64=None):
 def _scrape_worker(login, senha, escolas, stop_event, lock, shared, tmp_dir):
     """Executa a coleta em thread de background (não acessa st.*)."""
     from playwright.sync_api import sync_playwright
+
     from .gestor_scraper import run_scraping
 
     def hook(i, total, codigo, nome, estado):
@@ -275,7 +275,6 @@ def _monitor() -> None:
         count = shared.get("count", 0)
         total = shared.get("total", 0)
         done = shared.get("done", False)
-        error = shared.get("error")
 
     if not ss.cg_stop.is_set():
         if st.button("⛔ Interromper coleta", key="cg_stop_btn"):

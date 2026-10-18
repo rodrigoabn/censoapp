@@ -1,12 +1,11 @@
 from __future__ import annotations
 
-import io
 from datetime import datetime
 
 import streamlit as st
 
-from .upload import read_zip_csvs, write_zip_from_dataframes
 from .processor import adequar_alunos
+from .upload import read_zip_csvs, write_zip_from_dataframes
 
 
 def _output_filename(config: dict, suffix: str = "adequado", ext: str = "zip") -> str:

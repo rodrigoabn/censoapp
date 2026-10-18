@@ -4,6 +4,7 @@ import io
 from datetime import date, datetime
 from pathlib import Path
 from typing import Any
+from xml.sax.saxutils import escape
 
 from reportlab.graphics.shapes import Drawing, Rect, String
 from reportlab.lib import colors
@@ -21,8 +22,6 @@ from reportlab.platypus import (
     Table,
     TableStyle,
 )
-from xml.sax.saxutils import escape
-
 
 _NAVY = colors.HexColor("#16324F")
 _BLUE = colors.HexColor("#6FA8DC")

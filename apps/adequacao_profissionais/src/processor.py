@@ -1,6 +1,8 @@
 from __future__ import annotations
-import pandas as pd
+
 import re
+
+import pandas as pd
 
 
 def adequar_profissionais(

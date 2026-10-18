@@ -7,7 +7,6 @@ import streamlit as st
 from .processor import build_school_reports_zip, output_filename
 from .statistics_pdf import build_statistics_pdf, statistics_pdf_filename
 
-
 _RELATORIOS = (
     ("escolas_ativas", "Relação de Escolas Ativas no Censo"),
     ("unidades", "Inconsistências de Unidades"),

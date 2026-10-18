@@ -10,6 +10,7 @@ A leitura é feita em MODO LEITURA (apenas leitura local do arquivo).
 from __future__ import annotations
 
 import io
+
 import pandas as pd
 
 

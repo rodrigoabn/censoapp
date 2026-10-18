@@ -7,7 +7,6 @@ que a aplicação não vaza detalhes internos em respostas.
 from __future__ import annotations
 
 import pytest
-
 from conftest import TIMEOUT
 
 pytestmark = pytest.mark.live
