@@ -30,22 +30,24 @@
 
 ---
 
-## Fase 5 — Eficiência da coleta 🔜 (próxima)
+## Fase 5 — Eficiência da coleta ✅ (5.0–5.7 feitos; 5.8 pendente — execução do usuário com o portal)
 
 **Objetivo:** cortar o desperdício controlável do tempo por escola (estimado **10–25 s/escola**; até ~40 s no gestor; baseline: 222 escolas × 2–3 h por coletor) e **medir** antes/depois.
 **Recon: CONCLUÍDO** (auditoria de 2026-10-18 — hotspots mapeados abaixo).
 **Pronto quando:** timing instrumentado; ganhos medidos no protocolo antes/depois; suíte verde; saídas equivalentes.
 
-- [ ] **5.0 — Timing por escola (P0, pré-requisito).** `t0=time.monotonic()` antes de cada escola; log `[codigo] ok/erro em Xs`; contadores (networkidle estourado, re-logins, retries de abertura). *4 scrapers.*
-- [ ] **5.1 — Sigilo rápido (P1).** `wait_for_selector("mat-dialog-container", timeout=1500)`; se ausente → segue direto; se presente → manter rolagem, aceitar e esperar o modal **sumir** (`state="detached"`) em vez de `wait_for_timeout(3000)`; fallback para o wait longo se a ficha não abrir. **Ganho: ~6,5 s/escola; gestor ~19,5 s** (3 chamadas de sigilo). *`scraper.py:243-263`, `gestor_scraper.py:201-221`, `report_scraper.py:131-150`, `receipt_scraper.py:135-154`.*
-- [ ] **5.2 — Cache do modelo XLSX (P3).** `functools.cache` em `load_model()` + `norm_map` por aba. **Ganho: ~22 s/run (cadastros) + I/O.** *`modelo.py` ×2; remove recargas em scrapers/exporters.*
-- [ ] **5.3 — `networkidle` fora (P2).** Remover/reduzir (o `wait_for_selector` do input já é o gate real); logar quando estourar. *Cadastros `scraper.py:282-285`, Relatórios `report_scraper.py:165-168`, Recibos `receipt_scraper.py:169-172`.*
-- [ ] **5.4 — Escrita incremental + retomada (P4).** Callback `on_school_done`; frontends gravam CSV/PDF por escola (hoje: crash perde **o lote inteiro**); bônus: pular códigos já presentes no tmp (retomada); corrigir docstrings dos exporters ("appendada durante a raspagem" é falso hoje).
-- [ ] **5.5 — Gestor: não repetir a pesquisa (P5).** Fase B reaproveita a lista já carregada (edit direto), fallback = reload; sleeps de `_extract_with_retry` → poll curto. **Ganho: 4–12 s (+0–6 s).** *`gestor_scraper.py:495-600`.*
-- [ ] **5.6 — Recibos: poll único (P6).** Loop 15×(1 s + loader) → 1 `wait_for_selector` com seletor-união (15 s). *`receipt_scraper.py:251-261`.*
-- [ ] **5.7 — Throttle configurável (P7).** `CENSO_SLEEP_ESCOLAS` (default 0.3 s) nos 4 loops.
+- [x] **5.0 — Timing por escola (P0, pré-requisito).** `t0=time.monotonic()` antes de cada escola; log `[codigo] ok/erro em Xs`; contadores (networkidle estourado, re-logins, retries de abertura). *4 scrapers.*
+- [x] **5.1 — Sigilo rápido (P1).** `wait_for_selector("mat-dialog-container", timeout=1500)`; se ausente → segue direto; se presente → manter rolagem, aceitar e esperar o modal **sumir** (`state="detached"`) em vez de `wait_for_timeout(3000)`; fallback para o wait longo se a ficha não abrir. **Ganho: ~6,5 s/escola; gestor ~19,5 s** (3 chamadas de sigilo). *`scraper.py:243-263`, `gestor_scraper.py:201-221`, `report_scraper.py:131-150`, `receipt_scraper.py:135-154`.*
+- [x] **5.2 — Cache do modelo XLSX (P3).** `functools.cache` em `load_model()` + `norm_map` por aba. **Ganho: ~22 s/run (cadastros) + I/O.** *`modelo.py` ×2; remove recargas em scrapers/exporters.*
+- [x] **5.3 — `networkidle` fora (P2).** Remover/reduzir (o `wait_for_selector` do input já é o gate real); logar quando estourar. *Cadastros `scraper.py:282-285`, Relatórios `report_scraper.py:165-168`, Recibos `receipt_scraper.py:169-172`.*
+- [x] **5.4 — Escrita incremental + retomada (P4).** Callback `on_school_done`; frontends gravam CSV/PDF por escola (hoje: crash perde **o lote inteiro**); bônus: pular códigos já presentes no tmp (retomada); corrigir docstrings dos exporters ("appendada durante a raspagem" é falso hoje).
+- [x] **5.5 — Gestor: não repetir a pesquisa (P5).** Fase B reaproveita a lista já carregada (edit direto), fallback = reload; sleeps de `_extract_with_retry` → poll curto. **Ganho: 4–12 s (+0–6 s).** *`gestor_scraper.py:495-600`.*
+- [x] **5.6 — Recibos: poll único (P6).** Loop 15×(1 s + loader) → 1 `wait_for_selector` com seletor-união (15 s). *`receipt_scraper.py:251-261`.*
+- [x] **5.7 — Throttle configurável (P7).** `CENSO_SLEEP_ESCOLAS` (default 0.3 s) nos 4 loops.
 - [ ] **5.8 — Protocolo antes/depois.** Planilha fixa de ~10 escolas (normal, "não encontrada", fechada) × 3 execuções antes e depois; comparar mediana s/escola + total; conferir saída equivalente (linhas por aba + amostra); registrar no doc da fase.
 - [ ] **5.9 — (Opcional) Paralelismo piloto.** **P8:** workers por **processo** (cada um com seu `sync_playwright` + context + login + tmp próprio) atrás de flag `WORKERS` — **ou** **P9** operacional: rodar os 4 coletores em paralelo. **Risco alto:** Keycloak single-session (tempestade de re-login) + rate limit → só com piloto de 2 sessões × 10 escolas e log de re-login. Default continua 1.
+
+**Status da Fase 5 (2026-10-18):** **5.0–5.7 implementados** na worktree `fase5-eficiencia-coleta` (commits `fase 5.0`–`fase 5.7`; suíte **124 passed / 33 skipped**; ruff limpo). **5.8 pendente** — protocolo antes/depois com o portal (execução do usuário). Bônus de retomada do **5.4 não feito** (dados parciais ficam em `/tmp/educacenso_*_tmp_*` para recuperação manual). **5.9 adiado** (decisão do ciclo; risco Keycloak single-session).
 
 **Observações:** `expect_download(60 s)` (geração no portal) é irredutível no cliente — o limite de ganho em Relatórios é menor; a cauda (retry de 30 s do campo de código) deve ser **medida antes** de mexer; `_wait_loader` do gestor tem teto de 15 s (vs 6 s) — não é o ganho médio, é a cauda.
 
