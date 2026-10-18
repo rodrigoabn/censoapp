@@ -19,7 +19,7 @@ import os
 
 MODOS = ("oidc", "senha", "aberto")
 _ENV_MODO = "CENSO_AUTH_MODE"
-_CHAVE_SESSAO = "auth_ok"
+CHAVE_SESSAO = "auth_ok"
 
 _ROTULO_ENTRAR = "Entrar"
 _ROTULO_SAIR = "Sair"
@@ -87,7 +87,7 @@ def _revoga_senha(st):
     """Revogação da sessão no modo "senha" (a flag vive no session_state)."""
 
     def _revogar() -> None:
-        st.session_state[_CHAVE_SESSAO] = False
+        st.session_state[CHAVE_SESSAO] = False
 
     return _revogar
 
@@ -129,7 +129,7 @@ def exigir_autenticacao(st, env=None) -> None:
         )
         st.stop()
 
-    if st.session_state.get(_CHAVE_SESSAO):
+    if st.session_state.get(CHAVE_SESSAO):
         _render_usuario(st, "sessão autenticada", _revoga_senha(st))
         return
 
@@ -137,7 +137,7 @@ def exigir_autenticacao(st, env=None) -> None:
     if st.button(_ROTULO_ENTRAR, key="auth_entrar"):
         # compare_digest exige bytes: o encode libera qualquer senha (acentos etc.)
         if hmac.compare_digest(str(senha or "").encode("utf-8"), esperada.encode("utf-8")):
-            st.session_state[_CHAVE_SESSAO] = True
+            st.session_state[CHAVE_SESSAO] = True
             st.rerun()
         st.error("Senha incorreta.")
     st.stop()

@@ -6,7 +6,7 @@ import streamlit as st
 from PIL import Image
 
 from apps.inicio.inicio import show_home_page
-from auth_gate import exigir_autenticacao
+from auth_gate import CHAVE_SESSAO, exigir_autenticacao
 from hub_sessao import liberar_execucoes
 from logging_setup import configurar_logging
 
@@ -676,7 +676,9 @@ if "prev_nav_page" not in st.session_state:
 if st.session_state["prev_nav_page"] != page:
     # Sinaliza parada de execuções em andamento antes de limpar o estado.
     liberar_execucoes(st.session_state)
-    keep = {"nav_page", "prev_nav_page"}
+    # Preserva a navegação e a marca de sessão autenticada (modo senha):
+    # sem `auth_ok` o portão de autenticação pede a senha de novo.
+    keep = {"nav_page", "prev_nav_page", CHAVE_SESSAO}
     for k in list(st.session_state.keys()):
         if k not in keep:
             del st.session_state[k]
