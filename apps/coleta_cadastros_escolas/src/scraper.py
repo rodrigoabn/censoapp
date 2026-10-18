@@ -280,10 +280,11 @@ def _open_school_ficha(page: Page, codigo_inep: str, tentativas: int = 3) -> boo
     for _ in range(max(1, tentativas)):
         try:
             page.goto(f"{BASE_URL}/escola/pesquisar", wait_until="domcontentloaded", timeout=30000)
-            # Aguarda o Angular terminar de carregar (networkidle). Timeout generoso
-            # pois o portal pode ser lento; não falha se exceder — apenas segue.
+            # O portão real é o campo de busca (ou a tela de login) aparecer.
             try:
-                page.wait_for_load_state("networkidle", timeout=10000)
+                page.wait_for_selector(
+                    "input#username, input[formcontrolname='codigoEscola']", timeout=15000
+                )
             except Exception:
                 pass
             _wait_loader(page)
