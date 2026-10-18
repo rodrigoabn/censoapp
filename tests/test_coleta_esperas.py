@@ -8,6 +8,9 @@ detecção de expiração rápida.
 
 from __future__ import annotations
 
+import pytest
+from playwright.sync_api import TimeoutError as PlaywrightTimeoutError
+
 from apps.coleta_recibos_fechamento.src import receipt_scraper
 from apps.coleta_relatorios.src import report_scraper
 from src import scraper as cad_scraper
@@ -87,3 +90,30 @@ def test_recibos_seleciona_escola_sem_networkidle():
 
     assert resultado is False
     _assertar_portao_por_seletor(pagina)
+
+
+UNIAO_RECIBO = "a:has-text('Clique aqui'), a:has-text('Recibo'), button:has-text('Recibo')"
+
+
+class _PaginaReciboFalsa(_PaginaFalsa):
+    """Fake em que o link do recibo nunca aparece (a espera única estoura)."""
+
+    def wait_for_selector(self, seletor, timeout=None, state=None):
+        self.chamadas.append(("wait_for_selector", seletor, timeout, state))
+        if seletor == UNIAO_RECIBO:
+            raise PlaywrightTimeoutError("link do recibo não apareceu")
+        return object()
+
+
+def test_recibos_espera_unica_pelo_link():
+    pagina = _PaginaReciboFalsa()
+
+    with pytest.raises(receipt_scraper.ReciboIndisponivel):
+        receipt_scraper._download_receipt_pdf(None, pagina, "https://exemplo/rec")
+
+    uniao = [c for c in pagina.chamadas if c[0] == "wait_for_selector" and c[1] == UNIAO_RECIBO]
+    assert uniao, "espera única pelo seletor-união do link do recibo"
+    assert uniao[0][2] == 15000
+    assert uniao[0][3] == "visible"
+    esperas = [c for c in pagina.chamadas if c[0] == "wait_for_timeout" and c[1] == 1000]
+    assert len(esperas) <= 1

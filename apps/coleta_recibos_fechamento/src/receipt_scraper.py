@@ -27,11 +27,6 @@ from .auth import BASE_URL, READ_ONLY
 
 logger = logging.getLogger("coleta_recibos_fechamento")
 
-# Nº de tentativas do loop procurando o link do recibo antes de pular a escola.
-_RECIBO_MAX_TENTATIVAS = 15
-# Intervalo entre as tentativas do loop (ms).
-_RECIBO_INTERVALO_MS = 1000
-
 
 class ReciboIndisponivel(Exception):
     """Sinaliza que o recibo de fechamento não pôde ser baixado porque o link
@@ -242,24 +237,28 @@ def _find_recibo_link(page: Page):
 def _download_receipt_pdf(context, page: Page, receipt_url: str) -> bytes:
     """Navega até a tela de fechamento e baixa o recibo (PDF).
 
-    Loop dentro do contexto procurando o link do recibo. Ao existir, clica; o
-    site dispara o download de um PDF (blob:). Captura o download e retorna os
-    bytes. Levanta ReciboIndisponivel se o link não aparecer após N tentativas
-    ou se o conteúdo baixado não for um PDF válido.
+    Aguarda o link do recibo aparecer na tela (espera única) e, ao existir,
+    clica; o site dispara o download de um PDF (blob:). Captura o download e
+    retorna os bytes. Levanta ReciboIndisponivel se o link não aparecer ou se
+    o conteúdo baixado não for um PDF válido.
     """
     _assert_read_only()
     page.goto(receipt_url, wait_until="domcontentloaded", timeout=30000)
     _wait_loader(page)
     _raise_if_expired(page)
 
-    # ── Loop dentro do contexto: procura o link do recibo ───────────────────
-    link = None
-    for _ in range(_RECIBO_MAX_TENTATIVAS):
-        link = _find_recibo_link(page)
-        if link is not None:
-            break
-        page.wait_for_timeout(_RECIBO_INTERVALO_MS)
-        _wait_loader(page)
+    # ── Espera única: o link do recibo aparece assim que a tela carrega ─────
+    try:
+        page.wait_for_selector(
+            "a:has-text('Clique aqui'), a:has-text('Recibo'), button:has-text('Recibo')",
+            state="visible",
+            timeout=15000,
+        )
+    except Exception:
+        _raise_if_expired(page)
+        raise ReciboIndisponivel()
+
+    link = _find_recibo_link(page)
     if link is None:
         _raise_if_expired(page)
         raise ReciboIndisponivel()
