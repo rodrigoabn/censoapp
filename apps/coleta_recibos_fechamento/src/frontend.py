@@ -8,6 +8,7 @@ site Educacenso.
 
 from __future__ import annotations
 
+import html
 import subprocess
 import sys
 import threading
@@ -281,6 +282,16 @@ def _start_scraping(config: dict, login: str, senha: str, escolas: list[dict]) -
     thread.start()
 
 
+def _escapar(valor) -> str:
+    """Escapa texto dinâmico (nome de escola etc.) antes de entrar em HTML."""
+    return html.escape(str(valor))
+
+
+def _linha_monitor(texto: str, cor: str) -> str:
+    """Monta a linha colorida do monitor, com o texto sempre escapado."""
+    return f"<span style='color:{cor}'>{_escapar(texto)}</span>"
+
+
 def _status_color(estado: str) -> str:
     if estado == "concluído":
         return "#22c55e"  # verde (--status-ok)
@@ -322,15 +333,19 @@ def _monitor(config: dict) -> None:
     if current:
         i, tot, nome, codigo = current
         st.markdown(
-            f"<span style='color:{_status_color('Coletando dados ...')}'>"
-            f"{nome} ({codigo}): Coletando dados ...</span>",
+            _linha_monitor(
+                f"{nome} ({codigo}): Coletando dados ...",
+                _status_color("Coletando dados ..."),
+            ),
             unsafe_allow_html=True,
         )
     if last:
         i, tot, nome, codigo, estado = last
         st.markdown(
-            f"<span style='color:{_status_color(estado)}'>"
-            f"Escola {i}/{tot} — {nome} ({codigo}): {estado}</span>",
+            _linha_monitor(
+                f"Escola {i}/{tot} — {nome} ({codigo}): {estado}",
+                _status_color(estado),
+            ),
             unsafe_allow_html=True,
         )
 
