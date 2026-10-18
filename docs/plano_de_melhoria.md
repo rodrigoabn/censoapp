@@ -4,7 +4,8 @@
 > **Revisão completa de 2026-10-18** feita com 4 auditorias em paralelo: (1) cobertura de testes das regras → Fase 3; (2) duplicação entre apps → Fase 4; (3) hotspots de tempo dos 4 coletores → Fase 5; (4) limpezas/docs/PII → Fase 6.
 > Referências de linha são da data da revisão (podem deslocar).
 
-**Estado base (2026-10-18):** `master @ c37aa4f` · **20 commits à frente do `origin`** (sem push) · suíte **83 passed / 33 skipped** · `ruff` limpo · Docker parado · auth em modo `senha`.
+**Estado base (2026-10-18 — revisão):** `master @ c37aa4f` · suíte **83 passed / 33 skipped** · Docker parado · auth em modo `senha`.
+**Estado atual (2026-10-18 — pós-Fases 5 e 3):** `master @ ff91ca4` (Fase 5 mergeada; correção do monitor em `495de94`) · Fase 3 implementada na worktree `fase3-testes-golden` (commits `fase 3.1`–`fase 3.10` + ajustes da revisão; merge pendente) · suíte **565 passed / 33 skipped** · `ruff` limpo · **sem push**.
 
 ---
 
@@ -14,13 +15,13 @@
 |---|---|---|---|
 | ✅ 1 | Hotfixes P0/P1 | — | **concluída** |
 | ✅ 2 | Intranet + auth + CI/logging | — | **concluída** |
-| 🔜 5 | Eficiência da coleta | dias–1 semana | **próxima** (preferida) |
-| 3 | Testes golden das regras | 1–2 semanas | pendente |
+| ✅ 5 | Eficiência da coleta | dias–1 semana | **concluída** (5.0–5.8; 5.9 adiado) |
+| ✅ 3 | Testes golden das regras | 1–2 semanas | **concluída** |
 | 4 | Refatoração `apps/common` | semanas | pendente (maior risco) |
 | 6 | Régua fina | dias | pendente |
 | E | Extras: hospedagem / operação | — | pendente |
 
-**Ordem sugerida:** **5 → 3 → 4 → 6 → extras**. Alternativa técnica original: 3 → 4 → 5 → 6. A inversão é segura porque os ganhos da Fase 5 são localizados por app; o refactor da Fase 4 reabsorve depois.
+**Ordem sugerida:** 5 ✅ → 3 ✅ → **4 → 6 → extras** (próxima: Fase 4 — refatoração `apps/common`). Alternativa técnica original: 3 → 4 → 5 → 6. A inversão foi segura porque os ganhos da Fase 5 são localizados por app; o refactor da Fase 4 reabsorve depois.
 
 ## Como executar (regras de sempre)
 
@@ -55,22 +56,24 @@
 
 ---
 
-## Fase 3 — Testes golden das regras
+## Fase 3 — Testes golden das regras ✅ (3.1–3.10 concluídos)
 
 **Objetivo:** rede de segurança para as regras de verificação **antes** de qualquer refatoração.
 **Estado hoje:** 116 itens coletados; apenas 13 tocam verificação/unificador; **nenhum teste exercita `rules/`**.
 **Pronto quando:** cada regra nomeada tem caso positivo + negativo; estimativa: **~198 itens novos** (P0 = 144, P1 = 54), em ~35 funções parametrizadas.
 
-- [ ] **3.1 — `tests/rules/conftest.py`.** Fixtures `wb_bytes(sheets)` (openpyxl; nomes ≤ 31 chars) e `df(rows)` + constantes importadas dos próprios módulos (não redigitar cabeçalhos).
-- [ ] **3.2 — `tests/rules/test_unidades.py` (37).** 5 abas válidas; 26 negativos; 5 abas ausentes; bytes inválidos.
-- [ ] **3.3 — `tests/rules/test_gestor.py` (28).** 3 abas válidas; 21 negativos; 3 abas ausentes; bytes inválidos.
-- [ ] **3.4 — Turmas (28).** `test_turmas_curricular.py` (18: linha válida, 15 negativos, colunas especiais, dedup) + `test_turmas_escolarizacao.py` (10: sigla↔etapa, MI, cargas M/T/I, merge).
-- [ ] **3.5 — Aluno (31).** `test_aluno_validacao.py` (16: 12 ramos de idade, 31/03 vs 01/04, `ano_letivo=None`, dedup) + `test_aluno_listagens.py` (15: duplicadas, sem CPF, cor/raça + agregação).
-- [ ] **3.6 — `tests/rules/test_profissionais.py` (13).** 8 negativos; isenção de apoio (2); agrupamento/dedup (2); placeholders `-`.
-- [ ] **3.7 — `tests/rules/test_validations.py` (7).** 5 chaves do dispatcher; `expected_columns`; helpers de aluno.
-- [ ] **3.8 — P1: `test_upload.py` (16) + `test_checar_estrutura.py` (5).** Contrato de entrada (BOM/`;`/linha-título, splits, colunas derivadas).
-- [ ] **3.9 — P1: extras do unificador/adequação (28).** `_normalize_inep` decimal, `_read_report` multi-abas, categorias desconhecidas, `_safe_filename` (10) + processors de adequação ×3 apps + helpers duplicados (18).
-- [ ] **3.10 — P1: `test_verificacao_frontend_modes.py` (5).** `_modo_relatorio` (5 configs) + `_build_xlsx` modos `turma`/`aluno`/`profissional`.
+- [x] **3.1 — `tests/rules/conftest.py`.** Fixtures `wb_bytes(sheets)` (openpyxl; nomes ≤ 31 chars) e `df(rows)` + constantes importadas dos próprios módulos (não redigitar cabeçalhos). *Fixtures depois promovidas para `tests/conftest.py` (3.8), para reuso pelos testes de upload/estrutura.*
+- [x] **3.2 — `tests/rules/test_unidades.py` (40).** 5 abas válidas; 26 negativos; 5 abas ausentes; bytes inválidos; código/nome por posição (colunas 0/1).
+- [x] **3.3 — `tests/rules/test_gestor.py` (34).** 3 abas válidas; 23 negativos; 3 abas ausentes; bytes inválidos; código/nome por posição.
+- [x] **3.4 — Turmas (64).** `test_turmas_curricular.py` (30: linha válida, 17 negativos, colunas especiais, dedup, espaços nas pontas) + `test_turmas_escolarizacao.py` (45: sigla↔etapa cobrindo G1–G3/P1–P2 e anos representativos de 1A–9A/1F–9F, MI, cargas M/T/I, merge).
+- [x] **3.5 — Aluno (48).** `test_aluno_validacao.py` (36: 12 ramos de idade, 31/03 vs 01/04, `ano_letivo=None`, dedup) + `test_aluno_listagens.py` (12: duplicadas, sem CPF, cor/raça + agregação).
+- [x] **3.6 — `tests/rules/test_profissionais.py` (30).** 20 negativos (9 regras); isenção de apoio; agrupamento/dedup; placeholders `-`. *Falso positivo do IFA/tipo-curso ausente pinado como está — candidato à Fase 6.*
+- [x] **3.7 — `tests/rules/test_validations.py` (23).** 5 chaves do dispatcher; `expected_columns` (igualdade com as listas canônicas dos adequadores + cobertura das colunas consumidas); helpers de aluno.
+- [x] **3.8 — P1: `tests/test_verificacao_upload.py` (42) + `tests/test_checar_estrutura.py` (13).** Contrato de entrada (BOM/`;`/linha-título, splits, colunas derivadas).
+- [x] **3.9 — P1: extras do unificador/adequação (115 = 46 + 69).** `_normalize_inep` decimal, `_read_report` multi-abas, categorias desconhecidas, `_safe_filename` (9) + processors de adequação ×3 apps + helpers duplicados (62).
+- [x] **3.10 — P1: `tests/test_verificacao_frontend_modes.py` (16).** `_modo_relatorio` (6 configs) + `_build_xlsx` modos `turma`/`aluno`/`profissional`.
+
+**Status da Fase 3 (2026-10-18):** **3.1–3.10 concluídos** na worktree `fase3-testes-golden` (commits `fase 3.1`–`fase 3.10` + ajustes da revisão; merge pendente; **sem push**). Suíte **129 → 565 passed / 33 skipped** = **436 testes novos** (estimativa: ~198 — a diferença são casos de contrato e peculiaridades além das regras nomeadas). Os testes **congelam o comportamento atual** — nenhuma regra foi corrigida. A revisão por subagente foi aplicada: igualdade de `expected_columns` com as listas canônicas dos adequadores (novo `tests/colunas_canonicas.py`), pares sigla↔etapa restantes da escolarização (G2/G3/P2, anos 3–9 e EJA 2F–8F), leitura posicional do código/nome (unidades/gestor), espaços nas pontas do nome da turma e bordas do upload (`_safe_filename` NFC, código/nome placeholder). Peculiaridades pinadas como estão (candidatas à Fase 6): mensagem duplicada de `validate_profissionais` com IFA/tipo de curso ausentes (ids distintos); `validate_unidades` aborta com aba vazia (early-return); `reindex` da adequação casa colunas por rótulo — com menos colunas que o alvo, só as que já tinham o nome final sobrevivem (as demais viram vazias); comparações de texto literais (situação/cor case-sensitive; `"--"` conta como zona preenchida); heurística de linha-título do upload (≤ 3 células) e `_find_column` sem dobra de acentos. Testes herméticos (sem rede/portal), como nas fases anteriores.
 
 **Armadilhas (da auditoria — usar nas fixtures):** idade em **31/03** (`aluno.py:48-52`); `pd.to_datetime(dayfirst=True)` interpreta **ISO errado** — usar `dd/mm/yyyy`; cabeçalhos casam **string exata** (en-dash e typos: `"3 – localizacaoZona"`, `"7b -Término (previsão)"`); abas ≤ 31 chars; **aba vazia causa early-return** em `validate_unidades` (fixtures com ≥1 linha em todas as 5 abas); valores viram `str()` — gravar texto, não datas do Excel; usar `dtype=str` (CPF float → `"…0"` é descartado); `validate_profissionais` tem **falso positivo** com coluna ausente (`:42-46` — se virar comportamento testado, decidir se corrige na fase).
 
