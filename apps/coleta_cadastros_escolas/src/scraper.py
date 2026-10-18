@@ -241,7 +241,7 @@ def _accept_sigilo_if_present(page: Page) -> None:
     """
     _assert_read_only()
     try:
-        page.wait_for_selector("mat-dialog-container", timeout=8000)
+        page.wait_for_selector("mat-dialog-container", timeout=1500)
     except Exception:
         return  # diálogo não apareceu (termo já aceito anteriormente)
     # Rola o corpo do termo até o fim para habilitar o checkbox.
@@ -260,7 +260,10 @@ def _accept_sigilo_if_present(page: Page) -> None:
     continuar = page.locator("button:has-text('Continuar')").first
     if continuar.count() and continuar.is_enabled():
         continuar.click()
-    page.wait_for_timeout(3000)
+    try:
+        page.wait_for_selector("mat-dialog-container", state="detached", timeout=5000)
+    except Exception:
+        page.wait_for_timeout(500)
 
 
 def _open_school_ficha(page: Page, codigo_inep: str, tentativas: int = 3) -> bool:
