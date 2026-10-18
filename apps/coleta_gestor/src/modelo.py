@@ -7,6 +7,7 @@ onde gravar cada dado. Nenhuma escrita é feita aqui.
 
 from __future__ import annotations
 
+from functools import cache
 from pathlib import Path
 
 import openpyxl
@@ -39,12 +40,17 @@ def _normalize(label: str) -> str:
     return "".join(ch for ch in s if ch.isalnum())
 
 
+@cache
 def load_model() -> dict[str, list[str]]:
     """Retorna {nome_da_aba: [rótulos_da_linha_1...]} para o modelo.
 
     No modelo do gestor, a linha 1 traz diretamente os rótulos das 6 colunas
     que serão populadas com os dados extraídos (Código do Inep, Unidade
     Escolar, 1 – Cargo, 2 - Critério..., 3 - Situação..., Email principal).
+
+    O resultado é cacheado (`functools.cache`) porque o arquivo do modelo é
+    estático durante a execução; os call sites tratam o retorno como somente
+    leitura.
     """
     wb = openpyxl.load_workbook(MODELO_PATH, data_only=True)
     model: dict[str, list[str]] = {}

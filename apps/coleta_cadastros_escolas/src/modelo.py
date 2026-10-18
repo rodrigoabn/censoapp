@@ -7,6 +7,7 @@ onde gravar cada dado na Planilha Google. Nenhuma escrita é feita aqui.
 
 from __future__ import annotations
 
+from functools import cache
 from pathlib import Path
 
 import openpyxl
@@ -36,11 +37,16 @@ def _normalize(label: str) -> str:
     return "".join(ch for ch in s if ch.isalnum())
 
 
+@cache
 def load_model() -> dict[str, list[str]]:
     """Retorna {nome_da_aba: [rótulos_da_linha_2...]} para cada aba do modelo.
 
     A linha 1 do modelo agrupa perguntas (cabeçalho); a linha 2 traz os
     rótulos efetivos das colunas que serão populadas com os dados extraídos.
+
+    O resultado é cacheado (`functools.cache`) porque o arquivo do modelo é
+    estático durante a execução; os call sites tratam o retorno como somente
+    leitura.
     """
     wb = openpyxl.load_workbook(MODELO_PATH, data_only=True)
     model: dict[str, list[str]] = {}
