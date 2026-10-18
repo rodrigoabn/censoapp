@@ -30,7 +30,7 @@
 
 ---
 
-## Fase 5 — Eficiência da coleta ✅ (5.0–5.7 feitos; 5.8 pendente — execução do usuário com o portal)
+## Fase 5 — Eficiência da coleta ✅ (5.0–5.8 concluídos)
 
 **Objetivo:** cortar o desperdício controlável do tempo por escola (estimado **10–25 s/escola**; até ~40 s no gestor; baseline: 222 escolas × 2–3 h por coletor) e **medir** antes/depois.
 **Recon: CONCLUÍDO** (auditoria de 2026-10-18 — hotspots mapeados abaixo).
@@ -44,10 +44,10 @@
 - [x] **5.5 — Gestor: não repetir a pesquisa (P5).** Fase B reaproveita a lista já carregada (edit direto), fallback = reload; sleeps de `_extract_with_retry` → poll curto. **Ganho: 4–12 s (+0–6 s).** *`gestor_scraper.py:495-600`.*
 - [x] **5.6 — Recibos: poll único (P6).** Loop 15×(1 s + loader) → 1 `wait_for_selector` com seletor-união (15 s). *`receipt_scraper.py:251-261`.*
 - [x] **5.7 — Throttle configurável (P7).** `CENSO_SLEEP_ESCOLAS` (default 0.3 s) nos 4 loops.
-- [ ] **5.8 — Protocolo antes/depois.** Planilha fixa de ~10 escolas (normal, "não encontrada", fechada) × 3 execuções antes e depois; comparar mediana s/escola + total; conferir saída equivalente (linhas por aba + amostra); registrar no doc da fase.
+- [x] **5.8 — Protocolo antes/depois.** Planilha fixa de 10 escolas (normais, 2 "não encontrada", 1 paralisada) × 3 execuções com o portal. **Antes: 05m39s (≈33,9 s/escola). Depois: 284,7s / 285,1s / 283,5s → média 284,4s (4m44s), ≈28,4 s/escola (−16%).** Mediana por escola: 29,0s (normais ≈29s; "não encontrada" ≈6,6s; paralisada ≈57s). Saída **equivalente** — idêntica célula a célula (6 abas × 8 escolas; não coletadas com as 2 falhas).
 - [ ] **5.9 — (Opcional) Paralelismo piloto.** **P8:** workers por **processo** (cada um com seu `sync_playwright` + context + login + tmp próprio) atrás de flag `WORKERS` — **ou** **P9** operacional: rodar os 4 coletores em paralelo. **Risco alto:** Keycloak single-session (tempestade de re-login) + rate limit → só com piloto de 2 sessões × 10 escolas e log de re-login. Default continua 1.
 
-**Status da Fase 5 (2026-10-18):** **5.0–5.7 implementados e mergeados no `master`** (merge local da worktree `fase5-eficiencia-coleta`; commits `fase 5.0`–`fase 5.7`; suíte **125 passed / 33 skipped**; ruff limpo). **5.8 em andamento** — protocolo antes/depois com o portal (execução do usuário): baseline "antes" com a planilha `docs/escolas_teste10.xlsx` (10 escolas) = **05m39s** e arquivos gerados corretamente; faltam as 3 execuções "depois". Bônus de retomada do **5.4 não feito** (dados parciais ficam em `/tmp/educacenso_*_tmp_*` para recuperação manual). **5.9 adiado** (decisão do ciclo; risco Keycloak single-session). Sobras de texto do quadro: o `norm_map` por aba (5.2) e o log quando o portão estourar (5.3) não foram implementados; o "fallback para o wait longo" do sigilo (5.1) foi entregue como `wait_for_timeout(500)`.
+**Status da Fase 5 (2026-10-18):** **5.0–5.8 concluídos** (5.0–5.7 mergeados no `master`; 5.8 = protocolo antes/depois executado pelo usuário com o portal): **4m44s médios contra 05m39s do baseline (−55s em 10 escolas, −16%), saída idêntica ao antes**. Uma rodada intermediária falhou por instabilidade momentânea do portal (0/10 + falha de login) e foi refeita na sequência, sem ação no app. Durante o protocolo, um bug **pré-existente da UI** de coleta (o monitor não encerrava após concluir: botão de interromper e barra de progresso ficavam presos na tela) foi corrigido nos 4 frontends em `495de94`, com 4 testes de regressão → suíte **129 passed / 33 skipped**, ruff limpo. Bônus de retomada do **5.4 não feito** (dados parciais ficam em `/tmp/educacenso_*_tmp_*` para recuperação manual). **5.9 adiado** (decisão do ciclo; risco Keycloak single-session). Sobras de texto do quadro: o `norm_map` por aba (5.2) e o log quando o portão estourar (5.3) não foram implementados; o "fallback para o wait longo" do sigilo (5.1) foi entregue como `wait_for_timeout(500)`.
 
 **Observações:** `expect_download(60 s)` (geração no portal) é irredutível no cliente — o limite de ganho em Relatórios é menor; a cauda (retry de 30 s do campo de código) deve ser **medida antes** de mexer; `_wait_loader` do gestor tem teto de 15 s (vs 6 s) — não é o ganho médio, é a cauda.
 
