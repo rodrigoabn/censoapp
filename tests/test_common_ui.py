@@ -182,3 +182,44 @@ def test_rel_frontend_escapar_e_linha_monitor_delegam_ao_comum():
 
     assert rel_frontend._escapar("<x>") == ui.escapar("<x>")
     assert rel_frontend._linha_monitor("x & y", "#000") == ui.linha_monitor("x & y", "#000")
+
+
+# ── Recibos: nomes históricos e amarrações ───────────────────────────────────
+
+
+def test_rec_frontend_mantem_os_nomes_historicos():
+    from apps.coleta_recibos_fechamento.src import frontend as rec_frontend
+
+    for nome in (
+        "_ensure_chromium",
+        "_chromium_already_installed",
+        "_SUBMIT_CSS",
+        "_init_state",
+        "_escapar",
+        "_linha_monitor",
+        "_status_color",
+        "_scrape_worker",
+        "_start_scraping",
+        "_monitor",
+        "_finalize",
+        "render_receipt_frontend",
+    ):
+        assert hasattr(rec_frontend, nome), nome
+
+    assert rec_frontend._SUBMIT_CSS is ui.SUBMIT_CSS
+
+
+def test_rec_frontend_status_color_usa_a_tupla_propria():
+    from apps.coleta_recibos_fechamento.src import frontend as rec_frontend
+
+    assert rec_frontend._status_color("Recibo de fechamento indisponível.") == "#ef4444"
+    assert rec_frontend._status_color("concluído") == "#22c55e"
+    assert rec_frontend._status_color("Relatório inexistente.") == "#b2b5be"
+    assert rec_frontend._status_color("Preenchimento não iniciado.") == "#b2b5be"
+
+
+def test_rec_frontend_escapar_e_linha_monitor_delegam_ao_comum():
+    from apps.coleta_recibos_fechamento.src import frontend as rec_frontend
+
+    assert rec_frontend._escapar("<x>") == ui.escapar("<x>")
+    assert rec_frontend._linha_monitor("x & y", "#000") == ui.linha_monitor("x & y", "#000")
