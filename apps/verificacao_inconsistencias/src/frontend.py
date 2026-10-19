@@ -19,18 +19,10 @@ from .upload import (
     read_zip_merged,
 )
 
-_PROJECT_ROOT = Path(__file__).resolve().parent.parent.parent.parent
+_APP_DIR = Path(__file__).resolve().parent.parent
 _REFERENCIA_PATHS = {
-    "unidades": (
-        _PROJECT_ROOT
-        / "arquivos de teste"
-        / "cadastro_escola_educacenso_26-07-2026.xlsx"
-    ),
-    "gestor": (
-        _PROJECT_ROOT
-        / "arquivos de teste"
-        / "vinculo_gestor_educacenso_26-07-2026.xlsx"
-    ),
+    "unidades": _APP_DIR / "docs" / "referencia_unidades.xlsx",
+    "gestor": _APP_DIR / "docs" / "referencia_gestor.xlsx",
 }
 _REFERENCIA_BYTES = {}
 for _key, _path in _REFERENCIA_PATHS.items():
