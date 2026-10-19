@@ -239,3 +239,85 @@ def test_interrupcao_apos_baixar_recibo_descarta_a_atual_e_marca_a_restante(monk
             "motivo": "Coleta interrompida (não processada)",
         }
     ]
+
+
+# ── mapa exceção→motivo no nível de run_* (regressão Fase 4.9) ───────────────
+# O loop genérico converteu exceções específicas de rel/rec em "Erro: " (e o
+# log perdia o texto). Estes testes pinam os motivos/progressos do baseline.
+
+
+def _progressos():
+    eventos = []
+    return eventos, lambda *ev: eventos.append(ev)
+
+
+def _preparar_coleta(monkeypatch, modulo):
+    monkeypatch.setattr(modulo, "_login_and_read", lambda *a, **k: None)
+    monkeypatch.setattr(modulo, "_session_expirada", lambda page: False)
+    monkeypatch.setattr(modulo, "_select_school", lambda page, codigo: True)
+
+
+def test_preenchimento_nao_iniciado_vira_motivo_proprio_em_relatorios(monkeypatch):
+    _preparar_coleta(monkeypatch, report_scraper)
+
+    def _falha(page, url):
+        raise report_scraper.PreenchimentoNaoIniciado()
+
+    monkeypatch.setattr(report_scraper, "_download_report_csv", _falha)
+    eventos, on_progress = _progressos()
+    outputs, failures = report_scraper.run_report_scraping(
+        _BrowserFalso(), "l", "s", ESCOLAS, "https://exemplo/relatorio", on_progress=on_progress
+    )
+    assert outputs == []
+    assert failures == [
+        {
+            "codigo_inep": "111",
+            "nome_unidade": "Escola Um",
+            "motivo": "Preenchimento não iniciado",
+        }
+    ]
+    assert eventos[-1] == (1, 1, "111", "Escola Um", "Preenchimento não iniciado.")
+
+
+def test_relatorio_inexistente_vira_motivo_proprio_em_relatorios(monkeypatch):
+    _preparar_coleta(monkeypatch, report_scraper)
+
+    def _falha(page, url):
+        raise report_scraper.RelatorioInexistente()
+
+    monkeypatch.setattr(report_scraper, "_download_report_csv", _falha)
+    eventos, on_progress = _progressos()
+    outputs, failures = report_scraper.run_report_scraping(
+        _BrowserFalso(), "l", "s", ESCOLAS, "https://exemplo/relatorio", on_progress=on_progress
+    )
+    assert outputs == []
+    assert failures == [
+        {
+            "codigo_inep": "111",
+            "nome_unidade": "Escola Um",
+            "motivo": "Relatório inexistente",
+        }
+    ]
+    assert eventos[-1] == (1, 1, "111", "Escola Um", "Relatório inexistente.")
+
+
+def test_recibo_indisponivel_vira_motivo_proprio_em_recibos(monkeypatch):
+    _preparar_coleta(monkeypatch, receipt_scraper)
+
+    def _falha(context, page, url):
+        raise receipt_scraper.ReciboIndisponivel()
+
+    monkeypatch.setattr(receipt_scraper, "_download_receipt_pdf", _falha)
+    eventos, on_progress = _progressos()
+    outputs, failures = receipt_scraper.run_receipt_scraping(
+        _BrowserFalso(), "l", "s", ESCOLAS, "https://exemplo/fechamento", on_progress=on_progress
+    )
+    assert outputs == []
+    assert failures == [
+        {
+            "codigo_inep": "111",
+            "nome_unidade": "Escola Um",
+            "motivo": "Recibo de fechamento indisponível",
+        }
+    ]
+    assert eventos[-1] == (1, 1, "111", "Escola Um", "Recibo de fechamento indisponível.")
