@@ -45,6 +45,8 @@ class TextosColeta:
     formatar_motivo_relogin: Callable[[BaseException], str]
     formatar_log_nao_encontrada: Callable[[str], str] | None = None
     formatar_log_nao_encontrada_pos_relogin: Callable[[str], str] | None = None
+    # Mapeia exceções rotineiras do app para (motivo, progresso); None = genérico.
+    mapear_excecao: Callable[[BaseException], tuple[str, str] | None] | None = None
 
 
 def pausa_entre_escolas() -> float:
@@ -233,12 +235,23 @@ def run_coleta(
                 if on_progress:
                     on_progress(i, len(escolas), codigo, nome, f"erro: {exc2}")
         except Exception as exc:  # noqa: BLE001
-            logger.error(textos.formatar_log_erro(codigo, exc))
-            failures.append(
-                {"codigo_inep": codigo, "nome_unidade": nome, "motivo": f"Erro: {exc}"}
-            )
-            if on_progress:
-                on_progress(i, len(escolas), codigo, nome, f"erro: {exc}")
+            mapeado = textos.mapear_excecao(exc) if textos.mapear_excecao else None
+            if mapeado is not None:
+                # Exceção rotineira do app: motivo/progresso próprios, sem log
+                # de erro (comportamento do baseline de Relatórios/Recibos).
+                motivo, progresso = mapeado
+                failures.append(
+                    {"codigo_inep": codigo, "nome_unidade": nome, "motivo": motivo}
+                )
+                if on_progress:
+                    on_progress(i, len(escolas), codigo, nome, progresso)
+            else:
+                logger.error(textos.formatar_log_erro(codigo, exc))
+                failures.append(
+                    {"codigo_inep": codigo, "nome_unidade": nome, "motivo": f"Erro: {exc}"}
+                )
+                if on_progress:
+                    on_progress(i, len(escolas), codigo, nome, f"erro: {exc}")
         finally:
             hooks.log_tempo_escola(codigo, t0)
 

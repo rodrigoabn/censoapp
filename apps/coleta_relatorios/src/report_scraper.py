@@ -152,11 +152,21 @@ def _registrar_sucesso(outputs, on_school_done, escola, dados) -> None:
     return _coleta.registrar_sucesso(outputs, on_school_done, escola, dados)
 
 
+def _mapear_excecao(exc: BaseException) -> tuple[str, str] | None:
+    """Motivo/progresso das falhas rotineiras de relatório (baseline 4.3)."""
+    if isinstance(exc, PreenchimentoNaoIniciado):
+        return ("Preenchimento não iniciado", "Preenchimento não iniciado.")
+    if isinstance(exc, RelatorioInexistente):
+        return ("Relatório inexistente", "Relatório inexistente.")
+    return None
+
+
 _TEXTOS = _coleta.TextosColeta(
     log_abort="Falha no login inicial. Abortando coleta de relatórios.",
     log_inicio_loop="Login realizado com sucesso. Iniciando loop de relatórios.",
     formatar_log_erro=lambda codigo, exc: f"[{codigo}] Erro durante a coleta de relatório: {exc}",
     formatar_motivo_relogin=lambda exc: str(exc),
+    mapear_excecao=_mapear_excecao,
 )
 
 

@@ -6,45 +6,21 @@ import zipfile
 
 import pandas as pd
 
-
-def _find_column(columns, wanted: str) -> str | None:
-    wanted = wanted.lower().strip()
-    for col in columns:
-        if str(col).lower().strip() == wanted:
-            return col
-    for col in columns:
-        if wanted in str(col).lower().strip():
-            return col
-    return None
+from apps.common.school_list import _find_column  # noqa: F401 — re-export (testes importam daqui)
+from apps.common.school_list import read_school_list as _read_school_list
 
 
 def read_school_list(uploaded_file) -> list[dict]:
-    raw = uploaded_file.read()
-    df = pd.read_excel(io.BytesIO(raw), dtype=str)
+    """Wrapper de `apps/common/school_list.py` (histórico).
 
-    col_codigo = _find_column(df.columns, "código do inep") or _find_column(df.columns, "codigo do inep")
-    col_nome = (
-        _find_column(df.columns, "nome da unidade")
-        or _find_column(df.columns, "nome da unidade escolar")
-        or _find_column(df.columns, "unidade escolar")
+    A verificação tolera a ausência do nome da unidade e aceita o alias
+    "unidade escolar", preservando o comportamento anterior à Fase 4.
+    """
+    return _read_school_list(
+        uploaded_file,
+        require_nome=False,
+        nome_aliases=("nome da unidade", "nome da unidade escolar", "unidade escolar"),
     )
-
-    if col_codigo is None:
-        raise ValueError(
-            "Coluna 'código do inep' não encontrada no arquivo. "
-            f"Colunas presentes: {list(df.columns)}"
-        )
-
-    escolas: list[dict] = []
-    for _, row in df.iterrows():
-        codigo = str(row[col_codigo]).strip()
-        if codigo.lower() in ("nan", "none", ""):
-            continue
-        nome = str(row[col_nome]).strip() if col_nome else ""
-        if nome.lower() in ("nan", "none"):
-            nome = ""
-        escolas.append({"codigo_inep": codigo, "nome_unidade": nome})
-    return escolas
 
 
 def _extrair_codigo_nome(filename: str) -> tuple[str, str]:
