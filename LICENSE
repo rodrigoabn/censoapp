@@ -1,8 +1,7 @@
 [PT]
 1. MODELO DE LICENÇA: Este software adota licenciamento duplo. O uso comunitário
    é regido pela GNU AGPL-3.0 abaixo. Para uso comercial/governamental sem as
-   obrigações de compartilhamento de código da AGPL-3.0, entre em contato para
-   uma licença alternativa em: rodrigo.nunes@edu.campos.rj.gov.br
+   obrigações de compartilhamento de código da AGPL-3.0.
 
 2. ISENÇÃO DE RESPONSABILIDADE & LGPD: O software é fornecido "no estado em que
    se encontra". Toda e qualquer responsabilidade pelo tratamento, sigilo e
@@ -18,8 +17,7 @@
 [EN]
 1. DUAL LICENSING: This software adopts a dual-licensing model. Community use is
    governed by the GNU AGPL-3.0 below. For commercial or governmental use without
-   AGPL-3.0 copyleft obligations, please contact us at:
-   rodrigo.nunes@edu.campos.rj.gov.br
+   AGPL-3.0 copyleft obligations, please contact the project maintainers.
 
 2. DISCLAIMER & GDPR/LGPD: The software is provided "as-is". All responsibility
    for personal data processing and security lies solely with the operating

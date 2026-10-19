@@ -788,7 +788,7 @@ def build_documentacao_pdf(logo_base64: str | None = None) -> bytes:
         "Código aberto sob GNU Affero General Public License v3.0 (AGPL-3.0);",
         "Licença alternativa para uso governamental ou comercial (Prefeituras, Secretarias, órgãos "
         "públicos e empresas) com suporte técnico dedicado;",
-        "Contato: rodrigo.nunes@edu.campos.rj.gov.br;",
+        "Contato: repositório do projeto no GitHub (github.com/rodrigoabn/censoapp);",
         "Isenção de responsabilidade e LGPD: o software roda localmente, não coleta, armazena nem "
         "acessa dados de alunos ou escolas; a entidade operadora é a única Controladora dos dados.",
     ])
