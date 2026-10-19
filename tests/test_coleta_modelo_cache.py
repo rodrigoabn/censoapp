@@ -7,8 +7,8 @@ escola coletada.
 
 from __future__ import annotations
 
+from apps.coleta_cadastros_escolas.src import modelo as cad_modelo
 from apps.coleta_gestor.src import modelo as gestor_modelo
-from src import modelo as cad_modelo
 
 
 def test_modelo_de_cadastros_e_cacheado():

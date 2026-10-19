@@ -4,372 +4,165 @@ Coleta: login, senha e upload da lista de escolas.
 Dispara o scraping (apenas leitura no site) e, ao final, disponibiliza o
 arquivo XLSX consolidado (aba "Vínculo do gestor") para download. Nenhuma
 escrita é feita no site Educacenso (cláusula pétrea de modo leitura).
+
+Fase 4.7: o corpo vive em `apps.common.ui`; aqui ficam os wrappers finos que
+preservam os nomes históricos e amarram as bases aos globais deste módulo
+(o `st` patcheável e os callbacks `_scrape_worker`/`_monitor`/`_finalize`).
 """
 
 from __future__ import annotations
 
-import subprocess
-import sys
-import threading
-import time
-from pathlib import Path
-
 import streamlit as st
 
+from apps.common import ui
 
-@st.cache_resource(show_spinner="Preparando navegador (primeira execução)...")
-def _ensure_chromium():
-    """Garante que o Chromium do Playwright esteja disponível."""
-    if _chromium_already_installed():
-        return True
-    subprocess.run(
-        [sys.executable, "-m", "playwright", "install", "chromium"],
-        check=True,
+from . import exporter
+
+CONFIG: dict = {
+    "key": "gestor",
+    "form_key": "configuracao_gestor",
+    "state_prefix": "cg_",
+    "arquivo_key": "xlsx",
+    "construtor_arquivo": "build_xlsx",
+    "botao_arquivo": "Baixar XLSX",
+    "mime_arquivo": "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+    "zip_prefix": "vinculo_gestor",
+    "title": "Dados dos Gestores Escolares",
+    "subtitle": (
+        "Coleta os dados do vínculo do gestor escolar no Educacenso, em modo leitura "
+        "(não altera dados preenchidos)."
+    ),
+    "subtitle_sem_logo": "Extração em modo leitura dos vínculos do gestor (INEP).",
+    "aviso_sem_arquivo_persistente": False,
+}
+
+_TEXTOS = ui.TextosFrontend(
+    item="escola",
+    ajuda_final=(
+        "- Ao concluir, o arquivo **XLSX consolidado** (aba \"Vínculo do gestor\") "
+        "fica disponível para download."
+    ),
+    modo_leitura=(
+        "- **Modo leitura:** a aplicação apenas navega e lê o site; "
+        "não altera dados no INEP."
+    ),
+    msg_interrompido=(
+        "Coleta interrompida. {count} escola(s) coletada(s) no arquivo "
+        "'{nome_arquivo}'. A escola em andamento foi descartada; as demais foram "
+        "marcadas como não coletadas."
+    ),
+    msg_vazio="Arquivo XLSX não gerado. Motivo: Nenhuma escola coletada.",
+    msg_erro_build="Falha ao gerar o XLSX: {exc}",
+    msg_pendentes="{n} escola(s) não tiveram dados coletados.",
+)
+
+
+def _ctx() -> ui.FrontendCtx:
+    """Amarra as bases comuns aos globais deste módulo (patch-friendly).
+
+    A base comum fala a convenção "config primeiro"; os adaptadores
+    `*_com_config` fazem a ponte para os wrappers históricos deste app (que
+    não recebem `config`) lendo o global correspondente no call time.
+    """
+    return ui.FrontendCtx(
+        st=st,
+        zipper=exporter,
+        textos=_TEXTOS,
+        scrape_worker=_scrape_worker_com_config,
+        monitor=_monitor_com_config,
+        finalize=_finalize_com_config,
+        start=_start_com_config,
     )
-    return True
+
+
+def _ensure_chromium():
+    """Wrapper de `apps.common.ui` (histórico): garante o Chromium no processo."""
+    return ui.ensure_chromium()
 
 
 def _chromium_already_installed() -> bool:
-    try:
-        result = subprocess.run(
-            [sys.executable, "-m", "playwright", "install", "--dry-run", "chromium"],
-            capture_output=True,
-            text=True,
-            check=True,
-        )
-    except Exception:  # noqa: BLE001
-        return False
-
-    install_dir = None
-    for line in result.stdout.splitlines():
-        if "Install location:" in line:
-            install_dir = line.split("Install location:", 1)[1].strip()
-            break
-    if not install_dir:
-        return False
-
-    base = Path(install_dir)
-    candidates = (
-        base / "chrome-linux64" / "chrome",
-        base / "chrome-linux" / "chrome",
-    )
-    return any(candidate.exists() for candidate in candidates)
+    """Wrapper de `apps.common.ui` (histórico): checagem de instalação prévia."""
+    return ui.chromium_already_installed()
 
 
-from . import exporter
-from .upload import read_school_list
-
-_SUBMIT_CSS = """
-<style>
-[data-testid="stFormSubmitButton"] button {
-    background-color: var(--status-info) !important;
-    border-color: var(--status-info) !important;
-    color: #ffffff !important;
-}
-[data-testid="stFormSubmitButton"] button:hover {
-    background-color: #2f6fe0 !important;
-}
-</style>
-"""
+_SUBMIT_CSS = ui.SUBMIT_CSS
 
 
 def _init_state():
-    ss = st.session_state
-    ss.setdefault("cg_running", False)
-    ss.setdefault("cg_stop", None)
-    ss.setdefault("cg_lock", None)
-    ss.setdefault("cg_shared", None)
-    ss.setdefault("cg_thread", None)
-    ss.setdefault("cg_finalized", False)
-    ss.setdefault("cg_xlsx", None)
+    """Wrapper de `apps.common.ui` (histórico): estado inicial da tela."""
+    return ui.init_state(CONFIG["state_prefix"], st=st)
 
 
-def render_gestor_frontend(logo_base64=None):
-    st.markdown(_SUBMIT_CSS, unsafe_allow_html=True)
-    _ensure_chromium()
-    _init_state()
+def _escapar(valor) -> str:
+    """Wrapper de `apps.common.ui` (histórico)."""
+    return ui.escapar(valor)
 
-    # ── Banner (tema HUB) ────────────────────────────────────────────────────
-    if logo_base64:
-        banner_html = f"""
-        <div class="title-container" style="display:flex; align-items:center; gap:1.5rem;">
-            <img src="data:image/png;base64,{logo_base64}"
-                 style="width:68px; height:68px; border-radius:12px;
-                        box-shadow:0 4px 12px rgba(0,0,0,0.2);
-                        background:#fff; padding:5px;" />
-            <div>
-                <h1 style="margin:0; padding:0; line-height:1.2; color:white !important;">
-                    Dados dos Gestores Escolares
-                </h1>
-                <p style="margin-top:0.3rem; color:#bfdbfe; font-size:1rem; margin-bottom:0;">
-                    Coleta os dados do vínculo do gestor escolar no Educacenso, em modo leitura (não altera dados preenchidos).
-                </p>
-            </div>
-        </div>"""
-    else:
-        banner_html = """
-        <div class="title-container">
-            <h1>Dados dos Gestores Escolares</h1>
-            <p>Extração em modo leitura dos vínculos do gestor (INEP).</p>
-        </div>"""
-    st.markdown(banner_html, unsafe_allow_html=True)
 
-    if st.session_state.cg_running:
-        _monitor()
-        return
+def _linha_monitor(texto: str, cor: str) -> str:
+    """Wrapper de `apps.common.ui` (histórico)."""
+    return ui.linha_monitor(texto, cor)
 
-    col_form, col_help = st.columns([1.4, 1])
 
-    with col_form:
-        st.markdown('<div class="custom-card">', unsafe_allow_html=True)
-        with st.form("configuracao_gestor"):
-            login = st.text_input("Login (CPF)", help="Usuário de acesso ao Educacenso.")
-            senha = st.text_input("Senha", type="password")
-            arquivo = st.file_uploader(
-                "Lista de escolas (.xlsx / .xls)",
-                type=["xlsx", "xls"],
-                help="Deve conter as colunas: 'código do inep' e 'nome da unidade'.",
-            )
-            submitted = st.form_submit_button("Iniciar extração")
-        st.markdown('</div>', unsafe_allow_html=True)
-
-    with col_help:
-        st.markdown('<div class="custom-card">', unsafe_allow_html=True)
-        st.markdown("""
-        <h3>Orientações de uso</h3>
-        <div class="badge badge-warning">Atenção</div>
-        Esta aplicação não guarda em nenhum arquivo o seu Login e Senha de acesso ao Educacenso.
-        """, unsafe_allow_html=True)
-        st.markdown("""
-        - **Modo leitura:** a aplicação apenas navega e lê o site; não altera dados no INEP.
-        - Informe seu **Login (CPF)** e **Senha** de acesso ao Educacenso.
-        - Envie a **lista de escolas** (.xlsx / .xls) com as colunas *código do inep* e *nome da unidade*.
-        - Ao concluir, o arquivo **XLSX consolidado** (aba "Vínculo do gestor") fica disponível para download.
-        """, unsafe_allow_html=True)
-        st.markdown('</div>', unsafe_allow_html=True)
-
-    if st.session_state.cg_finalized and st.session_state.cg_xlsx:
-        xlsx_bytes, nome_arquivo = st.session_state.cg_xlsx
-        st.download_button(
-            label="Baixar XLSX",
-            data=xlsx_bytes,
-            file_name=nome_arquivo,
-            mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-            key="cg_download_persist",
-        )
-
-    if st.session_state.cg_finalized and st.session_state.cg_pending:
-        pending_bytes, pending_nome = st.session_state.cg_pending
-        st.download_button(
-            label="Baixar escolas não coletadas (XLSX)",
-            data=pending_bytes,
-            file_name=pending_nome,
-            mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-            key="cg_download_pending_persist",
-        )
-
-    if not submitted:
-        return
-
-    if not (login and senha and arquivo):
-        st.error("Preencha login, senha e envie a lista de escolas.")
-        return
-
-    try:
-        escolas = read_school_list(arquivo)
-    except Exception as exc:  # noqa: BLE001
-        st.error(f"Falha ao ler a lista de escolas: {exc}")
-        return
-
-    if not escolas:
-        st.error("Nenhuma escola válida encontrada no arquivo.")
-        return
-
-    _start_scraping(login, senha, escolas)
-    st.rerun()
+def _status_color(estado: str) -> str:
+    """Wrapper de `apps.common.ui` (histórico): tupla vermelha do Gestor."""
+    return ui.status_color(estado, _TEXTOS.indisponiveis)
 
 
 def _scrape_worker(login, senha, escolas, stop_event, lock, shared, tmp_dir):
-    """Executa a coleta em thread de background (não acessa st.*)."""
-    from playwright.sync_api import sync_playwright
+    """Wrapper de `apps.common.ui` (histórico): thread de coleta do gestor."""
+    from . import gestor_scraper
 
-    from .gestor_scraper import run_scraping
-
-    def hook(i, total, codigo, nome, estado):
-        with lock:
-            shared["total"] = total
-            if estado == "Coletando dados ...":
-                shared["current"] = (i, total, nome, codigo)
-            else:
-                shared["last"] = (i, total, nome, codigo, estado)
-                shared["current"] = None
-                if estado == "concluído":
-                    shared["count"] = shared.get("count", 0) + 1
+    def _chamar_coleta(browser, login, senha, escolas, on_progress=None, stop_check=None,
+                       on_school_done=None):
+        return gestor_scraper.run_scraping(
+            browser, login, senha, escolas,
+            on_progress=on_progress, stop_check=stop_check, on_school_done=on_school_done,
+        )
 
     def _gravar(escola, dados):
         exporter.append_school_temp(dados, tmp_dir)
 
-    try:
-        with sync_playwright() as p:
-            browser = p.chromium.launch(headless=True)
-            try:
-                _outputs, failures = run_scraping(
-                    browser, login, senha, escolas,
-                    on_progress=hook, stop_check=stop_event.is_set,
-                    on_school_done=_gravar,
-                )
-            finally:
-                browser.close()
+    return ui.worker_base(
+        login, senha, escolas, stop_event, lock, shared,
+        chamar_coleta=_chamar_coleta, gravar=_gravar,
+    )
 
-        with lock:
-            shared["failures"] = failures
-    except Exception as exc:  # noqa: BLE001
-        with lock:
-            shared["error"] = str(exc)
-    finally:
-        with lock:
-            shared["done"] = True
+
+def _scrape_worker_com_config(config, login, senha, escolas, stop_event, lock, shared, tmp_dir):
+    """Adaptador do ctx: descarta o `config` e chama o worker histórico."""
+    return _scrape_worker(login, senha, escolas, stop_event, lock, shared, tmp_dir)
 
 
 def _start_scraping(login: str, senha: str, escolas: list[dict]) -> None:
-    pasta = exporter.nova_pasta_temporaria()
+    """Wrapper de `apps.common.ui` (histórico): dispara a coleta."""
+    return ui.start_base(CONFIG, login, senha, escolas, ctx=_ctx())
 
-    stop_event = threading.Event()
-    lock = threading.Lock()
-    shared: dict = {
-        "current": None, "last": None, "count": 0,
-        "total": len(escolas), "done": False, "error": None,
-        "interrupted": False, "failures": [],
-    }
 
-    thread = threading.Thread(
-        target=_scrape_worker,
-        args=(login, senha, escolas, stop_event, lock, shared, pasta),
-        daemon=True,
-    )
-
-    st.session_state.cg_stop = stop_event
-    st.session_state.cg_lock = lock
-    st.session_state.cg_shared = shared
-    st.session_state.cg_thread = thread
-    st.session_state.cg_running = True
-    st.session_state.cg_finalized = False
-    st.session_state.cg_xlsx = None
-    st.session_state.cg_tmp_dir = pasta
-    st.session_state.cg_pending = None
-
-    thread.start()
+def _start_com_config(config: dict, login: str, senha: str, escolas: list[dict]) -> None:
+    """Adaptador do ctx: repassa o `config` da tela para a base comum."""
+    return ui.start_base(config, login, senha, escolas, ctx=_ctx())
 
 
 def _monitor() -> None:
-    ss = st.session_state
-    lock = ss.cg_lock
-    shared = ss.cg_shared
+    """Wrapper de `apps.common.ui` (histórico): monitor de progresso."""
+    return ui.monitor_base(CONFIG, ctx=_ctx())
 
-    with lock:
-        current = shared.get("current")
-        last = shared.get("last")
-        count = shared.get("count", 0)
-        total = shared.get("total", 0)
-        done = shared.get("done", False)
 
-    # Coleta encerrada: finaliza e re-renderiza (o formulário com os downloads
-    # persistentes volta à tela; o monitor sai de cena por inteiro).
-    if done:
-        _finalize(count)
-        st.rerun()
-        return
-
-    if not ss.cg_stop.is_set():
-        if st.button("⛔ Interromper coleta", key="cg_stop_btn"):
-            ss.cg_stop.set()
-            st.warning(
-                "Interrupção solicitada. Finalizando a escola em andamento "
-                "(ela será descartada) e gerando o arquivo..."
-            )
-    else:
-        st.warning("Interrompendo... aguarde a finalização segura da coleta.")
-
-    frac = (count / total) if total else 0.0
-    st.progress(min(frac, 1.0))
-
-    if current:
-        i, tot, nome, codigo = current
-        st.write(f"{nome} ({codigo}): Coletando dados ...")
-    if last:
-        i, tot, nome, codigo, estado = last
-        st.write(f"Escola {i}/{tot} — {nome} ({codigo}): {estado}")
-
-    time.sleep(0.5)
-    st.rerun()
+def _monitor_com_config(config: dict) -> None:
+    """Adaptador do ctx: repassa o `config` da tela para a base comum."""
+    return ui.monitor_base(config, ctx=_ctx())
 
 
 def _finalize(count: int) -> None:
-    ss = st.session_state
-    interrupted = ss.cg_stop.is_set() if ss.cg_stop else False
+    """Wrapper de `apps.common.ui` (histórico): gera o XLSX e os pendentes."""
+    return ui.finalize_base(CONFIG, count, ctx=_ctx())
 
-    with ss.cg_lock:
-        error = ss.cg_shared.get("error")
-        failures = ss.cg_shared.get("failures", [])
 
-    ss.cg_running = False
+def _finalize_com_config(config: dict, count: int) -> None:
+    """Adaptador do ctx: repassa o `config` da tela para a base comum."""
+    return ui.finalize_base(config, count, ctx=_ctx())
 
-    if error:
-        st.error(f"Falha na coleta: {error}")
 
-    try:
-        ss.cg_finalized = True
-
-        if count > 0:
-            xlsx_bytes = exporter.build_xlsx(tmp_dir=ss.cg_tmp_dir)
-            nome_arquivo = exporter.output_filename()
-            ss.cg_xlsx = (xlsx_bytes, nome_arquivo)
-
-            if interrupted:
-                st.success(
-                    f"Coleta interrompida. {count} escola(s) coletada(s) no arquivo "
-                    f"'{nome_arquivo}'. A escola em andamento foi descartada; as demais "
-                    "foram marcadas como não coletadas."
-                )
-            else:
-                st.success(
-                    f"Concluído. {count} escola(s) no arquivo '{nome_arquivo}', "
-                    "pronto para download."
-                )
-
-            st.download_button(
-                label="Baixar XLSX",
-                data=xlsx_bytes,
-                file_name=nome_arquivo,
-                mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-                key="cg_download",
-            )
-        else:
-            # Nenhuma escola coletada: não gera XLSX principal.
-            exporter.remover_temp(ss.cg_tmp_dir)
-            ss.cg_xlsx = None
-            st.markdown(
-                "<span style='color:#ef4444'>Arquivo XLSX não gerado. "
-                "Motivo: Nenhuma escola coletada.</span>",
-                unsafe_allow_html=True,
-            )
-
-        # Planilha (download separado) com as escolas que falharam.
-        if failures:
-            pending_bytes = exporter.build_pending_xlsx(failures)
-            pending_nome = exporter.pending_filename()
-            ss.cg_pending = (pending_bytes, pending_nome)
-            st.markdown(
-                f"<span style='color:#ef4444'>{len(failures)} escola(s) "
-                "não tiveram dados coletados.</span>",
-                unsafe_allow_html=True,
-            )
-            st.download_button(
-                label="Baixar escolas não coletadas (XLSX)",
-                data=pending_bytes,
-                file_name=pending_nome,
-                mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-                key="cg_download_pending",
-            )
-    except Exception as exc:  # noqa: BLE001
-        st.error(f"Falha ao gerar o XLSX: {exc}")
+def render_gestor_frontend(logo_base64=None):
+    """Wrapper de `apps.common.ui` (histórico): tela da coleta do gestor."""
+    return ui.render_coleta_frontend(CONFIG, logo_base64, ctx=_ctx())

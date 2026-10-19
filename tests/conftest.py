@@ -2,10 +2,7 @@
 
 Seções:
 
-1. Shim de `sys.path` para o app de cadastros (usa imports absolutos `src.*`):
-   em produção o `app.py` insere a pasta do app no `sys.path`; os testes
-   replicam o mesmo shim para importar `src.*` diretamente.
-2. Fixtures compartilhadas dos testes golden das regras de verificação
+1. Fixtures compartilhadas dos testes golden das regras de verificação
    (Fase 3): `wb_bytes` e `df`.
 
 Convenções dos goldens:
@@ -23,16 +20,10 @@ Convenções dos goldens:
 from __future__ import annotations
 
 import io
-import sys
-from pathlib import Path
 
 import openpyxl
 import pandas as pd
 import pytest
-
-_APP = Path(__file__).resolve().parents[1] / "apps" / "coleta_cadastros_escolas"
-if str(_APP) not in sys.path:
-    sys.path.insert(0, str(_APP))
 
 
 @pytest.fixture

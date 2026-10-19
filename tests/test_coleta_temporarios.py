@@ -8,12 +8,12 @@ import zipfile
 
 import openpyxl
 
+from apps.coleta_cadastros_escolas.src import exporter as cad_exporter
+from apps.coleta_cadastros_escolas.src import modelo as cad_modelo
 from apps.coleta_gestor.src import exporter as ges_exporter
 from apps.coleta_gestor.src import modelo as ges_modelo
 from apps.coleta_recibos_fechamento.src import zipper as rec_zipper
 from apps.coleta_relatorios.src import zipper as rel_zipper
-from src import exporter as cad_exporter
-from src import modelo as cad_modelo
 
 
 def test_pastas_dos_quatro_coletores_sao_unicas_por_execucao():
@@ -100,4 +100,4 @@ def test_frontends_de_coleta_importam_sem_erro():
     import apps.coleta_gestor.src.frontend  # noqa: F401
     import apps.coleta_recibos_fechamento.src.frontend  # noqa: F401
     import apps.coleta_relatorios.src.frontend  # noqa: F401
-    from src import frontend as cadastros_frontend  # noqa: F401
+    from apps.coleta_cadastros_escolas.src import frontend as cadastros_frontend  # noqa: F401
