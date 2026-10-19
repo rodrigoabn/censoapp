@@ -24,7 +24,10 @@ import time
 from playwright.sync_api import Browser, Page
 from playwright.sync_api import TimeoutError as PlaywrightTimeoutError
 
-from .auth import BASE_URL, _assert_read_only
+from apps.common import browser as _browser
+from apps.common import session as _session
+
+from .auth import _assert_read_only
 
 logger = logging.getLogger("coleta_recibos_fechamento")
 
@@ -35,177 +38,26 @@ class ReciboIndisponivel(Exception):
     ou tela indisponível)."""
 
 
-class LoginFalhou(Exception):
-    """Login não concluído (instabilidade): o botão '#kc-login' não habilitou
-    e o formulário de login continuou visível após a tentativa."""
-
-
-class SessaoExpirada(Exception):
-    """A sessão Keycloak expirou (ou a navegação caiu na tela de login) durante
-    a abertura da ficha. O chamador deve refazer o login e repetir."""
-
-
-def _safe_cleanup(context, page) -> None:
-    """Fecha página/contexto com segurança (ignora erros e valores None)."""
-    try:
-        if context is not None:
-            context.clear_cookies()
-    except Exception:
-        pass
-    try:
-        if page is not None:
-            page.close()
-    except Exception:
-        pass
-    try:
-        if context is not None:
-            context.close()
-    except Exception:
-        pass
-
-
-def _wait_loader(page: Page, timeout: int = 6000) -> None:
-    """Aguarda o overlay de carregamento (ngx-ui-loader) desaparecer."""
-    try:
-        page.wait_for_selector("ngx-ui-loader .ngx-overlay", state="hidden", timeout=timeout)
-    except Exception:
-        pass
-
-
-def _session_expirada(page: Page) -> bool:
-    """Detecta se a sessão Keycloak expirou (página de login voltou)."""
-    try:
-        return page.locator("input#username").is_visible()
-    except Exception:
-        return False
+# Aliases de `apps.common` (Fase 4.3) — preservam os monkeypatches dos testes:
+# os nomes continuam morando neste módulo e são lidos no call time.
+LoginFalhou = _session.LoginFalhou
+SessaoExpirada = _session.SessaoExpirada
+_safe_cleanup = _browser.safe_cleanup
+_wait_loader = _browser.wait_loader
+_session_expirada = _browser.session_expirada
 
 
 def _raise_if_expired(page: Page) -> None:
     """Levanta SessaoExpirada quando a página voltou para a tela de login."""
+    # Mantida no módulo do app (não é alias): lê `_session_expirada` daqui para
+    # os monkeypatches dos testes continuarem valendo.
     if _session_expirada(page):
         raise SessaoExpirada()
 
 
-def _login_and_read(page: Page, login: str, senha: str) -> None:
-    _assert_read_only()
-    page.goto(f"{BASE_URL}/escola/pesquisar", wait_until="domcontentloaded", timeout=30000)
-    _wait_loader(page)
-    page.wait_for_selector("input#username", state="visible", timeout=10000)
-
-    user = page.locator("input#username")
-    pwd = page.locator("input#password")
-    user.click()
-    user.fill(login)
-    pwd.click()
-    pwd.fill(senha)
-    # Dispara a validação (blur) para habilitar o botão de login.
-    pwd.press("Tab")
-
-    # Aguarda o botão habilitar; se não habilitar, submete pelo Enter (fallback).
-    try:
-        page.wait_for_selector("#kc-login:not([disabled])", timeout=8000)
-        page.locator("#kc-login").click(timeout=5000)
-    except PlaywrightTimeoutError:
-        pwd.press("Enter")
-
-    page.wait_for_timeout(4000)
-
-    # Verifica se o login foi concluído (formulário não deve mais estar visível).
-    if page.locator("input#username").is_visible():
-        raise LoginFalhou()
-
-
-def _accept_sigilo_if_present(page: Page) -> None:
-    """Aceita o Termo de Sigilo, se exibido (modo leitura/navegação).
-
-    O termo só habilita o checkbox após rolar o texto até o final. Marcar o
-    aceite e clicar 'Continuar' é necessário para ACESSAR a escola (leitura),
-    não altera nenhum dado.
-    """
-    _assert_read_only()
-    try:
-        page.wait_for_selector("mat-dialog-container", timeout=1500)
-    except Exception:
-        return
-    for _ in range(30):
-        page.evaluate(
-            "() => { const m = document.querySelector('mat-dialog-container .modal-body');"
-            " if (m) m.scrollTop = m.scrollHeight; }"
-        )
-        page.wait_for_timeout(200)
-        cb = page.locator("mat-dialog-container input[type='checkbox']").first
-        if cb.count() and not cb.is_disabled():
-            break
-    cb = page.locator("mat-dialog-container input[type='checkbox']").first
-    if cb.count() and not cb.is_disabled():
-        cb.check(force=True)
-    continuar = page.locator("button:has-text('Continuar')").first
-    if continuar.count() and continuar.is_enabled():
-        continuar.click()
-    try:
-        page.wait_for_selector("mat-dialog-container", state="detached", timeout=5000)
-    except Exception:
-        page.wait_for_timeout(500)
-
-
-def _select_school(page: Page, codigo_inep: str, tentativas: int = 3) -> bool:
-    """Busca a escola pelo código e a seleciona (contexto de sessão).
-
-    Robusto contra o loader travar (retry de navegação) e contra a sessão
-    expirar no meio do caminho (levanta `SessaoExpirada`)."""
-    _assert_read_only()
-    last_exc: Exception | None = None
-    for _ in range(max(1, tentativas)):
-        try:
-            page.goto(f"{BASE_URL}/escola/pesquisar", wait_until="domcontentloaded", timeout=30000)
-            # O portão real é o campo de busca (ou a tela de login) aparecer.
-            try:
-                page.wait_for_selector(
-                    "input#username, input[formcontrolname='codigoEscola']", timeout=15000
-                )
-            except Exception:
-                pass
-            _wait_loader(page)
-            if _session_expirada(page):
-                raise SessaoExpirada()
-            page.wait_for_selector("input[formcontrolname='codigoEscola']", timeout=30000)
-            break
-        except SessaoExpirada:
-            raise
-        except Exception as exc:  # noqa: BLE001
-            last_exc = exc
-            page.wait_for_timeout(3000)
-            continue
-    else:
-        if last_exc is not None:
-            raise last_exc
-
-    page.fill("input[formcontrolname='codigoEscola']", codigo_inep)
-    btn = page.locator("button:has-text('Pesquisar')").first
-    if btn.count():
-        btn.click()
-
-    try:
-        page.wait_for_selector(
-            f"a.cursor-pointer:has-text('{codigo_inep}'), h5:has-text('encontrado')",
-            timeout=10000,
-        )
-    except Exception:
-        pass
-    _wait_loader(page)
-
-    link = page.locator(f"a.cursor-pointer:has-text('{codigo_inep}')").first
-    if not link.count():
-        return False
-    link.click()
-    _wait_loader(page)
-    try:
-        page.wait_for_selector("mat-dialog-container, button:has-text('Gerar')", timeout=10000)
-    except Exception:
-        pass
-
-    _accept_sigilo_if_present(page)
-    return True
+_login_and_read = _session.login_and_read
+_accept_sigilo_if_present = _session.accept_sigilo_if_present
+_select_school = _session.select_school
 
 
 def _find_recibo_link(page: Page):
@@ -275,24 +127,10 @@ def _download_receipt_pdf(context, page: Page, receipt_url: str) -> bytes:
     return data
 
 
-_MOTIVO_INTERROMPIDO = "Coleta interrompida (não processada)"
+_MOTIVO_INTERROMPIDO = _session.MOTIVO_INTERROMPIDO
 
 
-def _marcar_nao_processadas(failures: list[dict], restantes: list[dict]) -> None:
-    """Registra como não processadas as escolas que sobrarem quando o loop para.
-
-    Usado nos dois pontos de parada: antes de iniciar a escola (nada foi
-    coletado) e depois de coletá-la (o dado parcial é descartado — a escola
-    entra na lista para ser recoletada).
-    """
-    failures.extend(
-        {
-            "codigo_inep": escola["codigo_inep"],
-            "nome_unidade": escola.get("nome_unidade", ""),
-            "motivo": _MOTIVO_INTERROMPIDO,
-        }
-        for escola in restantes
-    )
+_marcar_nao_processadas = _session.marcar_nao_processadas
 
 
 def _pausa_entre_escolas() -> float:
