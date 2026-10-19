@@ -18,10 +18,10 @@
 | ✅ 5 | Eficiência da coleta | dias–1 semana | **concluída** (5.0–5.8; 5.9 adiado) |
 | ✅ 3 | Testes golden das regras | 1–2 semanas | **concluída** |
 | ✅ 4 | Refatoração `apps/common` | semanas | **concluída** (4.1–4.8; gates ao vivo 1–4 aprovados) |
-| 6 | Régua fina | dias | pendente |
+| 6 | Régua fina | dias | implementada (6.1–6.7); gate do usuário pendente |
 | E | Extras: operação (SEDUCT) | — | pendente |
 
-**Ordem sugerida:** 5 ✅ → 3 ✅ → 4 ✅ → **6 → extras** (próxima: Fase 6 — régua fina). Alternativa técnica original: 3 → 4 → 5 → 6. A inversão foi segura porque os ganhos da Fase 5 são localizados por app; o refactor da Fase 4 reabsorve depois.
+**Ordem sugerida:** 5 ✅ → 3 ✅ → 4 ✅ → **6 → extras** (régua fina implementada — 6.1–6.7; gate do usuário pendente). Alternativa técnica original: 3 → 4 → 5 → 6. A inversão foi segura porque os ganhos da Fase 5 são localizados por app; o refactor da Fase 4 reabsorve depois.
 
 ## Como executar (regras de sempre)
 
@@ -117,7 +117,7 @@
 
 **Foco da revisão:** cada item é independente; nada de mudança de comportamento fora do descrito; decisões (6.2/6.7) registradas no commit.
 
-**Status da Fase 6 (2026-10-19):** **6.1–6.7 concluídos** na worktree `fase6-regua-fina` (commits `fase 6.1`–`fase 6.7`: `8b94f19`, `7a49808`, `15041d3`, `2cfd325`, `e5467b4`, `0ac83f1`, `4a348e9`). **6.1:** animação `fadeIn` do banner removida (fim da "piscada"; o `st.success` antes do `st.rerun()` ficou — é feedback funcional). **6.2:** referências sintéticas só-cabeçalho versionadas em `apps/verificacao_inconsistencias/docs/` (geradas pela mesma função `build_xlsx` dos coletores) + `tests/test_verificacao_referencias.py`; a checagem de estrutura deixou de ser silenciosamente inerte (o ponto de manutenção futura é regenerar as referências junto com os modelos). **6.3:** ramo morto removido onde ele realmente vive hoje (`apps/common/ui.py`, pós-refactor da Fase 4 — as linhas citadas na spec ficaram defasadas) + pino do teste ajustado. **6.4:** `*.xlsx`/`*.xls` ignorados por padrão, com negações para os modelos e as referências. **6.5/6.6:** `AGENTS.md` e PDF corrigidos (10 apps, caminhos dos modelos, grupo Adequação na tabela do PDF, seções do PDF renumeradas, suítes/comandos, `SECURITY_TARGET` obrigatório alinhado a `tests/security/conftest.py`, fim das menções a Google Sheets). **6.7:** memo por sessão nos 4 relatórios com PII — com chave por recorte de download (refinamento sobre a chave única planejada: cada tela tem várias listagens e a chave única nunca acertaria o memo, permitindo regeração a cada clique) — sem regenerar bytes no clique de download — e `st.cache_data` com `ttl=300` só no agregado cor/raça. Suíte **652 → 660 passed / 33 skipped** (+8 testes: 3 referências, 1 PDF, 4 memo); `ruff` limpo. **Revisão por subagente e gate do usuário pendentes; merge `--no-ff` somente com aprovação; sem push.**
+**Status da Fase 6 (2026-10-19):** **6.1–6.7 concluídos** na worktree `fase6-regua-fina` (commits `fase 6.1`–`fase 6.7`: `8b94f19`, `7a49808`, `15041d3`, `2cfd325`, `e5467b4`, `0ac83f1`, `4a348e9`). **6.1:** animação `fadeIn` do banner removida (fim da "piscada"; o `st.success` antes do `st.rerun()` ficou — é feedback funcional). **6.2:** referências sintéticas só-cabeçalho versionadas em `apps/verificacao_inconsistencias/docs/` (geradas pela mesma função `build_xlsx` dos coletores) + `tests/test_verificacao_referencias.py`; a checagem de estrutura deixou de ser silenciosamente inerte (o ponto de manutenção futura é regenerar as referências junto com os modelos). **6.3:** ramo morto removido onde ele realmente vive hoje (`apps/common/ui.py`, pós-refactor da Fase 4 — as linhas citadas na spec ficaram defasadas) + pino do teste ajustado. **6.4:** `*.xlsx`/`*.xls` ignorados por padrão, com negações para os modelos e as referências. **6.5/6.6:** `AGENTS.md` e PDF corrigidos (10 apps, caminhos dos modelos, grupo Adequação na tabela do PDF, seções do PDF renumeradas, suítes/comandos, `SECURITY_TARGET` obrigatório alinhado a `tests/security/conftest.py`, fim das menções a Google Sheets). **6.7:** memo por sessão nos 4 relatórios com PII — com chave por recorte de download (refinamento sobre a chave única planejada: cada tela tem várias listagens e a chave única nunca acertaria o memo, permitindo regeração a cada clique) — sem regenerar bytes no clique de download — e `st.cache_data` com `ttl=300` só no agregado cor/raça. Suíte **652 → 660 passed / 33 skipped** (+8 testes: 3 referências, 1 PDF, 4 memo); `ruff` limpo. **Revisão por subagente aplicada** (achados corrigidos no ramo — claims do PDF, sumário e AGENTS.md); **gate do usuário pendente; merge `--no-ff` somente com aprovação; sem push.**
 
 ---
 
@@ -144,7 +144,7 @@ Reescrita FastAPI/React · `sync→async` do Playwright · APIs internas do port
 
 ## Decisões em aberto
 
-1. **6.2** — referências de estrutura: versionar amostras sintéticas × remover o recurso.
-2. **6.7** — PII no cache: `ttl` curto (mínimo) × `session_state` (alvo).
+1. **6.2 — RESOLVIDA (2026-10-19):** referências sintéticas só-cabeçalho versionadas em `apps/verificacao_inconsistencias/docs/` (a checagem de estrutura deixou de ser inerte).
+2. **6.7 — RESOLVIDA (2026-10-19):** memo por sessão nos 4 relatórios com PII (alvo LGPD); `ttl=300` só no agregado cor/raça.
 3. **Fase 4 — RESOLVIDA (2026-10-19):** preservar wrappers/monkeypatch antigos + adaptar imports dos testes **mecanicamente** (9 arquivos; nenhum corpo de teste mudou). O contrato segue "sem mudança de comportamento observável".
 4. **Ordem das fases** — sugerida 5 → 3 → 4 → 6; confirmar na largada de cada uma.

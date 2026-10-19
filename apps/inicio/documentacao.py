@@ -493,7 +493,7 @@ def build_documentacao_pdf(logo_base64: str | None = None) -> bytes:
          "As três aplicações deste grupo convertem o ZIP de relatórios CSV baixado do Educacenso no "
          "layout padronizado das planilhas de trabalho: removem o cabeçalho e as linhas de rodapé "
          "geradas pelo portal, renomeiam e padronizam as colunas e devolvem um novo ZIP pronto para uso "
-         "(um CSV por escola, separador ; e UTF-8 com BOM). Nenhuma delas exige login.")
+         "(um CSV por escola, separador ; e UTF-8). Nenhuma delas exige login.")
     _par(story, estilos["corpo"],
          "Entrada: ZIP de relatórios CSV na ordem exportada pelo portal; saída: ZIP adequado "
          "(adequado_turmas_DD-MM-AAAA.zip, adequado_alunos_DD-MM-AAAA.zip ou "
@@ -512,7 +512,7 @@ def build_documentacao_pdf(logo_base64: str | None = None) -> bytes:
     _bullets(story, estilos["item"], [
         "Remove o cabeçalho do portal (15 primeiras linhas) e as linhas de rodapé;",
         "Mantém a 5ª coluna (descarta a 3ª e a 4ª);",
-        "Renomeia as 25 colunas para o padrão (Ordem, Identificação única, Nome, "
+        "Renomeia as 26 colunas para o padrão (Ordem, Identificação única, Nome, "
         "Data de nascimento, CPF, entre outras);",
         "Padroniza identificação única, datas e CPF (remove =\"...\" e completa com zeros à esquerda "
         "até 11 dígitos).",
