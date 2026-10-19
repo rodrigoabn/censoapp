@@ -16,8 +16,9 @@ import time
 
 import streamlit as st
 
+from apps.common.school_list import read_school_list
+
 from . import zipper
-from .upload import read_school_list
 
 
 @st.cache_resource(show_spinner="Preparando navegador (primeira execução)...")

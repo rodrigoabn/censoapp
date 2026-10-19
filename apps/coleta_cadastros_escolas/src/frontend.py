@@ -63,8 +63,8 @@ def _chromium_already_installed() -> bool:
     )
     return any(candidate.exists() for candidate in candidates)
 
+from apps.common.school_list import read_school_list
 from src import exporter
-from src.upload import read_school_list
 
 # Estilo escopado mínimo para destacar o botão de submissão dentro do tema do HUB.
 _SUBMIT_CSS = """

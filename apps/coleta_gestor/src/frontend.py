@@ -56,8 +56,9 @@ def _chromium_already_installed() -> bool:
     return any(candidate.exists() for candidate in candidates)
 
 
+from apps.common.school_list import read_school_list
+
 from . import exporter
-from .upload import read_school_list
 
 _SUBMIT_CSS = """
 <style>

@@ -17,9 +17,10 @@ from pathlib import Path
 
 import streamlit as st
 
+from apps.common.school_list import read_school_list
+
 from . import zipper
 from .config import CONFIG
-from .upload import read_school_list
 
 
 @st.cache_resource(show_spinner="Preparando navegador (primeira execução)...")
