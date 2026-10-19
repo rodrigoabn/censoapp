@@ -22,6 +22,9 @@ import zipfile
 import openpyxl
 import pytest
 
+from apps.coleta_cadastros_escolas.src import exporter as cad_exporter
+from apps.coleta_cadastros_escolas.src import frontend as cad_frontend
+from apps.coleta_cadastros_escolas.src import modelo as cad_modelo
 from apps.coleta_gestor.src import exporter as ges_exporter
 from apps.coleta_gestor.src import frontend as ges_frontend
 from apps.coleta_gestor.src import modelo as ges_modelo
@@ -29,9 +32,6 @@ from apps.coleta_recibos_fechamento.src import frontend as rec_frontend
 from apps.coleta_recibos_fechamento.src import zipper as rec_zipper
 from apps.coleta_relatorios.src import frontend as rel_frontend
 from apps.coleta_relatorios.src import zipper as rel_zipper
-from src import exporter as cad_exporter
-from src import frontend as cad_frontend
-from src import modelo as cad_modelo
 
 FALHAS = [{"codigo_inep": "222", "nome_unidade": "Escola Dois", "motivo": "Falha no login"}]
 

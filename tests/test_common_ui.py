@@ -5,7 +5,8 @@ Cobre: `status_color` parametrizado pela tupla de cada app, `escapar` e
 idempotente (setdefault das 8 chaves) e a guarda de Chromium
 (`chromium_already_installed`) — que evita reinstalar o navegador a cada
 processo quando ele já está no cache do Playwright. Também trava os nomes
-históricos do frontend do Relatórios (wrappers da T5).
+históricos dos frontends de Relatórios, Recibos, Cadastros e Gestor
+(wrappers das T5–T7).
 """
 
 from __future__ import annotations
@@ -223,3 +224,101 @@ def test_rec_frontend_escapar_e_linha_monitor_delegam_ao_comum():
 
     assert rec_frontend._escapar("<x>") == ui.escapar("<x>")
     assert rec_frontend._linha_monitor("x & y", "#000") == ui.linha_monitor("x & y", "#000")
+
+
+# ── Cadastros: nomes históricos e amarrações ────────────────────────────────
+
+
+def test_cad_frontend_mantem_os_nomes_historicos():
+    from apps.coleta_cadastros_escolas.src import frontend as cad_frontend
+
+    for nome in (
+        "_ensure_chromium",
+        "_chromium_already_installed",
+        "_SUBMIT_CSS",
+        "_init_state",
+        "_escapar",
+        "_linha_monitor",
+        "_status_color",
+        "_scrape_worker",
+        "_start_scraping",
+        "_monitor",
+        "_finalize",
+        "render_frontend",
+        # adaptadores config-first exigidos pelo FrontendCtx
+        "_scrape_worker_com_config",
+        "_monitor_com_config",
+        "_finalize_com_config",
+        "_start_com_config",
+        "_ctx",
+        "CONFIG",
+        "_TEXTOS",
+    ):
+        assert hasattr(cad_frontend, nome), nome
+
+    assert cad_frontend._SUBMIT_CSS is ui.SUBMIT_CSS
+
+
+def test_cad_frontend_status_color_com_tupla_vazia():
+    from apps.coleta_cadastros_escolas.src import frontend as cad_frontend
+
+    assert cad_frontend._status_color("erro: escola não encontrada") == "#ef4444"
+    assert cad_frontend._status_color("concluído") == "#22c55e"
+    assert cad_frontend._status_color("escola não encontrada") == "#b2b5be"
+    assert cad_frontend._status_color("Recibo de fechamento indisponível.") == "#b2b5be"
+
+
+def test_cad_frontend_escapar_e_linha_monitor_delegam_ao_comum():
+    from apps.coleta_cadastros_escolas.src import frontend as cad_frontend
+
+    assert cad_frontend._escapar("<x>") == ui.escapar("<x>")
+    assert cad_frontend._linha_monitor("x & y", "#000") == ui.linha_monitor("x & y", "#000")
+
+
+# ── Gestor: nomes históricos e amarrações ───────────────────────────────────
+
+
+def test_gestor_frontend_mantem_os_nomes_historicos():
+    from apps.coleta_gestor.src import frontend as ges_frontend
+
+    for nome in (
+        "_ensure_chromium",
+        "_chromium_already_installed",
+        "_SUBMIT_CSS",
+        "_init_state",
+        "_escapar",
+        "_linha_monitor",
+        "_status_color",
+        "_scrape_worker",
+        "_start_scraping",
+        "_monitor",
+        "_finalize",
+        "render_gestor_frontend",
+        # adaptadores config-first exigidos pelo FrontendCtx
+        "_scrape_worker_com_config",
+        "_monitor_com_config",
+        "_finalize_com_config",
+        "_start_com_config",
+        "_ctx",
+        "CONFIG",
+        "_TEXTOS",
+    ):
+        assert hasattr(ges_frontend, nome), nome
+
+    assert ges_frontend._SUBMIT_CSS is ui.SUBMIT_CSS
+
+
+def test_gestor_frontend_status_color_com_tupla_vazia():
+    from apps.coleta_gestor.src import frontend as ges_frontend
+
+    assert ges_frontend._status_color("erro: escola não encontrada") == "#ef4444"
+    assert ges_frontend._status_color("concluído") == "#22c55e"
+    assert ges_frontend._status_color("escola não encontrada") == "#b2b5be"
+    assert ges_frontend._status_color("Relatório inexistente.") == "#b2b5be"
+
+
+def test_gestor_frontend_escapar_e_linha_monitor_delegam_ao_comum():
+    from apps.coleta_gestor.src import frontend as ges_frontend
+
+    assert ges_frontend._escapar("<x>") == ui.escapar("<x>")
+    assert ges_frontend._linha_monitor("x & y", "#000") == ui.linha_monitor("x & y", "#000")

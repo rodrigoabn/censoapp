@@ -27,11 +27,29 @@ from apps.common.school_list import read_school_list
 
 @dataclass(frozen=True)
 class TextosFrontend:
-    """Textos próprios do app usados pelas bases comuns."""
+    """Textos próprios do app usados pelas bases comuns.
+
+    Os templates usam `.format()`; os defaults são exatamente os textos
+    históricos do app de Relatórios.
+    """
 
     item: str = "relatório"              # "{n} relatório(s)"; "não tiveram relatório coletado"
     ajuda_final: str = ""                # bullet final do card de orientações
     indisponiveis: tuple[str, ...] = ()  # estados "vermelhos" extras do app
+    modo_leitura: str = (                # primeiro bullet do card de orientações
+        "- **Modo leitura:** a aplicação apenas navega e baixa os relatórios do site; "
+        "não altera dados no INEP."
+    )
+    msg_concluido: str = (
+        "Concluído. {count} {item}(s) no arquivo '{nome_arquivo}', pronto para download."
+    )
+    msg_interrompido: str = (
+        "Coleta interrompida. {count} {item}(s) no arquivo '{nome_arquivo}'. "
+        "A escola em andamento foi descartada; as demais foram marcadas como não coletadas."
+    )
+    msg_vazio: str = "Arquivo Zip não gerado. Motivo: Nenhum {item} disponível para download."
+    msg_erro_build: str = "Falha ao gerar o ZIP: {exc}"
+    msg_pendentes: str = "{n} escola(s) não tiveram {item} coletado."
 
 
 @dataclass(frozen=True)
@@ -216,7 +234,7 @@ def start_base(config: dict, login: str, senha: str, escolas: list[dict], *, ctx
     ss[f"{p}thread"] = thread
     ss[f"{p}running"] = True
     ss[f"{p}finalized"] = False
-    ss[f"{p}zip"] = None
+    ss[f"{p}{config.get('arquivo_key', 'zip')}"] = None
     ss[f"{p}pending"] = None
     ss[f"{p}tmp_dir"] = pasta
 
@@ -284,12 +302,19 @@ def monitor_base(config: dict, *, ctx: FrontendCtx) -> None:
 
 
 def finalize_base(config: dict, count: int, *, ctx: FrontendCtx) -> None:
-    """Finalização genérica: arquivo principal, pendentes e limpeza."""
+    """Finalização genérica: arquivo principal, pendentes e limpeza.
+
+    O artefato principal é parametrizado pelo `config` (defaults = app de
+    Relatórios): `arquivo_key` (sufixo da chave de sessão), `construtor_arquivo`
+    (função do módulo de exportação), `botao_arquivo`/`mime_arquivo` (download)
+    e `zip_prefix` (prefixo do nome do arquivo).
+    """
     st = ctx.st
     zipper = ctx.zipper
     textos = ctx.textos
     ss = st.session_state
     p = config["state_prefix"]
+    chave = config.get("arquivo_key", "zip")
     interrupted = ss[f"{p}stop"].is_set() if ss[f"{p}stop"] else False
 
     with ss[f"{p}lock"]:
@@ -305,36 +330,39 @@ def finalize_base(config: dict, count: int, *, ctx: FrontendCtx) -> None:
         ss[f"{p}finalized"] = True
 
         if count > 0:
-            zip_bytes = zipper.build_zip(tmp_dir=ss[f"{p}tmp_dir"])
+            construtor = getattr(zipper, config.get("construtor_arquivo", "build_zip"))
+            arquivo_bytes = construtor(tmp_dir=ss[f"{p}tmp_dir"])
             nome_arquivo = zipper.output_filename(config["zip_prefix"])
-            ss[f"{p}zip"] = (zip_bytes, nome_arquivo)
+            ss[f"{p}{chave}"] = (arquivo_bytes, nome_arquivo)
 
             if interrupted:
                 st.success(
-                    f"Coleta interrompida. {count} {textos.item}(s) no arquivo "
-                    f"'{nome_arquivo}'. A escola em andamento foi descartada; as demais "
-                    "foram marcadas como não coletadas."
+                    textos.msg_interrompido.format(
+                        count=count, item=textos.item, nome_arquivo=nome_arquivo
+                    )
                 )
             else:
                 st.success(
-                    f"Concluído. {count} {textos.item}(s) no arquivo '{nome_arquivo}', "
-                    "pronto para download."
+                    textos.msg_concluido.format(
+                        count=count, item=textos.item, nome_arquivo=nome_arquivo
+                    )
                 )
 
             st.download_button(
-                label="Baixar ZIP",
-                data=zip_bytes,
+                label=config.get("botao_arquivo", "Baixar ZIP"),
+                data=arquivo_bytes,
                 file_name=nome_arquivo,
-                mime="application/zip",
+                mime=config.get("mime_arquivo", "application/zip"),
                 key=f"{p}download",
             )
         else:
-            # Nenhum CSV coletado: não gera ZIP; limpa temporários.
+            # Nenhum arquivo coletado: não gera o principal; limpa temporários.
             zipper.remover_temp(ss[f"{p}tmp_dir"])
-            ss[f"{p}zip"] = None
+            ss[f"{p}{chave}"] = None
             st.markdown(
-                "<span style='color:#ef4444'>Arquivo Zip não gerado. "
-                f"Motivo: Nenhum {textos.item} disponível para download.</span>",
+                "<span style='color:#ef4444'>"
+                + textos.msg_vazio.format(item=textos.item)
+                + "</span>",
                 unsafe_allow_html=True,
             )
 
@@ -344,8 +372,9 @@ def finalize_base(config: dict, count: int, *, ctx: FrontendCtx) -> None:
             pending_nome = zipper.pending_filename(config["zip_prefix"])
             ss[f"{p}pending"] = (pending_bytes, pending_nome)
             st.markdown(
-                f"<span style='color:#ef4444'>{len(failures)} escola(s) "
-                f"não tiveram {textos.item} coletado.</span>",
+                "<span style='color:#ef4444'>"
+                + textos.msg_pendentes.format(n=len(failures), item=textos.item)
+                + "</span>",
                 unsafe_allow_html=True,
             )
             st.download_button(
@@ -356,7 +385,7 @@ def finalize_base(config: dict, count: int, *, ctx: FrontendCtx) -> None:
                 key=f"{p}download_pending",
             )
     except Exception as exc:  # noqa: BLE001
-        st.error(f"Falha ao gerar o ZIP: {exc}")
+        st.error(textos.msg_erro_build.format(exc=exc))
 
 
 def render_coleta_frontend(config: dict, logo_base64=None, *, ctx: FrontendCtx):
@@ -364,6 +393,7 @@ def render_coleta_frontend(config: dict, logo_base64=None, *, ctx: FrontendCtx):
     st = ctx.st
     textos = ctx.textos
     p = config["state_prefix"]
+    chave = config.get("arquivo_key", "zip")
     st.markdown(SUBMIT_CSS, unsafe_allow_html=True)
     ensure_chromium()
     init_state(p, st=st)
@@ -389,7 +419,7 @@ def render_coleta_frontend(config: dict, logo_base64=None, *, ctx: FrontendCtx):
         banner_html = f"""
         <div class="title-container">
             <h1>{config['title']}</h1>
-            <p>{config['subtitle']}</p>
+            <p>{config.get('subtitle_sem_logo') or config['subtitle']}</p>
         </div>"""
     st.markdown(banner_html, unsafe_allow_html=True)
 
@@ -402,7 +432,7 @@ def render_coleta_frontend(config: dict, logo_base64=None, *, ctx: FrontendCtx):
 
     with col_form:
         st.markdown('<div class="custom-card">', unsafe_allow_html=True)
-        with st.form(f"config_{config['key']}"):
+        with st.form(config.get("form_key") or f"config_{config['key']}"):
             login = st.text_input("Login (CPF)", help="Usuário de acesso ao Educacenso.")
             senha = st.text_input("Senha", type="password")
             arquivo = st.file_uploader(
@@ -421,7 +451,7 @@ def render_coleta_frontend(config: dict, logo_base64=None, *, ctx: FrontendCtx):
         Esta aplicação não guarda em nenhum arquivo o seu Login e Senha de acesso ao Educacenso.
         """, unsafe_allow_html=True)
         st.markdown(f"""
-        - **Modo leitura:** a aplicação apenas navega e baixa os relatórios do site; não altera dados no INEP.
+        {textos.modo_leitura}
         - Informe seu **Login (CPF)** e **Senha** de acesso ao Educacenso.
         - Envie a **lista de escolas** (.xlsx / .xls) com as colunas *código do inep* e *nome da unidade*.
         {textos.ajuda_final}
@@ -430,19 +460,20 @@ def render_coleta_frontend(config: dict, logo_base64=None, *, ctx: FrontendCtx):
 
     # Download persistente de uma coleta anterior já finalizada.
     if st.session_state[f"{p}finalized"]:
-        if st.session_state[f"{p}zip"]:
-            zip_bytes, nome_arquivo = st.session_state[f"{p}zip"]
+        if st.session_state[f"{p}{chave}"]:
+            arquivo_bytes, nome_arquivo = st.session_state[f"{p}{chave}"]
             st.download_button(
-                label="Baixar ZIP",
-                data=zip_bytes,
+                label=config.get("botao_arquivo", "Baixar ZIP"),
+                data=arquivo_bytes,
                 file_name=nome_arquivo,
-                mime="application/zip",
+                mime=config.get("mime_arquivo", "application/zip"),
                 key=f"{p}download_persist",
             )
-        else:
+        elif config.get("aviso_sem_arquivo_persistente", True):
             st.markdown(
-                "<span style='color:#ef4444'>Arquivo Zip não gerado. "
-                f"Motivo: Nenhum {textos.item} disponível para download.</span>",
+                "<span style='color:#ef4444'>"
+                + textos.msg_vazio.format(item=textos.item)
+                + "</span>",
                 unsafe_allow_html=True,
             )
         if st.session_state[f"{p}pending"]:

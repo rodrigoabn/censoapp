@@ -37,14 +37,20 @@ SHEET = modelo.GESTOR_SHEET
 _file_date = _export._file_date
 
 
-def output_filename() -> str:
-    """Wrapper de `apps.common.export` (histórico): nome do XLSX final do app."""
-    return _export.output_filename("vinculo_gestor", qualificador="educacenso", ext=".xlsx")
+def output_filename(prefix: str | None = None) -> str:
+    """Wrapper de `apps.common.export` (histórico): nome do XLSX final do app.
+
+    O prefixo opcional atende à chamada genérica de `apps.common.ui`; sem ele,
+    vale o prefixo histórico do app.
+    """
+    return _export.output_filename(
+        prefix or "vinculo_gestor", qualificador="educacenso", ext=".xlsx"
+    )
 
 
-def pending_filename() -> str:
+def pending_filename(prefix: str | None = None) -> str:
     """Wrapper de `apps.common.export` (histórico): nome da planilha de não coletadas."""
-    return _export.pending_filename("vinculo_gestor")
+    return _export.pending_filename(prefix or "vinculo_gestor")
 
 
 _neutralizar_formulas = _export._neutralizar_formulas

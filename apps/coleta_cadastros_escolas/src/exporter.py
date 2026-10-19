@@ -16,8 +16,9 @@ from pathlib import Path
 
 import openpyxl
 
-import src.modelo as modelo
 from apps.common import export as _export
+
+from . import modelo
 
 _TMP_PREFIX = "educacenso_tmp_"
 
@@ -31,14 +32,20 @@ remover_temp = _export.remover_temp
 _file_date = _export._file_date
 
 
-def output_filename() -> str:
-    """Wrapper de `apps.common.export` (histórico): nome do XLSX final do app."""
-    return _export.output_filename("cadastro_escola", qualificador="educacenso", ext=".xlsx")
+def output_filename(prefix: str | None = None) -> str:
+    """Wrapper de `apps.common.export` (histórico): nome do XLSX final do app.
+
+    O prefixo opcional atende à chamada genérica de `apps.common.ui`; sem ele,
+    vale o prefixo histórico do app.
+    """
+    return _export.output_filename(
+        prefix or "cadastro_escola", qualificador="educacenso", ext=".xlsx"
+    )
 
 
-def pending_filename() -> str:
+def pending_filename(prefix: str | None = None) -> str:
     """Wrapper de `apps.common.export` (histórico): nome da planilha de não coletadas."""
-    return _export.pending_filename("cadastro_escola")
+    return _export.pending_filename(prefix or "cadastro_escola")
 
 
 _neutralizar_formulas = _export._neutralizar_formulas

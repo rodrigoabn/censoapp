@@ -26,6 +26,10 @@ _TEXTOS = ui.TextosFrontend(
         "único **arquivo ZIP** para download."
     ),
     indisponiveis=("Recibo de fechamento indisponível.",),
+    modo_leitura=(
+        "- **Modo leitura:** a aplicação apenas navega e baixa os recibos do site; "
+        "não altera dados no INEP."
+    ),
 )
 
 

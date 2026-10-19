@@ -17,12 +17,14 @@ escrita permitida é no XLSX de saída (exporter.py).
 from __future__ import annotations
 
 import logging
-import os
 import re
 import time
 
 from playwright.sync_api import Browser, Page
-from playwright.sync_api import TimeoutError as PlaywrightTimeoutError
+
+from apps.common import browser as _browser
+from apps.common import coleta as _coleta
+from apps.common import session as _session
 
 from . import modelo
 from .auth import BASE_URL, _assert_read_only
@@ -88,23 +90,9 @@ _EXTRACT_JS = """() => {
 }"""
 
 
-def _safe_cleanup(context, page) -> None:
-    """Fecha página/contexto com segurança (ignora erros e valores None)."""
-    try:
-        if context is not None:
-            context.clear_cookies()
-    except Exception:
-        pass
-    try:
-        if page is not None:
-            page.close()
-    except Exception:
-        pass
-    try:
-        if context is not None:
-            context.close()
-    except Exception:
-        pass
+# Aliases de `apps.common` (Fase 4.7) — preservam os monkeypatches dos testes:
+# os nomes continuam morando neste módulo e são lidos no call time.
+_safe_cleanup = _browser.safe_cleanup
 
 
 def _wait_loader(page: Page, timeout: int = 15000) -> None:
@@ -152,77 +140,18 @@ def _wait_content_ready(page: Page, min_fields: int = 1, timeout: int = 15000) -
     return False
 
 
-class LoginFalhou(Exception):
-    """Login não concluído (instabilidade): o botão '#kc-login' não habilitou
-    e o formulário de login continuou visível após a tentativa."""
+LoginFalhou = _session.LoginFalhou
+SessaoExpirada = _session.SessaoExpirada
 
-
-class SessaoExpirada(Exception):
-    """A sessão Keycloak expirou (ou a navegação caiu na tela de login) durante
-    a abertura da ficha. O chamador deve refazer o login e repetir."""
-
-
-def _login_and_read(page: Page, login: str, senha: str) -> None:
-    _assert_read_only()
-    page.goto(f"{BASE_URL}/escola/pesquisar", wait_until="domcontentloaded", timeout=30000)
-    _wait_loader(page)
-    page.wait_for_selector("input#username", state="visible", timeout=10000)
-
-    user = page.locator("input#username")
-    pwd = page.locator("input#password")
-    user.click()
-    user.fill(login)
-    pwd.click()
-    pwd.fill(senha)
-    # Dispara a validação (blur) para habilitar o botão de login.
-    pwd.press("Tab")
-
-    # Aguarda o botão habilitar; se não habilitar, submete pelo Enter (fallback).
-    try:
-        page.wait_for_selector("#kc-login:not([disabled])", timeout=8000)
-        page.locator("#kc-login").click(timeout=5000)
-    except PlaywrightTimeoutError:
-        pwd.press("Enter")
-
-    page.wait_for_timeout(4000)
-
-    # Verifica se o login foi concluído (formulário não deve mais estar visível).
-    if page.locator("input#username").is_visible():
-        raise LoginFalhou()
+_login_and_read = _session.login_and_read
 
 
 def _accept_sigilo_if_present(page: Page) -> None:
-    """Aceita o Termo de Sigilo, se exibido (modo leitura/navegação).
+    """Wrapper de `apps.common.session` (histórico): botão próprio da tela do gestor."""
+    return _session.accept_sigilo_if_present(
+        page, botao="mat-dialog-container button:has-text('Continuar')"
+    )
 
-    O termo só habilita o checkbox após rolar o texto até o final. Marcar o
-    aceite e clicar 'Continuar' é necessário para ACESSAR os dados (leitura),
-    não altera nenhum dado da escola.
-    """
-    _assert_read_only()
-    try:
-        page.wait_for_selector("mat-dialog-container", timeout=1500)
-    except Exception:
-        return  # diálogo não apareceu (termo já aceito anteriormente)
-    # Rola o corpo do termo até o fim para habilitar o checkbox.
-    for _ in range(30):
-        page.evaluate(
-            "() => { const m = document.querySelector('mat-dialog-container .modal-body');"
-            " if (m) m.scrollTop = m.scrollHeight; }"
-        )
-        page.wait_for_timeout(200)
-        cb = page.locator("mat-dialog-container input[type='checkbox']").first
-        if cb.count() and not cb.is_disabled():
-            break
-    cb = page.locator("mat-dialog-container input[type='checkbox']").first
-    if cb.count() and not cb.is_disabled():
-        cb.check(force=True)
-    continuar = page.locator("mat-dialog-container button:has-text('Continuar')").first
-    if continuar.count() and continuar.is_enabled():
-        continuar.click()
-    try:
-        page.wait_for_selector("mat-dialog-container", state="detached", timeout=5000)
-    except Exception:
-        page.wait_for_timeout(500)
 
 def _is_escola_fechada(page: Page) -> bool:
     """Detecta se a escola está com o sistema de retificação fechado
@@ -660,59 +589,36 @@ def scrape_gestor_school(page: Page, codigo_inep: str, nome_unidade: str) -> dic
     return result
 
 
-def _session_expirada(page: Page) -> bool:
-    """Detecta se a sessão Keycloak expirou (página de login voltou a aparecer)."""
-    try:
-        return page.locator("input#username").is_visible()
-    except Exception:
-        return False
-
-
-_MOTIVO_INTERROMPIDO = "Coleta interrompida (não processada)"
-
-
-def _marcar_nao_processadas(failures: list[dict], restantes: list[dict]) -> None:
-    """Registra como não processadas as escolas que sobrarem quando o loop para.
-
-    Usado nos dois pontos de parada: antes de iniciar a escola (nada foi
-    coletado) e depois de coletá-la (o dado parcial é descartado — a escola
-    entra na lista para ser recoletada).
-    """
-    failures.extend(
-        {
-            "codigo_inep": escola["codigo_inep"],
-            "nome_unidade": escola.get("nome_unidade", ""),
-            "motivo": _MOTIVO_INTERROMPIDO,
-        }
-        for escola in restantes
-    )
+_session_expirada = _browser.session_expirada
+_MOTIVO_INTERROMPIDO = _session.MOTIVO_INTERROMPIDO
+_marcar_nao_processadas = _session.marcar_nao_processadas
 
 
 def _pausa_entre_escolas() -> float:
-    """Pausa entre escolas (CENSO_SLEEP_ESCOLAS; default 0.3s)."""
-    try:
-        pausa = float(os.environ.get("CENSO_SLEEP_ESCOLAS", "0.3"))
-    except ValueError:
-        return 0.3
-    if not (0 <= pausa < float("inf")):
-        return 0.3
-    return pausa
+    """Wrapper de `apps.common.coleta` (histórico): pausa entre escolas."""
+    return _coleta.pausa_entre_escolas()
 
 
 def _log_tempo_escola(codigo: str, t0: float) -> None:
-    """Loga o tempo decorrido de processamento de uma escola (em segundos)."""
-    logger.info(f"[{codigo}] escola processada em {time.monotonic() - t0:.1f}s")
+    """Wrapper de `apps.common.coleta` (histórico): fecha o log de tempo do app."""
+    return _coleta.log_tempo_escola(logger, codigo, t0)
 
 
 def _registrar_sucesso(outputs, on_school_done, escola, dados) -> None:
-    """Grava incrementalmente (se houver callback) e acumula para o retorno.
+    """Wrapper de `apps.common.coleta` (histórico): registra a escola coletada."""
+    return _coleta.registrar_sucesso(outputs, on_school_done, escola, dados)
 
-    O callback roda ANTES do append: se a gravação falhar, a exceção vira
-    falha da escola (entra em 'não coletadas') — nada some em silêncio.
-    """
-    if on_school_done is not None:
-        on_school_done(escola, dados)
-    outputs.append((escola, dados))
+
+_TEXTOS = _coleta.TextosColeta(
+    log_abort="Falha no login inicial. Abortando coleta.",
+    log_inicio_loop="Login realizado com sucesso. Iniciando loop de escolas.",
+    formatar_log_erro=lambda codigo, exc: f"[{codigo}] Erro durante coleta: {exc}",
+    formatar_motivo_relogin=lambda exc: str(exc) or type(exc).__name__,
+    formatar_log_nao_encontrada=lambda codigo: f"[{codigo}] Escola não encontrada.",
+    formatar_log_nao_encontrada_pos_relogin=(
+        lambda codigo: f"[{codigo}] Escola não encontrada após re-login."
+    ),
+)
 
 
 def run_scraping(
@@ -724,167 +630,30 @@ def run_scraping(
     stop_check=None,
     on_school_done=None,
 ) -> tuple[list[tuple[dict, dict]], list[dict]]:
-    """Varre a lista de escolas em loop, com sessão única reutilizada.
+    """Wrapper de `apps.common.coleta` (histórico): coleta do vínculo do gestor."""
 
-    Fluxo: login uma única vez → loop de escolas (navega para /escola/pesquisar
-    entre cada uma) → re-login automático apenas se a sessão Keycloak expirar.
+    def _scrape_one(context, page, codigo: str, nome: str):
+        return scrape_gestor_school(page, codigo, nome)
 
-    Devolve (outputs, failures): as escolas coletadas e as que falharam
-    (código do Inep, nome e motivo), para a planilha de "não coletadas".
-    """
-    _assert_read_only()
-    t_inicio = time.monotonic()
-    outputs: list[tuple[dict, dict]] = []
-    failures: list[dict] = []
-
-    # ── Login inicial ──────────────────────────────────────────────────────
-    context = browser.new_context()
-    page = context.new_page()
-    logged_in = False
-    for _attempt in range(2):
-        try:
-            _login_and_read(page, login, senha)
-            logged_in = True
-            break
-        except LoginFalhou:
-            time.sleep(1)
-            continue
-        except Exception:
-            break
-
-    if not logged_in:
-        logger.error("Falha no login inicial. Abortando coleta.")
-        failures.extend(
-            {
-                "codigo_inep": e["codigo_inep"],
-                "nome_unidade": e.get("nome_unidade", ""),
-                "motivo": "Falha no login",
-            }
-            for e in escolas
-        )
-        _safe_cleanup(context, page)
-        return outputs, failures
-
-    logger.info("Login realizado com sucesso. Iniciando loop de escolas.")
-
-    # ── Loop de escolas (sessão reutilizada) ───────────────────────────────
-    for i, escola in enumerate(escolas, 1):
-        codigo = escola["codigo_inep"]
-        nome = escola.get("nome_unidade", "")
-        t0 = time.monotonic()
-
-        if stop_check and stop_check():
-            _marcar_nao_processadas(failures, escolas[i - 1:])
-            break
-        if on_progress:
-            on_progress(i - 1, len(escolas), codigo, nome, "Coletando dados ...")
-
-        # Verifica se a sessão ainda está ativa antes de cada escola.
-        if _session_expirada(page):
-            logger.warning(f"[{codigo}] Sessão expirada. Realizando re-login...")
-            try:
-                _login_and_read(page, login, senha)
-                logger.info(f"[{codigo}] Re-login concluído.")
-            except Exception as exc:
-                failures.append(
-                    {
-                        "codigo_inep": codigo,
-                        "nome_unidade": nome,
-                        "motivo": f"Erro (re-login): {str(exc) or type(exc).__name__}",
-                    }
-                )
-                if on_progress:
-                    on_progress(i, len(escolas), codigo, nome, f"erro: sessão expirada — {exc}")
-                _log_tempo_escola(codigo, t0)
-                continue
-
-        try:
-            dados = scrape_gestor_school(page, codigo, nome)
-
-            if stop_check and stop_check():
-                if on_progress:
-                    on_progress(i, len(escolas), codigo, nome, "interrompido")
-                _marcar_nao_processadas(failures, escolas[i - 1:])
-                break
-
-            if dados is None:
-                logger.warning(f"[{codigo}] Escola não encontrada.")
-                failures.append(
-                    {"codigo_inep": codigo, "nome_unidade": nome, "motivo": "Escola não encontrada"}
-                )
-                if on_progress:
-                    on_progress(i, len(escolas), codigo, nome, "erro: escola não encontrada")
-                continue
-
-            _registrar_sucesso(outputs, on_school_done, escola, dados)
-            if on_progress:
-                on_progress(i, len(escolas), codigo, nome, "concluído")
-
-        except SessaoExpirada:
-            # Sessão caiu ao abrir a ficha. Re-loga e repete a mesma escola.
-            logger.warning(f"[{codigo}] Sessão expirada ao abrir a ficha. Re-logando e repetindo...")
-            try:
-                _login_and_read(page, login, senha)
-            except Exception as exc_re:  # noqa: BLE001
-                logger.error(f"[{codigo}] Falha no re-login: {exc_re}")
-                failures.append(
-                    {
-                        "codigo_inep": codigo,
-                        "nome_unidade": nome,
-                        "motivo": f"Erro (re-login): {str(exc_re) or type(exc_re).__name__}",
-                    }
-                )
-                if on_progress:
-                    on_progress(i, len(escolas), codigo, nome, f"erro: sessão expirada — {exc_re}")
-                continue
-
-            try:
-                dados = scrape_gestor_school(page, codigo, nome)
-                if dados is None:
-                    logger.warning(f"[{codigo}] Escola não encontrada após re-login.")
-                    failures.append(
-                        {
-                            "codigo_inep": codigo,
-                            "nome_unidade": nome,
-                            "motivo": "Escola não encontrada",
-                        }
-                    )
-                    if on_progress:
-                        on_progress(i, len(escolas), codigo, nome, "erro: escola não encontrada")
-                else:
-                    _registrar_sucesso(outputs, on_school_done, escola, dados)
-                    if on_progress:
-                        on_progress(i, len(escolas), codigo, nome, "concluído")
-            except Exception as exc2:  # noqa: BLE001
-                logger.error(f"[{codigo}] Falha após re-login: {exc2}")
-                failures.append(
-                    {
-                        "codigo_inep": codigo,
-                        "nome_unidade": nome,
-                        "motivo": f"Erro (após re-login): {exc2}",
-                    }
-                )
-                if on_progress:
-                    on_progress(i, len(escolas), codigo, nome, f"erro: {exc2}")
-        except Exception as exc:  # noqa: BLE001
-            logger.error(f"[{codigo}] Erro durante coleta: {exc}")
-            failures.append(
-                {"codigo_inep": codigo, "nome_unidade": nome, "motivo": f"Erro: {exc}"}
-            )
-            if on_progress:
-                on_progress(i, len(escolas), codigo, nome, f"erro: {exc}")
-        finally:
-            _log_tempo_escola(codigo, t0)
-
-        # Pequena pausa entre escolas para não sobrecarregar o portal.
-        time.sleep(_pausa_entre_escolas())
-
-    # ── Encerra a sessão única ao final ───────────────────────────────────
-    _safe_cleanup(context, page)
-    tempo_total = time.monotonic() - t_inicio
-    logger.info(
-        f"Coleta concluída: {len(outputs)} escola(s) coletada(s), {len(failures)} falha(s), "
-        f"{tempo_total:.1f}s no total ({tempo_total / max(1, len(escolas)):.1f}s por escola em média). "
-        "Sessão encerrada."
+    return _coleta.run_coleta(
+        browser,
+        login,
+        senha,
+        escolas,
+        scrape_one=_scrape_one,
+        hooks=_coleta.ColetaHooks(
+            login_and_read=_login_and_read,
+            session_expirada=_session_expirada,
+            safe_cleanup=_safe_cleanup,
+            pausa_entre_escolas=_pausa_entre_escolas,
+            log_tempo_escola=_log_tempo_escola,
+            registrar_sucesso=_registrar_sucesso,
+            marcar_nao_processadas=_marcar_nao_processadas,
+        ),
+        textos=_TEXTOS,
+        logger=logger,
+        accept_downloads=False,
+        on_progress=on_progress,
+        stop_check=stop_check,
+        on_school_done=on_school_done,
     )
-    return outputs, failures

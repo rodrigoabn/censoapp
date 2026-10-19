@@ -11,10 +11,10 @@ import logging
 
 import pytest
 
+from apps.coleta_cadastros_escolas.src import scraper as cad_scraper
 from apps.coleta_gestor.src import gestor_scraper
 from apps.coleta_recibos_fechamento.src import receipt_scraper
 from apps.coleta_relatorios.src import report_scraper
-from src import scraper as cad_scraper
 
 ESCOLAS = [{"codigo_inep": "111", "nome_unidade": "Escola Um"}]
 

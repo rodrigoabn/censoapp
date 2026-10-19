@@ -12,6 +12,10 @@ import threading
 
 import pytest
 
+from apps.coleta_cadastros_escolas.src import exporter as cad_exporter
+from apps.coleta_cadastros_escolas.src import frontend as cad_frontend
+from apps.coleta_cadastros_escolas.src import modelo as cad_modelo
+from apps.coleta_cadastros_escolas.src import scraper as cad_scraper
 from apps.coleta_gestor.src import exporter as ges_exporter
 from apps.coleta_gestor.src import frontend as ges_frontend
 from apps.coleta_gestor.src import gestor_scraper
@@ -20,10 +24,6 @@ from apps.coleta_recibos_fechamento.src import frontend as rec_frontend
 from apps.coleta_recibos_fechamento.src import receipt_scraper
 from apps.coleta_relatorios.src import frontend as rel_frontend
 from apps.coleta_relatorios.src import report_scraper
-from src import exporter as cad_exporter
-from src import frontend as cad_frontend
-from src import modelo as cad_modelo
-from src import scraper as cad_scraper
 
 ESCOLAS = [
     {"codigo_inep": "111", "nome_unidade": "Escola Um"},

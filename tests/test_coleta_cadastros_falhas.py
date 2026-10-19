@@ -7,7 +7,7 @@ import io
 import openpyxl
 import pytest
 
-from src import exporter, scraper
+from apps.coleta_cadastros_escolas.src import exporter, scraper
 
 ESCOLAS = [
     {"codigo_inep": "111", "nome_unidade": "Escola Um"},
