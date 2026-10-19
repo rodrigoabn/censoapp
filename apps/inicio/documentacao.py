@@ -737,7 +737,8 @@ def build_documentacao_pdf(logo_base64: str | None = None) -> bytes:
     _par(story, estilos["h1"], "8. Padrões Técnicos e Arquitetura")
     _par(story, estilos["corpo"],
          "Todas as aplicações seguem o mesmo esqueleto: auth.py (autenticação), scraper, frontend.py, "
-         "upload.py, exporter ou zipper e modelo.py. Os templates de modelo ficam em "
+         "exporter ou zipper e modelo.py; a leitura da lista de escolas é compartilhada em "
+         "apps/common/school_list.py. Os templates de modelo ficam em "
          "docs/modelo_coleta.xlsx (6 abas) e docs/modelo_coleta_gestor.xlsx.")
     _par(story, estilos["h2"], "8.1 Automação e autenticação")
     _bullets(story, estilos["item"], [
@@ -757,7 +758,7 @@ def build_documentacao_pdf(logo_base64: str | None = None) -> bytes:
     ])
     _par(story, estilos["h2"], "8.3 Entrada e saída de dados")
     _bullets(story, estilos["item"], [
-        "Entrada: XLSX com as colunas código do inep e nome da unidade (tolerante a maiúsculas via upload.py);",
+        "Entrada: XLSX com as colunas código do inep e nome da unidade (tolerante a maiúsculas via apps/common/school_list.py);",
         "Saída de escolas: XLSX único com 6 abas (CSV para openpyxl);",
         "Saída de relatórios: ZIP de CSVs via zipper.py;",
         "Saída de recibos: ZIP de PDFs via zipper.py;",

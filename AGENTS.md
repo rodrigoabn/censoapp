@@ -22,7 +22,7 @@ docker compose logs -f app                          # logs ao vivo; arquivo em .
   - `coleta_gestor/` — raspa dados de gestores → XLSX
   - `coleta_relatorios/` — baixa relatórios CSV (turmas/alunos/profissionais) → ZIP
   - `coleta_recibos_fechamento/` — baixa recibos PDF → ZIP
-- **Todas seguem o mesmo padrão**: `auth.py` + scraper + `frontend.py` + `upload.py` + exporter/zipper + `modelo.py`
+- **Todas seguem o mesmo padrão**: `auth.py` + scraper + `frontend.py` + exporter/zipper + `modelo.py`; a leitura da lista de escolas vem de `apps/common/school_list.py` (Fase 4)
 - **Templates de modelo**: `docs/modelo_coleta.xlsx` (6 abas) e `docs/modelo_coleta_gestor.xlsx` (1 aba)
 
 ## Convenções de scraping
@@ -37,7 +37,7 @@ docker compose logs -f app                          # logs ao vivo; arquivo em .
 
 ## Entrada/Saída de dados
 
-- **Entrada**: XLSX com colunas `código do inep` + `nome da unidade` (tolera maiúsculas/minúsculas via `upload.py`)
+- **Entrada**: XLSX com colunas `código do inep` + `nome da unidade` (tolera maiúsculas/minúsculas via `apps/common/school_list.py`)
 - **Saída de dados de escolas**: XLSX único com 6 abas, construído via `exporter.py` (CSV → openpyxl)
 - **Saída de relatórios**: ZIP de CSVs via `zipper.py`
 - **Saída de recibos**: ZIP de PDFs via `zipper.py`

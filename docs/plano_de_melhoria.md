@@ -5,7 +5,7 @@
 > Referências de linha são da data da revisão (podem deslocar).
 
 **Estado base (2026-10-18 — revisão):** `master @ c37aa4f` · suíte **83 passed / 33 skipped** · Docker parado · auth em modo `senha`.
-**Estado atual (2026-10-19 — largada da Fase 4):** Fases 5 e 3 mergeadas (`4f9b128`; correção do monitor em `495de94`) · suíte **565 passed / 33 skipped** · `ruff` limpo · **CI verde** no GitHub (`112e8fb` fixou o runner) · **Python de produção: 3.14** (`da8f048` — faixa `>=3.14,<3.15`; Docker, devcontainer e CI alinhados; imagem Docker buildada e validada com Chromium no container) · `origin/master` em dia · hospedagem: **somente rede interna da SEDUCT** (equipe interna; hospedagem externa descartada).
+**Estado atual (2026-10-19 — Fase 4 concluída):** Fases 5, 3 e 4 (T0–T7) mergeadas no `master` local (`c4fc628`; merges anteriores em `4f9b128`, correção do monitor em `495de94`) · fechamento T8/T9 na linha `fase4-t8-t9` (`94bb39b`, `09dc812`) · suíte **652 passed / 33 skipped** · `ruff` limpo · **CI verde** no GitHub (`112e8fb` fixou o runner) · **Python de produção: 3.14** (`da8f048` — faixa `>=3.14,<3.15`; Docker, devcontainer e CI alinhados; imagem Docker buildada e validada com Chromium no container) · **sem push** (master local à frente do `origin/master`) · hospedagem: **somente rede interna da SEDUCT** (equipe interna; hospedagem externa descartada).
 
 ---
 
@@ -17,11 +17,11 @@
 | ✅ 2 | Intranet + auth + CI/logging | — | **concluída** |
 | ✅ 5 | Eficiência da coleta | dias–1 semana | **concluída** (5.0–5.8; 5.9 adiado) |
 | ✅ 3 | Testes golden das regras | 1–2 semanas | **concluída** |
-| 4 | Refatoração `apps/common` | semanas | pendente (maior risco) |
+| ✅ 4 | Refatoração `apps/common` | semanas | **concluída** (4.1–4.8; gate ao vivo 4 pendente do usuário) |
 | 6 | Régua fina | dias | pendente |
 | E | Extras: operação (SEDUCT) | — | pendente |
 
-**Ordem sugerida:** 5 ✅ → 3 ✅ → **4 → 6 → extras** (próxima: Fase 4 — refatoração `apps/common`). Alternativa técnica original: 3 → 4 → 5 → 6. A inversão foi segura porque os ganhos da Fase 5 são localizados por app; o refactor da Fase 4 reabsorve depois.
+**Ordem sugerida:** 5 ✅ → 3 ✅ → 4 ✅ → **6 → extras** (próxima: Fase 6 — régua fina). Alternativa técnica original: 3 → 4 → 5 → 6. A inversão foi segura porque os ganhos da Fase 5 são localizados por app; o refactor da Fase 4 reabsorve depois.
 
 ## Como executar (regras de sempre)
 
@@ -81,19 +81,23 @@
 
 ---
 
-## Fase 4 — Refatoração `apps/common` (sem mudança de comportamento)
+## Fase 4 — Refatoração `apps/common` ✅ (4.1–4.8 concluídos; sem mudança de comportamento)
 
 **Objetivo:** eliminar **~2.400–2.700 linhas duplicadas**; módulos `apps/common/{auth, school_list, session, browser, export, ui}.py`; **piloto: Relatórios** (menor atrito — similaridade 0,78/0,91 com Recibos).
 **Pronto quando:** 4 coletores + verificação consumindo os comuns; hack de `sys.path` removido; suíte verde; saídas equivalentes por app.
 
-- [ ] **4.1 — `apps/common/auth.py`.** `BASE_URL`, `READ_ONLY`, `assert_read_only()`; os 4 `auth.py` viram re-export.
-- [ ] **4.2 — `apps/common/school_list.py`.** `_find_column` + `read_school_list` (verificação passa alias `"unidade escolar"` e não exige nome).
-- [ ] **4.3 — `apps/common/session.py` + `browser.py`** (extraídos do Relatórios, quase 1:1): `login_and_read`, `accept_sigilo_if_present`, `select_school(after_select=…)`, `marcar_nao_processadas`, `LoginFalhou`/`SessaoExpirada`; `safe_cleanup`, `wait_loader`, `session_expirada`, `raise_if_expired`. **Manter wrappers** com os nomes antigos no módulo do app (monkeypatch dos testes).
-- [ ] **4.4 — `apps/common/export.py` + `run_coleta` genérico.** Temporários, "não coletadas", ZIP/XLSX; loop com `scrape_one` + mapa exceção→motivo + `accept_downloads` (wrapper preserva assinatura pública).
-- [ ] **4.5 — `apps/common/ui.py`.** `SUBMIT_CSS`, chromium, `init_state`/`monitor`/`finalize`/worker/start parametrizados pelo dict de config; `render_report_frontend(config, logo)` intacto.
-- [ ] **4.6 — Migrar Recibos** (valida parametrização CSV↔PDF nos mesmos módulos).
-- [ ] **4.7 — Migrar Gestor + Cadastros.** Remove o hack de `sys.path` (`app.py:12-18`, `tests/conftest.py:12-14`) e imports `src.*` → relativos.
-- [ ] **4.8 — Verificação** consome `school_list`/`export` (sem fundir `_load_structure` linha-1 com `load_model` linha-2).
+- [x] **4.1 — `apps/common/auth.py`.** `BASE_URL`, `READ_ONLY`, `assert_read_only()`; os 4 `auth.py` viram re-export.
+- [x] **4.2 — `apps/common/school_list.py`.** `_find_column` + `read_school_list` (verificação passa alias `"unidade escolar"` e não exige nome).
+- [x] **4.3 — `apps/common/session.py` + `browser.py`** (extraídos do Relatórios, quase 1:1): `login_and_read`, `accept_sigilo_if_present`, `select_school(after_select=…)`, `marcar_nao_processadas`, `LoginFalhou`/`SessaoExpirada`; `safe_cleanup`, `wait_loader`, `session_expirada`, `raise_if_expired`. **Manter wrappers** com os nomes antigos no módulo do app (monkeypatch dos testes).
+- [x] **4.4 — `apps/common/export.py` + `run_coleta` genérico.** Temporários, "não coletadas", ZIP/XLSX; loop com `scrape_one` + mapa exceção→motivo + `accept_downloads` (wrapper preserva assinatura pública).
+- [x] **4.5 — `apps/common/ui.py`.** `SUBMIT_CSS`, chromium, `init_state`/`monitor`/`finalize`/worker/start parametrizados pelo dict de config; `render_report_frontend(config, logo)` intacto.
+- [x] **4.6 — Migrar Recibos** (valida parametrização CSV↔PDF nos mesmos módulos).
+- [x] **4.7 — Migrar Gestor + Cadastros.** Remove o hack de `sys.path` (`app.py:12-18`, `tests/conftest.py:12-14`) e imports `src.*` → relativos.
+- [x] **4.8 — Verificação** consome `school_list`/`export` (sem fundir `_load_structure` linha-1 com `load_model` linha-2).
+
+**Status da Fase 4 (2026-10-19):** **4.1–4.8 concluídos** na linha `fase4-t8-t9`. T0–T7 (`d9ad42f`…`e965575`) mergeados antecipadamente em `--no-ff` → `c4fc628` (a pedido do usuário, antes da T8/T9), com **gates ao vivo 1–3 aprovados pelo usuário** (lote `escolas_teste03.xlsx`; saídas iguais entre master e linha nova — relatórios, recibos, cadastros célula a célula e gestor). T8 (`94bb39b`) migra a verificação para `apps/common/school_list.py` (`require_nome=False`, alias `"unidade escolar"`), **sem tocar** em `_load_structure`/`checar_estrutura`; T9 fecha com **revisão por subagente** do diff `82d7300..94bb39b` (foco: monkeypatches, strings exatas, paridade do loop, import graph, Chromium, divergências) e correções. Suíte **565 → 652 passed / 33 skipped**; `ruff` limpo; **sem push**. A revisão pegou **1 achado Critical real**: o `run_coleta` genérico havia perdido o **mapa exceção→motivo** de Relatórios/Recibos (`PreenchimentoNaoIniciado`/`RelatorioInexistente`/`ReciboIndisponivel` caíam em `"Erro: "` e na planilha de não coletadas); corrigido em `09dc812` com `TextosColeta.mapear_excecao` + 3 testes de regressão no nível de `run_*` (RED→GREEN). **Gate ao vivo 4** (rodar uma verificação real na linha nova, offline) pendente do usuário. Demais achados da revisão: minor (deferidos; ver plano da fase).
+
+**Divergências convergidas (declaradas):** (a) rel/rec ganham o log `"[codigo] Falha no re-login: …"` no handler de `SessaoExpirada`; (b) rel/rec: falha de `select` no retry pós-`SessaoExpirada` passa a motivo `"Escola não encontrada"` (era `RelatorioInexistente` → `"Erro (após re-login): "`); (c) ordem `scrape → stop_check → None` unificada na do CAD; (d) rel passa a ter a guarda de Chromium (já padrão nos outros 3); (e) `_assert_read_only` local de rel/rec converge para a mensagem canônica (caminho inalcançável com `READ_ONLY=True`); (f) monitor do CAD/GES passou a usar a renderização colorida/escapada do comum (era `st.write`); (g) `init_state` pré-cria a chave genérica `{p}zip` (a chave real do app é criada no start/finalize; contrato de 8 chaves pinado por teste). Nenhuma altera dados coletados, motivos de não coletadas, nomes de arquivo ou chaves de estado dos apps.
 
 **Riscos mapeados (resumo dos 18):** chaves `session_state` prefixadas (`rt_`/`ra_`) vs literais (`ws_`/`cg_`); **mensagens assertadas em testes** (`"Falha no login"`, `"Escola não encontrada"`, `"Coleta interrompida (não processada)"`, `"Erro (re-login):"`…); timeouts divergentes (gestor `_wait_loader` 15 s; `_open_school_ficha` goto 30 s vs 15 s); sigilo do gestor restrito a `mat-dialog-container`; `_ensure_chromium` ausente no Relatórios; **3 formatos de nome de arquivo** (`cadastro_escola_educacenso_*`, `vinculo_gestor_educacenso_*`, `{prefix}_educacenso_*` e recibos **sem** "educacenso"); prefixos de tmp exigidos por teste; logger por app (não fixar 1); re-login com formatos de motivo diferentes (`{exc}` vs `{str(exc) or type(exc).__name__}`).
 
@@ -140,5 +144,5 @@ Reescrita FastAPI/React · `sync→async` do Playwright · APIs internas do port
 
 1. **6.2** — referências de estrutura: versionar amostras sintéticas × remover o recurso.
 2. **6.7** — PII no cache: `ttl` curto (mínimo) × `session_state` (alvo).
-3. **Fase 4** — preservar wrappers/monkeypatch antigos × adaptar testes junto (muda o "sem mudança de comportamento" para "sem mudança de comportamento + testes ajustados mecanicamente").
+3. **Fase 4 — RESOLVIDA (2026-10-19):** preservar wrappers/monkeypatch antigos + adaptar imports dos testes **mecanicamente** (9 arquivos; nenhum corpo de teste mudou). O contrato segue "sem mudança de comportamento observável".
 4. **Ordem das fases** — sugerida 5 → 3 → 4 → 6; confirmar na largada de cada uma.
