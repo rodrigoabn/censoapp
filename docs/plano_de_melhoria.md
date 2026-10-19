@@ -5,7 +5,7 @@
 > Referências de linha são da data da revisão (podem deslocar).
 
 **Estado base (2026-10-18 — revisão):** `master @ c37aa4f` · suíte **83 passed / 33 skipped** · Docker parado · auth em modo `senha`.
-**Estado atual (2026-10-18 — pós-Fases 5 e 3):** Fases 5 e 3 mergeadas (`4f9b128`; correção do monitor em `495de94`) · suíte **565 passed / 33 skipped** · `ruff` limpo · `origin/master` em dia (push de 2026-10-18) · hospedagem definida: **somente rede interna da SEDUCT** (equipe interna; hospedagem externa descartada).
+**Estado atual (2026-10-19 — largada da Fase 4):** Fases 5 e 3 mergeadas (`4f9b128`; correção do monitor em `495de94`) · suíte **565 passed / 33 skipped** · `ruff` limpo · **CI verde** no GitHub (`112e8fb` fixou o runner) · **Python de produção: 3.14** (`da8f048` — faixa `>=3.14,<3.15`; Docker, devcontainer e CI alinhados; imagem Docker buildada e validada com Chromium no container) · `origin/master` em dia · hospedagem: **somente rede interna da SEDUCT** (equipe interna; hospedagem externa descartada).
 
 ---
 
