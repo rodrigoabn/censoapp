@@ -4,7 +4,7 @@
 # Build na intranet:  docker build -t censoapp .
 # Uso normal via:     docker compose up -d        (ver docs/deploy.md)
 # ---------------------------------------------------------------------------
-FROM python:3.13-slim-bookworm
+FROM python:3.14-slim-bookworm
 
 ENV PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1 \
