@@ -12,79 +12,38 @@ from __future__ import annotations
 import csv
 import io
 import shutil
-import tempfile
-from datetime import datetime
 from pathlib import Path
 
 import openpyxl
-from openpyxl.utils import get_column_letter
 
 import src.modelo as modelo
+from apps.common import export as _export
+
+_TMP_PREFIX = "educacenso_tmp_"
 
 
 def nova_pasta_temporaria() -> Path:
-    """Cria a pasta temporária exclusiva desta execução de coleta."""
-    return Path(tempfile.mkdtemp(prefix="educacenso_tmp_"))
+    """Wrapper de `apps.common.export` (histórico): pasta exclusiva da execução."""
+    return _export.nova_pasta_temporaria(_TMP_PREFIX)
 
 
-def remover_temp(tmp_dir: Path) -> None:
-    """Remove a pasta temporária da execução (se existir)."""
-    shutil.rmtree(tmp_dir, ignore_errors=True)
-
-
-def _ajustar_larguras(ws, min_width: int = 10, max_width: int = 50, pad: int = 2) -> None:
-    for col in ws.columns:
-        letter = get_column_letter(col[0].column)
-        compr = [len(str(c.value)) for c in col if c.value is not None]
-        if not compr:
-            ws.column_dimensions[letter].width = min_width
-            continue
-        ws.column_dimensions[letter].width = min(max(max(compr) + pad, min_width), max_width)
-
-
-def _file_date() -> str:
-    return datetime.now().strftime("%d-%m-%Y")
+remover_temp = _export.remover_temp
+_file_date = _export._file_date
 
 
 def output_filename() -> str:
-    return f"cadastro_escola_educacenso_{_file_date()}.xlsx"
+    """Wrapper de `apps.common.export` (histórico): nome do XLSX final do app."""
+    return _export.output_filename("cadastro_escola", qualificador="educacenso", ext=".xlsx")
 
 
 def pending_filename() -> str:
-    return f"cadastro_escola_escolas_nao_coletadas_{_file_date()}.xlsx"
+    """Wrapper de `apps.common.export` (histórico): nome da planilha de não coletadas."""
+    return _export.pending_filename("cadastro_escola")
 
 
-def _neutralizar_formulas(ws) -> None:
-    """Neutraliza textos iniciados com '=' para não virarem fórmula no Excel."""
-    for row in ws.iter_rows():
-        for cell in row:
-            if isinstance(cell.value, str) and cell.value.startswith("="):
-                cell.value = "'" + cell.value
-
-
-def build_pending_xlsx(failures: list[dict]) -> bytes:
-    """Gera um XLSX com as escolas processadas que não tiveram dados coletados.
-
-    Colunas: Código do Inep | Nome da Unidade | Motivo.
-    """
-    wb = openpyxl.Workbook()
-    ws = wb.active
-    ws.title = "Escolas não coletadas"
-    ws.append(["Código do Inep", "Nome da Unidade", "Motivo"])
-    for f in failures:
-        ws.append([
-            f.get("codigo_inep", ""),
-            f.get("nome_unidade", ""),
-            f.get("motivo", ""),
-        ])
-
-    _neutralizar_formulas(ws)
-    _ajustar_larguras(ws)
-
-    buffer = io.BytesIO()
-    wb.save(buffer)
-    buffer.seek(0)
-    return buffer.getvalue()
+_neutralizar_formulas = _export._neutralizar_formulas
+_ajustar_larguras = _export._ajustar_larguras
+build_pending_xlsx = _export.build_pending_xlsx
 
 
 def _safe_sheet_title(model_title: str) -> str:
