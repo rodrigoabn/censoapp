@@ -24,7 +24,7 @@ import time
 from playwright.sync_api import Browser, Page
 from playwright.sync_api import TimeoutError as PlaywrightTimeoutError
 
-from .auth import BASE_URL, READ_ONLY
+from .auth import BASE_URL, _assert_read_only
 
 logger = logging.getLogger("coleta_recibos_fechamento")
 
@@ -43,11 +43,6 @@ class LoginFalhou(Exception):
 class SessaoExpirada(Exception):
     """A sessão Keycloak expirou (ou a navegação caiu na tela de login) durante
     a abertura da ficha. O chamador deve refazer o login e repetir."""
-
-
-def _assert_read_only() -> None:
-    if not READ_ONLY:
-        raise RuntimeError("MODO LEITURA violado: escrita no site proibida.")
 
 
 def _safe_cleanup(context, page) -> None:
