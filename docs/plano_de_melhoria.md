@@ -5,7 +5,7 @@
 > Referências de linha são da data da revisão (podem deslocar).
 
 **Estado base (2026-10-18 — revisão):** `master @ c37aa4f` · suíte **83 passed / 33 skipped** · Docker parado · auth em modo `senha`.
-**Estado atual (2026-10-18 — pós-Fases 5 e 3):** `master @ ff91ca4` (Fase 5 mergeada; correção do monitor em `495de94`) · Fase 3 implementada na worktree `fase3-testes-golden` (commits `fase 3.1`–`fase 3.10` + ajustes da revisão; merge pendente) · suíte **565 passed / 33 skipped** · `ruff` limpo · **sem push**.
+**Estado atual (2026-10-18 — pós-Fases 5 e 3):** Fases 5 e 3 mergeadas (`4f9b128`; correção do monitor em `495de94`) · suíte **565 passed / 33 skipped** · `ruff` limpo · **sem push** · hospedagem definida: **somente rede interna da SEDUCT** (equipe interna; hospedagem externa descartada).
 
 ---
 
@@ -19,7 +19,7 @@
 | ✅ 3 | Testes golden das regras | 1–2 semanas | **concluída** |
 | 4 | Refatoração `apps/common` | semanas | pendente (maior risco) |
 | 6 | Régua fina | dias | pendente |
-| E | Extras: hospedagem / operação | — | pendente |
+| E | Extras: operação (SEDUCT) | — | pendente |
 
 **Ordem sugerida:** 5 ✅ → 3 ✅ → **4 → 6 → extras** (próxima: Fase 4 — refatoração `apps/common`). Alternativa técnica original: 3 → 4 → 5 → 6. A inversão foi segura porque os ganhos da Fase 5 são localizados por app; o refactor da Fase 4 reabsorve depois.
 
@@ -108,7 +108,7 @@
 - [ ] **6.3 — `_status_color`: ramo morto.** Remover `or estado.startswith("Falha no login")` em `coleta_relatorios/src/frontend.py:267` e `coleta_recibos_fechamento/src/frontend.py:299` (o login falho nunca passa por `on_progress`).
 - [ ] **6.4 — `.gitignore`.** Adicionar `*.xlsx`/`*.xls` + negações `!apps/*/docs/modelo*.xlsx` (os 2 modelos rastreados não são afetados; corrige claims falsos no AGENTS.md e no PDF).
 - [ ] **6.5 — `AGENTS.md` (reescrever seção de estado).** Corrigir: "5 apps" → 10; caminhos dos modelos; `sheets.py` **não existe** (remover menção); `.opencode/agents/*` **não existem**; gitignore de xlsx; refs de linha defasadas (`app.py:347`/`646-653`/`673-683`); "Estado atual" de 2026-08-04 → atual; contagem de testes.
-- [ ] **6.6 — PDF de documentação (`apps/inicio/documentacao.py`).** "6 testes" → suíte offline completa (83+33); incluir comandos da suíte offline (seção 3.3); tabela Visão Geral omite o grupo **Adequação** (3 linhas + subseção); caminhos dos modelos; alvo legado `censoescolar.streamlit.app` (alinhar com `tests/security/conftest.py:29`); claim de gitignore; menção a Google Sheets.
+- [ ] **6.6 — PDF de documentação (`apps/inicio/documentacao.py`).** "6 testes" → suíte offline completa (83+33); incluir comandos da suíte offline (seção 3.3); tabela Visão Geral omite o grupo **Adequação** (3 linhas + subseção); caminhos dos modelos; alvo dos testes ao vivo sem padrão — `SECURITY_TARGET` obrigatório (alinhar com `tests/security/conftest.py`); claim de gitignore; menção a Google Sheets.
 - [ ] **6.7 — Política de cache PII (`st.cache_data` ×5, todos globais sem TTL).** Mínimo: `ttl` curto (300–900 s) nos 5; alvo LGPD: memoizar em `st.session_state` os 4 com PII e manter cache só do agregado. *`verificacao/frontend.py:72,116,195,224,253`.*
 
 **Foco da revisão:** cada item é independente; nada de mudança de comportamento fora do descrito; decisões (6.2/6.7) registradas no commit.
@@ -117,17 +117,12 @@
 
 ## Extras
 
-### Hospedagem (testar na máquina de dev; máquina desliga fora de sessão)
-
-- [ ] **E1 — Cloudflare quick tunnel (sem domínio).** Instalar `cloudflared` (apt), subir a stack local (`CADDY_HTTP_PORT=8080`), apontar o túnel para `http://localhost:8080` e testar do 4G; validar gate `senha` + CSP/websocket. *(Atenção: conferir se o Caddy na :8080 responde direto ou redireciona — ajustar o upstream do túnel.)*
-- [ ] **E2 — Oracle Always Free (opcional, depois).** Criar conta (cartão) e VM ARM 2 OCPU/12 GB em São Paulo; repetir o `docker compose` do runbook; avaliar reclaim por inatividade.
-
 ### Operação (fora do código)
 
 - [ ] **E3 — Apagar `credenciais.json` da raiz** ⚠️ **MANTER** por enquanto. Credenciais podem ser necessárias para testes futuros de coleta. Apagar apenas após validação definitiva do ambiente de produção.
-- [ ] **E4 — Despublicar o Streamlit Cloud** (checklist §9 de `docs/deploy.md`).
-- [ ] **E5 — Push dos 20 commits** para `origin/master` (CI passa a rodar no GitHub; só a pedido).
+- [ ] **E5 — Push dos commits locais** para `origin/master` (CI passa a rodar no GitHub; só a pedido).
 - [ ] **E6 — Deploy real na SEDUCT** (dia da implantação): domínio real + `[auth]` OIDC + CA do Caddy + firewall — runbook cobre.
+- **LGPD:** responsabilidade pessoal do usuário (decisão de 2026-10-18).
 
 ---
 
@@ -139,7 +134,7 @@
 
 ## Fora de escopo (decidido)
 
-Reescrita FastAPI/React · `sync→async` do Playwright · APIs internas do portal · Polars/duckdb · WeasyPrint/Typst · SPA · **Histórico/BI** (próxima onda, não selecionado).
+Reescrita FastAPI/React · `sync→async` do Playwright · APIs internas do portal · Polars/duckdb · WeasyPrint/Typst · SPA · **Histórico/BI** (próxima onda, não selecionado) · **Hospedagem externa** (cloudflared/Oracle VM) — descartada em 2026-10-18: implantação somente na rede interna da SEDUCT, administrada pela equipe interna.
 
 ## Decisões em aberto
 

@@ -30,9 +30,9 @@ def test_track_method_disabled(session, base_url):
 def test_write_methods_have_no_effect(session, base_url, root_response, method):
     """A aplicação é leitura; métodos de escrita não devem MUTAR estado.
 
-    Em *.streamlit.app o servidor estático (nginx) pode responder 200 com o
-    mesmo index da SPA. Isso não é uma escrita — o crítico é que a resposta
-    não indique processamento/mutação distinto do GET da raiz.
+    Servidores estáticos/proxies de hospedagem podem responder 200 com o mesmo
+    index da SPA. Isso não é uma escrita — o crítico é que a resposta não
+    indique processamento/mutação distinto do GET da raiz.
     """
     resp = session.request(method, base_url, timeout=TIMEOUT)
 

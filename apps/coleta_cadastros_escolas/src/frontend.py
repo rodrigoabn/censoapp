@@ -23,8 +23,8 @@ def _ensure_chromium():
 
     Só executa o download quando o navegador ainda não está presente no cache,
     evitando reexecutar `playwright install` (e seu aviso "OS not officially
-    supported") a cada cold start no Streamlit Community Cloud. As bibliotecas
-    de sistema são providas via packages.txt.
+    supported") a cada inicialização. As bibliotecas de sistema são providas
+    via packages.txt (na imagem Docker o Chromium já vem embutido).
     """
     if _chromium_already_installed():
         return True

@@ -1,7 +1,7 @@
 """Testes de cabeçalhos de segurança HTTP na resposta da raiz.
 
-Nível: mistura app/PLATAFORMA. Em *.streamlit.app grande parte dos cabeçalhos
-é definida pela Streamlit; os testes documentam o estado atual.
+Nível: mistura app/plataforma — parte dos cabeçalhos é definida pelo proxy de
+hospedagem, não pela aplicação; os testes documentam o estado atual.
 """
 
 from __future__ import annotations

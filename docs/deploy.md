@@ -1,9 +1,7 @@
 # Implantação na intranet — HUB de Aplicações de Apoio (Censo Escolar)
 
 Runbook para publicar o HUB em infraestrutura própria (SEDUCT) com Docker,
-proxy reverso com TLS e autenticação institucional. Substitui o uso da
-instância pública no Streamlit Community Cloud (checklist de despublicação na
-seção 9).
+proxy reverso com TLS e autenticação institucional.
 
 ## 1. Arquitetura
 
@@ -172,23 +170,15 @@ docker image prune -f      # ocasional: remove imagens antigas
 O Caddy permanece no ar durante a recriação do `app` (os dados de TLS ficam no
 volume `caddy_data`; não o remova, senão a CA muda).
 
-## 9. Despublicação do Streamlit Cloud (obrigatória)
+## 9. Testes de segurança após a implantação
 
-Enquanto a instância pública existir, o acesso continua possível sem o SSO.
-
-1. Acesse <https://share.streamlit.io>, abra o app `censoescolar` → menu (⋮) →
-   **Settings** → **Delete app** (ou remova o compartilhamento público).
-2. Revise os *secrets* da instância Cloud (apague os que não forem mais usar).
-3. Atualize referências à URL antiga (README, PDF de documentação, e-mails).
-4. Daqui em diante, o alvo dos testes de segurança é o **interno**:
+O alvo dos testes ao vivo é o domínio interno — defina sempre `SECURITY_TARGET`
+(não há alvo padrão):
 
 ```bash
 SECURITY_LIVE=1 SECURITY_TARGET=https://censo.seduct.intra/ \
   uv run python -m pytest tests/security/
 ```
-
-(O default `censoescolar.streamlit.app` no `tests/security/conftest.py` fica
-apenas como legado.)
 
 ## 10. Critérios de aceite da implantação
 

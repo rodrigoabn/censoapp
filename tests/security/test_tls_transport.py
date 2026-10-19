@@ -1,6 +1,6 @@
 """Testes de transporte seguro (TLS/HTTPS) e HSTS.
 
-Nível: majoritariamente PLATAFORMA (Streamlit Cloud termina o TLS).
+Nível: majoritariamente plataforma/proxy (o TLS termina no proxy de hospedagem).
 """
 
 from __future__ import annotations
@@ -48,6 +48,6 @@ def test_hsts_header_present(root_response):
     """Strict-Transport-Security recomendado (nível plataforma)."""
     hsts = root_response.headers.get("Strict-Transport-Security")
     assert hsts, (
-        "[plataforma] Sem cabeçalho Strict-Transport-Security. "
-        "Em *.streamlit.app isso é responsabilidade da Streamlit."
+        "[plataforma] Sem cabeçalho Strict-Transport-Security — "
+        "definir no proxy/TLS."
     )

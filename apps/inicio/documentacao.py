@@ -773,10 +773,10 @@ def build_documentacao_pdf(logo_base64: str | None = None) -> bytes:
     _bullets(story, estilos["item"], [
         "6 testes unitários locais para o unificador de inconsistências;",
         "33 testes de segurança em tests/security/, pulados por padrão (exigem SECURITY_LIVE=1);",
-        "Alvo padrão: https://censoescolar.streamlit.app/ (sobrescrevível com SECURITY_TARGET);",
+        "Alvo definido por SECURITY_TARGET (obrigatório; sem padrão);",
         "Não intrusivos: poucas requisições, sem fuzzing nem brute-force;",
         "Níveis: \"app\" versus \"plataforma\" nos achados;",
-        "Comando de auditoria ao vivo: SECURITY_LIVE=1 uv run python -m pytest tests/security/.",
+        "Comando de auditoria ao vivo: SECURITY_LIVE=1 SECURITY_TARGET=https://<interno>/ uv run python -m pytest tests/security/.",
     ])
 
     # ==================================================================

@@ -52,7 +52,7 @@ docker compose logs -f app                          # logs ao vivo; arquivo em .
 
 ## Implantação (intranet) — Fase 2
 
-- **Runbook completo**: `docs/deploy.md` (TLS interno do Caddy, secrets, despublicação do Streamlit Cloud, cabeçalhos/CSP, troubleshooting).
+- **Runbook completo**: `docs/deploy.md` (TLS interno do Caddy, secrets, cabeçalhos/CSP, testes de segurança, troubleshooting).
 - **Compose**: `docker-compose.yml` — app Streamlit + proxy `caddy`; copie `.env.example` → `.env`. `./logs` e `.streamlit/secrets.toml` são montados como volumes (o arquivo de secrets **precisa existir antes do primeiro `up`**, senão o Docker cria um diretório no lugar; crie `logs/` com uid 1000 — se não for gravável, o log cai para o stderr e o HUB segue no ar).
 - **Autenticação** (`auth_gate.py`, chamado no topo do `app.py`, antes de qualquer render): modo detectado pela config e forçável por `CENSO_AUTH_MODE`:
   - `oidc` — seção `[auth]` nos secrets (SSO via `st.login`); **fecha por padrão** se forçado sem `[auth]`;
@@ -65,7 +65,7 @@ docker compose logs -f app                          # logs ao vivo; arquivo em .
 
 - `tests/` cobre a suíte offline (fakes, sem rede); `tests/security/` é ao vivo
 - **Testes de segurança pulados por padrão** — exigem `SECURITY_LIVE=1`
-- Alvo via `SECURITY_TARGET` (ex.: `https://censo.<interno>/`); o default `censoescolar.streamlit.app` é **legado** (instância a despublicar — checklist em `docs/deploy.md`); com TLS interno, use `REQUESTS_CA_BUNDLE` apontando para a CA do Caddy
+- Alvo via `SECURITY_TARGET` (**obrigatório** — sem padrão; ex.: `https://censo.seduct.intra/`); com TLS interno, use `REQUESTS_CA_BUNDLE` apontando para a CA do Caddy
 - Não intrusivos: poucas requisições, sem fuzzing/brute-force
 - Níveis: "app" vs "plataforma" nos achados
 

@@ -1,21 +1,20 @@
 """Configuração compartilhada dos testes dinâmicos de segurança.
 
-Alvo: o HUB na intranet — defina sempre `SECURITY_TARGET`, por exemplo:
+Alvo: o HUB na intranet — defina sempre `SECURITY_TARGET` (não há alvo
+padrão), por exemplo:
 
     SECURITY_LIVE=1 SECURITY_TARGET=https://censo.seduct.intra/ \
         uv run python -m pytest tests/security/
 
-O alvo padrão abaixo é **legado** (instância antiga no Streamlit Community
-Cloud, a ser despublicada — checklist em docs/deploy.md). Com TLS interno (CA
-do Caddy), aponte `REQUESTS_CA_BUNDLE` para o certificado raiz (ver runbook).
+Com TLS interno (CA do Caddy), aponte `REQUESTS_CA_BUNDLE` para o certificado
+raiz (ver runbook).
 
 Os testes só executam quando SECURITY_LIVE=1 (evita bater na produção
 acidentalmente). São NÃO INTRUSIVOS: poucas requisições, sem fuzzing e sem
 brute-force. Não tocam o Educacenso (terceiro).
 
-Muitos cabeçalhos em *.streamlit.app são controlados pela PLATAFORMA
-(Streamlit Cloud), não pela aplicação. Onde aplicável, os testes rotulam o
-achado como nível "app" ou "plataforma".
+Parte dos cabeçalhos vem do proxy de hospedagem, não da aplicação; onde
+aplicável, os testes rotulam o achado como nível "app" ou "plataforma".
 """
 
 from __future__ import annotations
@@ -26,14 +25,16 @@ from pathlib import Path
 import pytest
 import requests
 
-DEFAULT_TARGET = "https://censoescolar.streamlit.app/"
-
 TIMEOUT = 15
 USER_AGENT = "censo-security-scan/1.0 (+defensivo; owner-authorized)"
 
 
 def target_url() -> str:
-    return os.environ.get("SECURITY_TARGET", DEFAULT_TARGET).rstrip("/") + "/"
+    """Alvo dos testes ao vivo (com barra final). Sem padrão: exige explícito."""
+    alvo = os.environ.get("SECURITY_TARGET", "").strip()
+    if not alvo:
+        pytest.skip("Defina SECURITY_TARGET (não há alvo padrão).")
+    return alvo.rstrip("/") + "/"
 
 
 def _live_enabled() -> bool:
@@ -65,7 +66,8 @@ def pytest_configure(config: pytest.Config) -> None:
 
 
 def pytest_collection_modifyitems(config, items):
-    """Pula toda a suíte se SECURITY_LIVE!=1 ou se o alvo estiver inacessível."""
+    """Pula a suíte se SECURITY_LIVE!=1, se faltar SECURITY_TARGET ou se o alvo
+    estiver inacessível."""
     security_root = Path(__file__).parent
     security_items = [
         item for item in items if security_root in Path(item.path).parents
@@ -75,6 +77,12 @@ def pytest_collection_modifyitems(config, items):
 
     if not _live_enabled():
         skip = pytest.mark.skip(reason="Defina SECURITY_LIVE=1 para rodar contra o alvo.")
+        for item in security_items:
+            item.add_marker(skip)
+        return
+
+    if not os.environ.get("SECURITY_TARGET", "").strip():
+        skip = pytest.mark.skip(reason="Defina SECURITY_TARGET (não há alvo padrão).")
         for item in security_items:
             item.add_marker(skip)
         return
