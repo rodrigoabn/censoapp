@@ -5,7 +5,7 @@
 > Referências de linha são da data da revisão (podem deslocar).
 
 **Estado base (2026-10-18 — revisão):** `master @ c37aa4f` · suíte **83 passed / 33 skipped** · Docker parado · auth em modo `senha`.
-**Estado atual (2026-10-18 — pós-Fases 5 e 3):** Fases 5 e 3 mergeadas (`4f9b128`; correção do monitor em `495de94`) · suíte **565 passed / 33 skipped** · `ruff` limpo · **sem push** · hospedagem definida: **somente rede interna da SEDUCT** (equipe interna; hospedagem externa descartada).
+**Estado atual (2026-10-18 — pós-Fases 5 e 3):** Fases 5 e 3 mergeadas (`4f9b128`; correção do monitor em `495de94`) · suíte **565 passed / 33 skipped** · `ruff` limpo · `origin/master` em dia (push de 2026-10-18) · hospedagem definida: **somente rede interna da SEDUCT** (equipe interna; hospedagem externa descartada).
 
 ---
 
@@ -120,7 +120,7 @@
 ### Operação (fora do código)
 
 - [ ] **E3 — Apagar `credenciais.json` da raiz** ⚠️ **MANTER** por enquanto. Credenciais podem ser necessárias para testes futuros de coleta. Apagar apenas após validação definitiva do ambiente de produção.
-- [ ] **E5 — Push dos commits locais** para `origin/master` (CI passa a rodar no GitHub; só a pedido).
+- [x] **E5 — Push dos commits locais** para `origin/master` (2026-10-18; CI passa a rodar no GitHub).
 - [ ] **E6 — Deploy real na SEDUCT** (dia da implantação): domínio real + `[auth]` OIDC + CA do Caddy + firewall — runbook cobre.
 - **LGPD:** responsabilidade pessoal do usuário (decisão de 2026-10-18).
 
