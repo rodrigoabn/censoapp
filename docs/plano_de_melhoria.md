@@ -124,7 +124,7 @@
 
 ### Operação (fora do código)
 
-- [ ] **E3 — Apagar `credenciais.json` da raiz** (usuário; lembrete ativo).
+- [ ] **E3 — Apagar `credenciais.json` da raiz** ⚠️ **MANTER** por enquanto. Credenciais podem ser necessárias para testes futuros de coleta. Apagar apenas após validação definitiva do ambiente de produção.
 - [ ] **E4 — Despublicar o Streamlit Cloud** (checklist §9 de `docs/deploy.md`).
 - [ ] **E5 — Push dos 20 commits** para `origin/master` (CI passa a rodar no GitHub; só a pedido).
 - [ ] **E6 — Deploy real na SEDUCT** (dia da implantação): domínio real + `[auth]` OIDC + CA do Caddy + firewall — runbook cobre.
