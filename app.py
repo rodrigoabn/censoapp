@@ -334,7 +334,6 @@ st.markdown("""
         color: var(--text-primary) !important;
         margin-bottom: 2rem !important;
         box-shadow: 0 4px 20px rgba(0, 0, 0, 0.4) !important;
-        animation: fadeIn 0.7s ease-out !important;
     }
     .title-container h1 {
         color: var(--text-primary) !important;
@@ -545,11 +544,6 @@ st.markdown("""
         display: none !important;
     }
 
-    /* ── Animação ── */
-    @keyframes fadeIn {
-        from { opacity: 0; transform: translateY(12px); }
-        to   { opacity: 1; transform: translateY(0); }
-    }
 </style>
 """, unsafe_allow_html=True)
 
