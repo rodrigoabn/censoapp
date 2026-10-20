@@ -19,7 +19,7 @@
 | ✅ 3 | Testes golden das regras | 1–2 semanas | **concluída** |
 | ✅ 4 | Refatoração `apps/common` | semanas | **concluída** (4.1–4.8; gates ao vivo 1–4 aprovados) |
 | ✅ 6 | Régua fina | dias | **concluída** (6.1–6.7; gate aprovado 2026-10-20; merge `9f880ac`) |
-| ✅ E | Extras: operação local (uv) | — | **concluída** (E6; E3 segue em espera) |
+| ✅ E | Extras: operação local (uv) | — | **concluída** (E3 + E6) |
 
 **Ordem sugerida:** 5 ✅ → 3 ✅ → 4 ✅ → **6 ✅ → extras** (régua fina concluída — 6.1–6.7; gate aprovado em 2026-10-20). Alternativa técnica original: 3 → 4 → 5 → 6. A inversão foi segura porque os ganhos da Fase 5 são localizados por app; o refactor da Fase 4 reabsorve depois.
 
@@ -125,7 +125,7 @@
 
 ### Operação (fora do código)
 
-- [ ] **E3 — Apagar `credenciais.json` da raiz** ⚠️ **MANTER** por enquanto. Credenciais podem ser necessárias para testes futuros de coleta. Apagar apenas após validação definitiva do ambiente de produção.
+- [x] **E3 — Apagar credenciais** — **concluído em 2026-10-20.** Não há `credenciais.json` nos worktrees; as cópias que restavam na lixeira foram removidas. Nenhuma credencial local remanescente.
 - [x] **E5 — Push dos commits locais** para `origin/master` (2026-10-18; CI passa a rodar no GitHub; revalidado em 2026-10-20 com `8df55fb`).
 - [x] **E6 — Execução local com uv (redefinida em 2026-10-20).** Sem Docker/Caddy e sem TLS por padrão, sem autenticação de aplicação: `uv sync` + `uv run streamlit run app.py --server.port <porta>` no servidor local; porta escolhida a cada janela; Chromium/deps no host; logs nativos; runbook `docs/deploy.md`. **Validação local (2026-10-20):** suíte **655 passed / 19 skipped** + ruff; HUB em `:8599` com health `ok`, Tela Inicial sem login, navegação até a coleta e PDF de 46 KB baixado; auditoria HTTP **19/19**. O deploy real é manual, nas janelas de uso do operador (5–15×/ano); a stack Docker/Caddy do ensaio foi removida.
 - **LGPD:** responsabilidade pessoal do usuário (decisão de 2026-10-18).
