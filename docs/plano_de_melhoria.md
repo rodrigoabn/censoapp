@@ -127,7 +127,7 @@
 
 - [ ] **E3 — Apagar `credenciais.json` da raiz** ⚠️ **MANTER** por enquanto. Credenciais podem ser necessárias para testes futuros de coleta. Apagar apenas após validação definitiva do ambiente de produção.
 - [x] **E5 — Push dos commits locais** para `origin/master` (2026-10-18; CI passa a rodar no GitHub; revalidado em 2026-10-20 com `8df55fb`).
-- [ ] **E6 — Deploy real na SEDUCT** (dia da implantação): domínio real + `[auth]` OIDC + CA do Caddy + firewall — runbook cobre.
+- [ ] **E6 — Deploy real na SEDUCT** (dia da implantação): domínio real + `[auth]` OIDC + CA do Caddy + firewall — runbook cobre. **Ensaio local (2026-10-20):** build OK, `app` healthy, `https://localhost:8443/_stcore/health` → `ok`, HTTP→HTTPS 308 e headers/CSP presentes; auditoria `SECURITY_LIVE=1` → **28 passed / 4 skipped / 1 falha esperada** (HSTS ausente com `tls internal`; habilitar só com certificado corporativo — `docs/deploy.md`).
 - **LGPD:** responsabilidade pessoal do usuário (decisão de 2026-10-18).
 
 ---
