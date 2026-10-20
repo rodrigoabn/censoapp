@@ -307,6 +307,32 @@ def _fechar_ou_cancelar_gestor(page: Page) -> None:
                 return
 
 
+def _fechar_todos_dialogos(page: Page, max_tentativas: int = 3) -> None:
+    """Fecha diálogos abertos sem salvar (Escape e, se preciso, Cancelar/Fechar)."""
+    for _ in range(max_tentativas):
+        try:
+            if page.locator("mat-dialog-container").count() == 0:
+                break
+        except Exception:
+            break
+        try:
+            page.keyboard.press("Escape")
+            page.wait_for_timeout(400)
+        except Exception:
+            pass
+        try:
+            if page.locator("mat-dialog-container").count() == 0:
+                break
+        except Exception:
+            break
+        _fechar_ou_cancelar_gestor(page)
+    # Formulário aberto em rota (sem modal): botão Cancelar/Fechar, se houver.
+    try:
+        _fechar_ou_cancelar_gestor(page)
+    except Exception:
+        pass
+
+
 def _abrir_pesquisa_gestor(page: Page) -> int:
     """Navega para /gestor/pesquisar, marca 'Apenas na escola', clica
     'Pesquisar' e devolve o número de registros encontrados (-1 se incerto)."""
@@ -360,8 +386,29 @@ def _extract_with_retry(page: Page, cols: list[str], max_retries: int = 2) -> li
     return fields
 
 
+def _extract_vinculo(page: Page, cols: list[str], timeout: int = 20000) -> list[dict]:
+    """Extrai campos do vínculo aguardando o formulário abrir.
+
+    A tela de pesquisa atrás do formulário também tem mat-form-fields; por isso
+    a espera é pelo mapeamento de ao menos uma coluna do modelo de vínculo,
+    não pela simples presença de campos.
+    """
+    deadline = time.monotonic() + (timeout / 1000)
+    fields: list[dict] = []
+    while time.monotonic() < deadline:
+        try:
+            fields = page.evaluate(_EXTRACT_JS)
+        except Exception:
+            fields = []
+        mapped = _map_to_row(fields, cols)
+        if any(v and c not in modelo.KEY_COLUMNS for c, v in mapped.items()):
+            return fields
+        page.wait_for_timeout(500)
+    return fields
+
+
 def _scrape_gestor_vinculo(page: Page, codigo_inep: str, nome_unidade: str) -> dict:
-    """Fase A — coleta a aba 'Vínculo do gestor' via list -> vincular."""
+    """Fase A — coleta a aba 'Vínculo do gestor' via list -> editing."""
     _assert_read_only()
     model = modelo.load_model()
     cols = model.get(modelo.GESTOR_SHEET, [])
@@ -386,43 +433,38 @@ def _scrape_gestor_vinculo(page: Page, codigo_inep: str, nome_unidade: str) -> d
     if _is_escola_fechada(page):
         logger.warning(f"[{codigo_inep}] Escola Fechada detectada — vínculo pode estar em modo somente visualização.")
 
-    # No modal, clicar no ícone "visibility" (último = o dentro do modal).
-    # O primeiro visibility é da página de resultados; o último é o da tabela do modal.
-    vis_count = page.locator("mat-icon:has-text('visibility')").count()
-    if vis_count > 1:
-        vis_modal = page.locator("mat-icon:has-text('visibility')").nth(vis_count - 1)
-        logger.info(f"[{codigo_inep}] Ícone 'visibility' no modal encontrado — navegando para vínculo.")
-        vis_modal.click(force=True)
-    elif vis_count == 1:
-        logger.warning(f"[{codigo_inep}] Apenas um 'visibility' encontrado (pode ser o da página).")
-        return row
-    else:
-        logger.warning(f"[{codigo_inep}] Nenhum 'visibility' encontrado no modal.")
+    # O ícone "visibility"/"edit" da PÁGINA é dos dados cadastrais (Fase B),
+    # e fica atrás do backdrop enquanto o modal está aberto. A ação da linha
+    # dentro do modal é "editing" — é ela que abre o formulário do vínculo.
+    try:
+        page.wait_for_selector("mat-dialog-container", timeout=15000)
+    except Exception:
+        logger.warning(f"[{codigo_inep}] Modal de vínculos não abriu.")
         return row
 
-    _wait_loader(page)
-    try:
-        page.wait_for_selector("mat-form-field", timeout=20000)
-    except Exception:
-        pass
-
-    _accept_sigilo_if_present(page)
-    _wait_content_ready(page, min_fields=1, timeout=15000)
-
-    fields = _extract_with_retry(page, cols)
-    mapped = _map_to_row(fields, cols)
-    mapped["Código do Inep"] = codigo_inep
-    mapped["Unidade Escolar"] = nome_unidade
-
-    preenchidos = sum(1 for c, v in mapped.items() if v and c not in modelo.KEY_COLUMNS)
-    tot_cols = len([c for c in cols if c not in modelo.KEY_COLUMNS])
-    logger.info(f"[{codigo_inep}] Vínculo: coletados {preenchidos}/{tot_cols} campos.")
+    dialog = page.locator("mat-dialog-container").last
+    editing = dialog.locator("mat-icon:has-text('editing')").first
+    if not editing.count():
+        logger.warning(f"[{codigo_inep}] Ícone 'editing' do vínculo não encontrado no modal.")
+        _fechar_todos_dialogos(page)
+        return row
 
     try:
-        _fechar_ou_cancelar_gestor(page)
-    except Exception:
-        pass
-    return mapped
+        editing.click(force=True)
+        _wait_loader(page)
+        _accept_sigilo_if_present(page)
+        fields = _extract_vinculo(page, cols)
+
+        mapped = _map_to_row(fields, cols)
+        mapped["Código do Inep"] = codigo_inep
+        mapped["Unidade Escolar"] = nome_unidade
+
+        preenchidos = sum(1 for c, v in mapped.items() if v and c not in modelo.KEY_COLUMNS)
+        tot_cols = len([c for c in cols if c not in modelo.KEY_COLUMNS])
+        logger.info(f"[{codigo_inep}] Vínculo: coletados {preenchidos}/{tot_cols} campos.")
+        return mapped
+    finally:
+        _fechar_todos_dialogos(page)
 
 
 def _buscar_icone_edicao(page: Page):
@@ -478,9 +520,11 @@ def _scrape_gestor_edit_form(
     if _is_escola_fechada(page):
         logger.warning(f"[{codigo_inep}] Escola Fechada detectada — formulário pode estar em modo somente-visualização sem abas.")
 
-    # Espera abas; se não aparecerem, tenta fallback de extracão direta.
+    # Espera as abas do cadastro do gestor. "mat-form-field" sozinho não serve:
+    # a tela de pesquisa atrás do formulário também tem campos e liberaria a
+    # espera cedo demais (era o que fazia o fallback ler os filtros da busca).
     try:
-        page.wait_for_selector("li.tab-item, mat-form-field", timeout=15000)
+        page.wait_for_selector("li.tab-item", timeout=25000)
     except Exception:
         pass
 
