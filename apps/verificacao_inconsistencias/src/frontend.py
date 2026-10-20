@@ -19,18 +19,10 @@ from .upload import (
     read_zip_merged,
 )
 
-_PROJECT_ROOT = Path(__file__).resolve().parent.parent.parent.parent
+_APP_DIR = Path(__file__).resolve().parent.parent
 _REFERENCIA_PATHS = {
-    "unidades": (
-        _PROJECT_ROOT
-        / "arquivos de teste"
-        / "cadastro_escola_educacenso_26-07-2026.xlsx"
-    ),
-    "gestor": (
-        _PROJECT_ROOT
-        / "arquivos de teste"
-        / "vinculo_gestor_educacenso_26-07-2026.xlsx"
-    ),
+    "unidades": _APP_DIR / "docs" / "referencia_unidades.xlsx",
+    "gestor": _APP_DIR / "docs" / "referencia_gestor.xlsx",
 }
 _REFERENCIA_BYTES = {}
 for _key, _path in _REFERENCIA_PATHS.items():
@@ -69,7 +61,25 @@ def _neutralizar_formulas(ws) -> None:
             cell.value = _texto_seguro(cell.value)
 
 
-@st.cache_data(show_spinner=False, max_entries=12)
+_AUSENTE = object()
+
+
+def _memo_sessao(ss, chave: str, insumo, construtor):
+    """Memoiza `construtor()` em `ss` por identidade do insumo.
+
+    Substitui o `@st.cache_data` nos relatórios com PII: o valor vive apenas
+    enquanto a sessão (aba) existir e é reconstruído quando o insumo muda
+    (ex.: novo upload/nova validação entrega um objeto novo).
+    """
+    memo = ss.get(chave, _AUSENTE)
+    if memo is not _AUSENTE and memo[0] is insumo:
+        return memo[1]
+
+    valor = construtor()
+    ss[chave] = (insumo, valor)
+    return valor
+
+
 def _unificado_xlsx(df) -> bytes:
     buffer = io.BytesIO()
     df.to_excel(buffer, index=False, engine="openpyxl")
@@ -113,7 +123,6 @@ def _modo_relatorio(config: dict) -> str:
     return "padrao"
 
 
-@st.cache_data(show_spinner=False, max_entries=12)
 def _build_xlsx(resultados: list[dict], modo: str = "padrao") -> bytes:
     wb = openpyxl.Workbook()
     ws = wb.active
@@ -192,7 +201,6 @@ def _build_xlsx(resultados: list[dict], modo: str = "padrao") -> bytes:
     return buffer.getvalue()
 
 
-@st.cache_data(show_spinner=False, max_entries=12)
 def _duplicadas_xlsx(registros: list[dict]) -> bytes:
     wb = openpyxl.Workbook()
     ws = wb.active
@@ -221,7 +229,7 @@ def _duplicadas_xlsx(registros: list[dict]) -> bytes:
     return buffer.getvalue()
 
 
-@st.cache_data(show_spinner=False, max_entries=12)
+@st.cache_data(show_spinner=False, max_entries=12, ttl=300)
 def _levantamento_cor_raca_xlsx(registros: list[dict]) -> bytes:
     wb = openpyxl.Workbook()
     ws = wb.active
@@ -250,7 +258,6 @@ def _levantamento_cor_raca_xlsx(registros: list[dict]) -> bytes:
     return buffer.getvalue()
 
 
-@st.cache_data(show_spinner=False, max_entries=12)
 def _sem_cpf_xlsx(registros: list[dict]) -> bytes:
     wb = openpyxl.Workbook()
     ws = wb.active
@@ -504,10 +511,16 @@ def render_validation_frontend(config: dict, logo_base64: str | None = None) -> 
                     opcoes: list[tuple[str, bytes, str, str]] = []
 
                     if df_unificado is not None:
+                        sufixo_unificado = f"{config['key']}_relacao_completa"
                         opcoes.append((
                             "Relação completa",
-                            _unificado_xlsx(df_unificado),
-                            _output_filename(config, suffix=f"{config['key']}_relacao_completa", ext="xlsx"),
+                            _memo_sessao(
+                                st.session_state,
+                                f"{prefix}memo_unificado|{sufixo_unificado}",
+                                df_unificado,
+                                lambda: _unificado_xlsx(df_unificado),
+                            ),
+                            _output_filename(config, suffix=sufixo_unificado, ext="xlsx"),
                             f"{prefix}btn_xlsx",
                         ))
 
@@ -521,7 +534,12 @@ def render_validation_frontend(config: dict, logo_base64: str | None = None) -> 
                             if df is not None:
                                 opcoes.append((
                                     label,
-                                    _unificado_xlsx(df),
+                                    _memo_sessao(
+                                        st.session_state,
+                                        f"{prefix}memo_unificado|{suffix}",
+                                        df,
+                                        lambda: _unificado_xlsx(df),
+                                    ),
                                     _output_filename(config, suffix=suffix, ext="xlsx"),
                                     key,
                                 ))
@@ -542,7 +560,12 @@ def render_validation_frontend(config: dict, logo_base64: str | None = None) -> 
                             if df is not None:
                                 opcoes.append((
                                     label,
-                                    _unificado_xlsx(df),
+                                    _memo_sessao(
+                                        st.session_state,
+                                        f"{prefix}memo_unificado|{suffix}",
+                                        df,
+                                        lambda: _unificado_xlsx(df),
+                                    ),
                                     _output_filename(config, suffix=suffix, ext="xlsx"),
                                     key,
                                 ))
@@ -556,7 +579,12 @@ def render_validation_frontend(config: dict, logo_base64: str | None = None) -> 
                             if df is not None:
                                 opcoes.append((
                                     label,
-                                    _unificado_xlsx(df),
+                                    _memo_sessao(
+                                        st.session_state,
+                                        f"{prefix}memo_unificado|{suffix}",
+                                        df,
+                                        lambda: _unificado_xlsx(df),
+                                    ),
                                     _output_filename(config, suffix=suffix, ext="xlsx"),
                                     key,
                                 ))
@@ -576,7 +604,12 @@ def render_validation_frontend(config: dict, logo_base64: str | None = None) -> 
                             if duplicadas:
                                 st.download_button(
                                     "Matrículas em Duplicidade (XLSX)",
-                                    data=_duplicadas_xlsx(duplicadas),
+                                    data=_memo_sessao(
+                                        st.session_state,
+                                        f"{prefix}memo_duplicadas",
+                                        df_aluno_cur,
+                                        lambda: _duplicadas_xlsx(duplicadas),
+                                    ),
                                     file_name=_output_filename(config, suffix="matriculas_duplicadas", ext="xlsx"),
                                     mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
                                     key=f"{prefix}btn_duplicadas_xlsx",
@@ -588,7 +621,12 @@ def render_validation_frontend(config: dict, logo_base64: str | None = None) -> 
                             if sem_cpf:
                                 st.download_button(
                                     "Matrículas sem CPF informado (XLSX)",
-                                    data=_sem_cpf_xlsx(sem_cpf),
+                                    data=_memo_sessao(
+                                        st.session_state,
+                                        f"{prefix}memo_sem_cpf",
+                                        df_aluno_cur,
+                                        lambda: _sem_cpf_xlsx(sem_cpf),
+                                    ),
                                     file_name=_output_filename(config, suffix="alunos_sem_cpf", ext="xlsx"),
                                     mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
                                     key=f"{prefix}btn_sem_cpf_xlsx",
@@ -662,7 +700,13 @@ def render_validation_frontend(config: dict, logo_base64: str | None = None) -> 
                 st.markdown(f"**Total de Unidades:** {unids}")
 
             with st.spinner("Carregando Relatório de Inconsistências..."):
-                xlsx_bytes = _build_xlsx(resultados, modo=_modo_relatorio(config))
+                modo = _modo_relatorio(config)
+                xlsx_bytes = _memo_sessao(
+                    st.session_state,
+                    f"{prefix}memo_build_{modo}",
+                    resultados,
+                    lambda: _build_xlsx(resultados, modo=modo),
+                )
             st.download_button(
                 label="Relatório de Inconsistências (XLSX)",
                 data=xlsx_bytes,

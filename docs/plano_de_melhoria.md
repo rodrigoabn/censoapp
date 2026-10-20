@@ -18,10 +18,10 @@
 | ✅ 5 | Eficiência da coleta | dias–1 semana | **concluída** (5.0–5.8; 5.9 adiado) |
 | ✅ 3 | Testes golden das regras | 1–2 semanas | **concluída** |
 | ✅ 4 | Refatoração `apps/common` | semanas | **concluída** (4.1–4.8; gates ao vivo 1–4 aprovados) |
-| 6 | Régua fina | dias | pendente |
+| 6 | Régua fina | dias | implementada (6.1–6.7); gate do usuário pendente |
 | E | Extras: operação (SEDUCT) | — | pendente |
 
-**Ordem sugerida:** 5 ✅ → 3 ✅ → 4 ✅ → **6 → extras** (próxima: Fase 6 — régua fina). Alternativa técnica original: 3 → 4 → 5 → 6. A inversão foi segura porque os ganhos da Fase 5 são localizados por app; o refactor da Fase 4 reabsorve depois.
+**Ordem sugerida:** 5 ✅ → 3 ✅ → 4 ✅ → **6 → extras** (régua fina implementada — 6.1–6.7; gate do usuário pendente). Alternativa técnica original: 3 → 4 → 5 → 6. A inversão foi segura porque os ganhos da Fase 5 são localizados por app; o refactor da Fase 4 reabsorve depois.
 
 ## Como executar (regras de sempre)
 
@@ -105,17 +105,19 @@
 
 ---
 
-## Fase 6 — Régua fina
+## Fase 6 — Régua fina ✅ (6.1–6.7 concluídos)
 
-- [ ] **6.1 — "Pisca" na troca de apps.** Causa provável: **replay da animação CSS** `fadeIn 0.7s` do `.title-container` (`app.py:347`) quando o banner é recriado na troca; secundária: banners da página anterior durante o rerun; e um caso real: `st.success` imediatamente antes de `st.rerun()` (`verificacao/frontend.py:735-739`). Opções: (a) remover a animação; (b) remover o `st.rerun()` da nav (`app.py:653`); (c) remover o `st.success` redundante. (`st.fragment` **não** se aplica à troca de páginas.) Testar cada opção isolada.
-- [ ] **6.2 — `checar_estrutura`/`_REFERENCIA_BYTES`: DECISÃO EM ABERTO.** Hoje silenciosamente inerte (`verificacao/frontend.py:22-40`, `:741-748`; pasta `arquivos de teste/` não existe no git). Opções: **(a)** versionar referências sintéticas só-cabeçalho em `apps/verificacao_inconsistencias/docs/` (+ teste "referência carrega"; ponto de manutenção quando o layout mudar) **ou (b)** remover o recurso (+ `checar_estrutura.py`). Mínimo: logar "checagem desativada" enquanto decidir.
-- [ ] **6.3 — `_status_color`: ramo morto.** Remover `or estado.startswith("Falha no login")` em `coleta_relatorios/src/frontend.py:267` e `coleta_recibos_fechamento/src/frontend.py:299` (o login falho nunca passa por `on_progress`).
-- [ ] **6.4 — `.gitignore`.** Adicionar `*.xlsx`/`*.xls` + negações `!apps/*/docs/modelo*.xlsx` (os 2 modelos rastreados não são afetados; corrige claims falsos no AGENTS.md e no PDF).
-- [ ] **6.5 — `AGENTS.md` (reescrever seção de estado).** Corrigir: "5 apps" → 10; caminhos dos modelos; `sheets.py` **não existe** (remover menção); `.opencode/agents/*` **não existem**; gitignore de xlsx; refs de linha defasadas (`app.py:347`/`646-653`/`673-683`); "Estado atual" de 2026-08-04 → atual; contagem de testes.
-- [ ] **6.6 — PDF de documentação (`apps/inicio/documentacao.py`).** "6 testes" → suíte offline completa (83+33); incluir comandos da suíte offline (seção 3.3); tabela Visão Geral omite o grupo **Adequação** (3 linhas + subseção); caminhos dos modelos; alvo dos testes ao vivo sem padrão — `SECURITY_TARGET` obrigatório (alinhar com `tests/security/conftest.py`); claim de gitignore; menção a Google Sheets.
-- [ ] **6.7 — Política de cache PII (`st.cache_data` ×5, todos globais sem TTL).** Mínimo: `ttl` curto (300–900 s) nos 5; alvo LGPD: memoizar em `st.session_state` os 4 com PII e manter cache só do agregado. *`verificacao/frontend.py:72,116,195,224,253`.*
+- [x] **6.1 — "Pisca" na troca de apps.** Causa provável: **replay da animação CSS** `fadeIn 0.7s` do `.title-container` (`app.py:347`) quando o banner é recriado na troca; secundária: banners da página anterior durante o rerun; e um caso real: `st.success` imediatamente antes de `st.rerun()` (`verificacao/frontend.py:735-739`). Opções: (a) remover a animação; (b) remover o `st.rerun()` da nav (`app.py:653`); (c) remover o `st.success` redundante. (`st.fragment` **não** se aplica à troca de páginas.) Testar cada opção isolada.
+- [x] **6.2 — `checar_estrutura`/`_REFERENCIA_BYTES`: DECISÃO EM ABERTO.** Hoje silenciosamente inerte (`verificacao/frontend.py:22-40`, `:741-748`; pasta `arquivos de teste/` não existe no git). Opções: **(a)** versionar referências sintéticas só-cabeçalho em `apps/verificacao_inconsistencias/docs/` (+ teste "referência carrega"; ponto de manutenção quando o layout mudar) **ou (b)** remover o recurso (+ `checar_estrutura.py`). Mínimo: logar "checagem desativada" enquanto decidir.
+- [x] **6.3 — `_status_color`: ramo morto.** Remover `or estado.startswith("Falha no login")` em `coleta_relatorios/src/frontend.py:267` e `coleta_recibos_fechamento/src/frontend.py:299` (o login falho nunca passa por `on_progress`).
+- [x] **6.4 — `.gitignore`.** Adicionar `*.xlsx`/`*.xls` + negações `!apps/*/docs/modelo*.xlsx` (os 2 modelos rastreados não são afetados; corrige claims falsos no AGENTS.md e no PDF).
+- [x] **6.5 — `AGENTS.md` (reescrever seção de estado).** Corrigir: "5 apps" → 10; caminhos dos modelos; `sheets.py` **não existe** (remover menção); `.opencode/agents/*` **não existem**; gitignore de xlsx; refs de linha defasadas (`app.py:347`/`646-653`/`673-683`); "Estado atual" de 2026-08-04 → atual; contagem de testes.
+- [x] **6.6 — PDF de documentação (`apps/inicio/documentacao.py`).** "6 testes" → suíte offline completa (83+33); incluir comandos da suíte offline (seção 3.3); tabela Visão Geral omite o grupo **Adequação** (3 linhas + subseção); caminhos dos modelos; alvo dos testes ao vivo sem padrão — `SECURITY_TARGET` obrigatório (alinhar com `tests/security/conftest.py`); claim de gitignore; menção a Google Sheets.
+- [x] **6.7 — Política de cache PII (`st.cache_data` ×5, todos globais sem TTL).** Mínimo: `ttl` curto (300–900 s) nos 5; alvo LGPD: memoizar em `st.session_state` os 4 com PII e manter cache só do agregado. *`verificacao/frontend.py:72,116,195,224,253`.*
 
 **Foco da revisão:** cada item é independente; nada de mudança de comportamento fora do descrito; decisões (6.2/6.7) registradas no commit.
+
+**Status da Fase 6 (2026-10-19):** **6.1–6.7 concluídos** na worktree `fase6-regua-fina` (commits `fase 6.1`–`fase 6.7`: `8b94f19`, `7a49808`, `15041d3`, `2cfd325`, `e5467b4`, `0ac83f1`, `4a348e9`). **6.1:** animação `fadeIn` do banner removida (fim da "piscada"; o `st.success` antes do `st.rerun()` ficou — é feedback funcional). **6.2:** referências sintéticas só-cabeçalho versionadas em `apps/verificacao_inconsistencias/docs/` (geradas pela mesma função `build_xlsx` dos coletores) + `tests/test_verificacao_referencias.py`; a checagem de estrutura deixou de ser silenciosamente inerte (o ponto de manutenção futura é regenerar as referências junto com os modelos). **6.3:** ramo morto removido onde ele realmente vive hoje (`apps/common/ui.py`, pós-refactor da Fase 4 — as linhas citadas na spec ficaram defasadas) + pino do teste ajustado. **6.4:** `*.xlsx`/`*.xls` ignorados por padrão, com negações para os modelos e as referências. **6.5/6.6:** `AGENTS.md` e PDF corrigidos (10 apps, caminhos dos modelos, grupo Adequação na tabela do PDF, seções do PDF renumeradas, suítes/comandos, `SECURITY_TARGET` obrigatório alinhado a `tests/security/conftest.py`, fim das menções a Google Sheets). **6.7:** memo por sessão nos 4 relatórios com PII — com chave por recorte de download (refinamento sobre a chave única planejada: cada tela tem várias listagens e a chave única nunca acertaria o memo, permitindo regeração a cada clique) — sem regenerar bytes no clique de download — e `st.cache_data` com `ttl=300` só no agregado cor/raça. Suíte **652 → 660 passed / 33 skipped** (+8 testes: 3 referências, 1 PDF, 4 memo); `ruff` limpo. **Revisão por subagente aplicada** (achados corrigidos no ramo — claims do PDF, sumário e AGENTS.md); **gate do usuário pendente; merge `--no-ff` somente com aprovação; sem push.**
 
 ---
 
@@ -142,7 +144,7 @@ Reescrita FastAPI/React · `sync→async` do Playwright · APIs internas do port
 
 ## Decisões em aberto
 
-1. **6.2** — referências de estrutura: versionar amostras sintéticas × remover o recurso.
-2. **6.7** — PII no cache: `ttl` curto (mínimo) × `session_state` (alvo).
+1. **6.2 — RESOLVIDA (2026-10-19):** referências sintéticas só-cabeçalho versionadas em `apps/verificacao_inconsistencias/docs/` (a checagem de estrutura deixou de ser inerte).
+2. **6.7 — RESOLVIDA (2026-10-19):** memo por sessão nos 4 relatórios com PII (alvo LGPD); `ttl=300` só no agregado cor/raça.
 3. **Fase 4 — RESOLVIDA (2026-10-19):** preservar wrappers/monkeypatch antigos + adaptar imports dos testes **mecanicamente** (9 arquivos; nenhum corpo de teste mudou). O contrato segue "sem mudança de comportamento observável".
 4. **Ordem das fases** — sugerida 5 → 3 → 4 → 6; confirmar na largada de cada uma.

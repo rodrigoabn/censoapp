@@ -47,10 +47,9 @@ def test_status_color_com_tupla_propria_do_app():
     assert ui.status_color("Relatório inexistente.", indisponiveis) == "#b2b5be"
 
 
-def test_status_color_erro_e_falha_de_login_sao_vermelhos():
+def test_status_color_erro_sao_vermelhos():
     assert ui.status_color("erro: escola não encontrada") == "#ef4444"
     assert ui.status_color("erro: sessão expirada — boom") == "#ef4444"
-    assert ui.status_color("Falha no login") == "#ef4444"
 
 
 def test_status_color_neutro():

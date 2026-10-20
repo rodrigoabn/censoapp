@@ -133,7 +133,7 @@ def status_color(estado: str, indisponiveis: tuple[str, ...] = ()) -> str:
     """Cor do estado no monitor (a tupla vermelha extra é de cada app)."""
     if estado == "concluído":
         return "#22c55e"  # verde (--status-ok)
-    if estado.startswith("erro") or estado.startswith("Falha no login") or estado in indisponiveis:
+    if estado.startswith("erro") or estado in indisponiveis:
         return "#ef4444"  # vermelho (--status-danger)
     return "#b2b5be"      # neutro (em andamento / interrompido)
 

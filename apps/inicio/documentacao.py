@@ -273,6 +273,12 @@ def build_documentacao_pdf(logo_base64: str | None = None) -> bytes:
                  "Baixa o relatório CSV de relação profissional-escola de cada escola e empacota em ZIP."],
                 ["Coleta do Educacenso", "Recibos de Fechamento (1ª Etapa)",
                  "Baixa o recibo de fechamento (PDF) de cada escola e empacota em ZIP."],
+                ["Adequação de Relatórios", "Adequação de Relatório de Turmas",
+                 "Converte o ZIP de relatórios CSV de turmas no layout padronizado e devolve um ZIP adequado."],
+                ["Adequação de Relatórios", "Adequação de Relatórios de Alunos",
+                 "Converte o ZIP de relatórios CSV de alunos no layout padronizado e devolve um ZIP adequado."],
+                ["Adequação de Relatórios", "Adequação de Relatórios de Profissionais",
+                 "Converte o ZIP de relatórios CSV de profissionais no layout padronizado e devolve um ZIP adequado."],
                 ["Gerador de Base de Dados e Inconsistências", "Cadastro de Unidades",
                  "Valida as 5 abas do cadastro da escola e gera relatório XLSX das inconsistências."],
                 ["Gerador de Base de Dados e Inconsistências", "Cadastro de Gestor",
@@ -330,8 +336,11 @@ def build_documentacao_pdf(logo_base64: str | None = None) -> bytes:
          "automaticamente (spinner \"Preparando navegador (primeira execução)...\").")
     _par(story, estilos["h2"], "3.3 Testes")
     _par(story, estilos["corpo"],
+         "A suíte offline roda com o comando abaixo (lint com uv run ruff check .):")
+    _par(story, estilos["corpo_central"], "<b>uv run python -m pytest</b>")
+    _par(story, estilos["corpo"],
          "Os testes de segurança ficam em tests/security/ e são pulados por padrão. Para a auditoria "
-         "ao vivo, defina a variável de ambiente SECURITY_LIVE=1 (ver seção 9).")
+         "ao vivo, defina SECURITY_LIVE=1 e o alvo obrigatório SECURITY_TARGET (ver seção 10).")
 
     # ==================================================================
     # 4. SEGURANÇA, LGPD E MODO LEITURA
@@ -382,7 +391,7 @@ def build_documentacao_pdf(logo_base64: str | None = None) -> bytes:
     _par(story, estilos["corpo"],
          "Raspa a ficha cadastral completa de cada escola (página /escola/cadastro/dados-cadastrais) "
          "em modo leitura e gera um único arquivo XLSX com 6 abas, espelhando o modelo "
-         "docs/modelo_coleta.xlsx. Cabeçalhos correspondem aos rótulos da segunda linha do modelo e as "
+         "apps/coleta_cadastros_escolas/docs/modelo_coleta.xlsx. Cabeçalhos correspondem aos rótulos da segunda linha do modelo e as "
          "larguras das colunas são ajustadas automaticamente.")
     _par(story, estilos["h3"], "Saída: XLSX único (cadastro_escola_educacenso_DD-MM-AAAA.xlsx)")
     _tabela(story, estilos,
@@ -410,7 +419,7 @@ def build_documentacao_pdf(logo_base64: str | None = None) -> bytes:
     _par(story, estilos["corpo"],
          "Coleta o vínculo do gestor escolar e, quando disponível, as abas Identificação e Dados "
          "pessoais do formulário do gestor, gerando um XLSX com 3 abas (espelho de "
-         "docs/modelo_coleta_gestor.xlsx).")
+         "apps/coleta_gestor/docs/modelo_coleta_gestor.xlsx).")
     _par(story, estilos["h3"], "Saída: XLSX único (vinculo_gestor_educacenso_DD-MM-AAAA.xlsx)")
     _tabela(story, estilos,
             ["Aba", "Colunas principais"],
@@ -477,9 +486,50 @@ def build_documentacao_pdf(logo_base64: str | None = None) -> bytes:
     ])
 
     # ==================================================================
-    # 7. VERIFICAÇÃO DE INCONSISTÊNCIAS
+    # 7. ADEQUAÇÃO DE RELATÓRIOS
     # ==================================================================
-    _par(story, estilos["h1"], "7. Verificação de Inconsistências")
+    _par(story, estilos["h1"], "7. Adequação de Relatórios")
+    _par(story, estilos["corpo"],
+         "As três aplicações deste grupo convertem o ZIP de relatórios CSV baixado do Educacenso no "
+         "layout padronizado das planilhas de trabalho: removem o cabeçalho e as linhas de rodapé "
+         "geradas pelo portal, renomeiam e padronizam as colunas e devolvem um novo ZIP pronto para uso "
+         "(um CSV por escola, separador ; e UTF-8). Nenhuma delas exige login.")
+    _par(story, estilos["corpo"],
+         "Entrada: ZIP de relatórios CSV na ordem exportada pelo portal; saída: ZIP adequado "
+         "(adequado_turmas_DD-MM-AAAA.zip, adequado_alunos_DD-MM-AAAA.zip ou "
+         "adequado_profissionais_DD-MM-AAAA.zip).")
+
+    _par(story, estilos["h2"], "7.1 Adequação de Relatório de Turmas")
+    _bullets(story, estilos["item"], [
+        "Remove o cabeçalho do portal (14 primeiras linhas) e as linhas de rodapé "
+        "(Fonte, Nota, \"1 - Os dados\", Emitido);",
+        "Descarta a 3ª e a 5ª colunas;",
+        "Renomeia as colunas para o padrão (Ordem, Código da turma, Nome da turma, Etapa de ensino, "
+        "Carga horária semanal (hh:mm), entre outras).",
+    ])
+
+    _par(story, estilos["h2"], "7.2 Adequação de Relatórios de Alunos")
+    _bullets(story, estilos["item"], [
+        "Remove o cabeçalho do portal (15 primeiras linhas) e as linhas de rodapé;",
+        "Mantém a 5ª coluna (descarta a 3ª e a 4ª);",
+        "Renomeia as 26 colunas para o padrão (Ordem, Identificação única, Nome, "
+        "Data de nascimento, CPF, entre outras);",
+        "Padroniza identificação única, datas e CPF (remove =\"...\" e completa com zeros à esquerda "
+        "até 11 dígitos).",
+    ])
+
+    _par(story, estilos["h2"], "7.3 Adequação de Relatórios de Profissionais")
+    _bullets(story, estilos["item"], [
+        "Remove o cabeçalho do portal (15 primeiras linhas) e as linhas de rodapé;",
+        "Mantém a 5ª coluna (descarta a 3ª e a 4ª);",
+        "Renomeia as colunas para o padrão e aplica o mesmo tratamento de identificação única, "
+        "datas e CPF.",
+    ])
+
+    # ==================================================================
+    # 8. VERIFICAÇÃO DE INCONSISTÊNCIAS
+    # ==================================================================
+    _par(story, estilos["h1"], "8. Verificação de Inconsistências")
     _par(story, estilos["corpo"],
          "As cinco aplicações deste grupo validam os dados declarados no Educacenso e geram um "
          "relatório XLSX com as inconsistências encontradas. O fluxo comum é: carregar o arquivo de "
@@ -491,7 +541,7 @@ def build_documentacao_pdf(logo_base64: str | None = None) -> bytes:
          "(um por escola, separador ; e UTF-8 com BOM).")
 
     # ------------------------------------------------------------------
-    _par(story, estilos["h2"], "7.1 Cadastro de Unidades")
+    _par(story, estilos["h2"], "8.1 Cadastro de Unidades")
     _par(story, estilos["corpo"],
          "Valida as abas do cadastro da escola contra regras específicas. As mensagens indicam a "
          "coluna, o valor esperado e o valor encontrado.")
@@ -553,7 +603,7 @@ def build_documentacao_pdf(logo_base64: str | None = None) -> bytes:
             col_widths=[9.5, 7.5])
 
     # ------------------------------------------------------------------
-    _par(story, estilos["h2"], "7.2 Cadastro de Gestor")
+    _par(story, estilos["h2"], "8.2 Cadastro de Gestor")
     _par(story, estilos["corpo"],
          "Valida as três abas do cadastro do gestor. As mensagens indicam a coluna e o valor esperado.")
     _par(story, estilos["h3"], "Aba: Vínculo do gestor")
@@ -596,7 +646,7 @@ def build_documentacao_pdf(logo_base64: str | None = None) -> bytes:
             col_widths=[7.0, 10.0])
 
     # ------------------------------------------------------------------
-    _par(story, estilos["h2"], "7.3 Cadastro de Turmas")
+    _par(story, estilos["h2"], "8.3 Cadastro de Turmas")
     _par(story, estilos["corpo"],
          "A entrada é um ZIP com os CSVs de turmas (um por escola). O sistema separa as tabelas "
          "turmas_aee, turmas_atvcomplementar, turmas_curricular e turmas_escolarizacao. Na tabela de "
@@ -609,7 +659,7 @@ def build_documentacao_pdf(logo_base64: str | None = None) -> bytes:
          "As regras abaixo são aplicadas exclusivamente na tabela de escolarização. As regras da "
          "tabela curricular são aplicadas separadamente. As mensagens exatas são indicadas em cada regra.")
 
-    _par(story, estilos["h3"], "7.3.1 Sigla para Etapa de ensino (mensagem: Divergência entre Sigla e Etapa)")
+    _par(story, estilos["h3"], "8.3.1 Sigla para Etapa de ensino (mensagem: Divergência entre Sigla e Etapa)")
     _tabela(story, estilos,
             ["periodo_turma", "Etapa de ensino esperada"],
             [
@@ -632,12 +682,12 @@ def build_documentacao_pdf(logo_base64: str | None = None) -> bytes:
             ],
             col_widths=[4.0, 13.0])
 
-    _par(story, estilos["h3"], "7.3.2 Prefixo MI (mensagem: Divergência entre Sigla e Etapa)")
+    _par(story, estilos["h3"], "8.3.2 Prefixo MI (mensagem: Divergência entre Sigla e Etapa)")
     _par(story, estilos["corpo"],
          "Para turmas com periodo_turma igual a <b>MI</b>, a coluna Etapa Agregada deve ser igual a "
          "Educação Infantil; caso contrário, é registrada a inconsistência.")
 
-    _par(story, estilos["h3"], "7.3.3 Etapa de ensino para Sigla (mensagem: Divergência entre Sigla e Etapa)")
+    _par(story, estilos["h3"], "8.3.3 Etapa de ensino para Sigla (mensagem: Divergência entre Sigla e Etapa)")
     _tabela(story, estilos,
             ["Etapa de ensino", "periodo_turma esperado"],
             [
@@ -647,7 +697,7 @@ def build_documentacao_pdf(logo_base64: str | None = None) -> bytes:
             ],
             col_widths=[12.0, 5.0])
 
-    _par(story, estilos["h3"], "7.3.4 Carga horária semanal (hh:mm)")
+    _par(story, estilos["h3"], "8.3.4 Carga horária semanal (hh:mm)")
     _tabela(story, estilos,
             ["verifica_integral", "Regra", "Mensagem"],
             [
@@ -658,7 +708,7 @@ def build_documentacao_pdf(logo_base64: str | None = None) -> bytes:
             ],
             col_widths=[3.2, 8.3, 5.5])
 
-    _par(story, estilos["h3"], "7.3.5 Regras da tabela curricular")
+    _par(story, estilos["h3"], "8.3.5 Regras da tabela curricular")
     _tabela(story, estilos,
             ["Regra", "Condição esperada"],
             [
@@ -676,7 +726,7 @@ def build_documentacao_pdf(logo_base64: str | None = None) -> bytes:
             col_widths=[7.5, 9.5])
 
     # ------------------------------------------------------------------
-    _par(story, estilos["h2"], "7.4 Cadastro de Aluno")
+    _par(story, estilos["h2"], "8.4 Cadastro de Aluno")
     _par(story, estilos["corpo"],
          "A entrada é um ZIP com os CSVs de alunos. A validação usa a tabela aluno_curricular e roda "
          "automaticamente após o processamento do ZIP (sem botão de validação). A idade é calculada "
@@ -705,7 +755,7 @@ def build_documentacao_pdf(logo_base64: str | None = None) -> bytes:
             col_widths=[8.0, 9.0])
 
     # ------------------------------------------------------------------
-    _par(story, estilos["h2"], "7.5 Cadastro de Profissionais Escolares")
+    _par(story, estilos["h2"], "8.5 Cadastro de Profissionais Escolares")
     _par(story, estilos["corpo"],
          "A entrada é um ZIP com os CSVs de profissionais. A validação agrupa as inconsistências por "
          "profissional (Código do Inep + Identificação única) e deduplica as regras.")
@@ -732,15 +782,15 @@ def build_documentacao_pdf(logo_base64: str | None = None) -> bytes:
             col_widths=[10.5, 6.5])
 
     # ==================================================================
-    # 8. PADRÕES TÉCNICOS E ARQUITETURA
+    # 9. PADRÕES TÉCNICOS E ARQUITETURA
     # ==================================================================
-    _par(story, estilos["h1"], "8. Padrões Técnicos e Arquitetura")
+    _par(story, estilos["h1"], "9. Padrões Técnicos e Arquitetura")
     _par(story, estilos["corpo"],
          "Todas as aplicações seguem o mesmo esqueleto: auth.py (autenticação), scraper, frontend.py, "
          "exporter ou zipper e modelo.py; a leitura da lista de escolas é compartilhada em "
          "apps/common/school_list.py. Os templates de modelo ficam em "
-         "docs/modelo_coleta.xlsx (6 abas) e docs/modelo_coleta_gestor.xlsx.")
-    _par(story, estilos["h2"], "8.1 Automação e autenticação")
+         "apps/coleta_cadastros_escolas/docs/modelo_coleta.xlsx (6 abas) e apps/coleta_gestor/docs/modelo_coleta_gestor.xlsx (3 abas).")
+    _par(story, estilos["h2"], "9.1 Automação e autenticação")
     _bullets(story, estilos["item"], [
         "Sempre Playwright sync_api (nunca async);",
         "READ_ONLY = True em todos os auth.py - jamais escrever dados no Educacenso;",
@@ -749,30 +799,30 @@ def build_documentacao_pdf(logo_base64: str | None = None) -> bytes:
         "PreenchimentoNaoIniciado, RelatorioInexistente;",
         "Logs personalizados em português (logger = logging.getLogger(\"coleta_*\")).",
     ])
-    _par(story, estilos["h2"], "8.2 Reuso de sessão e temporários")
+    _par(story, estilos["h2"], "9.2 Reuso de sessão e temporários")
     _bullets(story, estilos["item"], [
         "run_scraping() mantém um contexto de navegador e refaz o login se a sessão expirar;",
         "Arquivos temporários: uma pasta exclusiva por execução para cada coletor "
         "(sob /tmp);",
         "Consolidação final no fim da coleta (exporter.py para XLSX via openpyxl, zipper.py para ZIP).",
     ])
-    _par(story, estilos["h2"], "8.3 Entrada e saída de dados")
+    _par(story, estilos["h2"], "9.3 Entrada e saída de dados")
     _bullets(story, estilos["item"], [
         "Entrada: XLSX com as colunas código do inep e nome da unidade (tolerante a maiúsculas via apps/common/school_list.py);",
         "Saída de escolas: XLSX único com 6 abas (CSV para openpyxl);",
         "Saída de relatórios: ZIP de CSVs via zipper.py;",
         "Saída de recibos: ZIP de PDFs via zipper.py;",
         "Unificador: relação de escolas ativas com código INEP de 8 dígitos iniciado por 33 na primeira coluna e nome na segunda; relatórios de inconsistências em XLS/XLSX;",
-        "Saída do unificador: ZIP com um XLSX por unidade e abas Cadastro da Unidade, Gestores, Turmas, Alunos e Professores; abas ignoradas indicam 'Relatório não gerado' e escolas sem achados indicam 'Unidade não possui inconsistência';",
-        "Saída Google Sheets (sheets.py): escreve na planilha do usuário quando credenciais são fornecidas.",
+        "Saída do unificador: ZIP com um XLSX por unidade e abas Cadastro da Unidade, Gestores, Turmas, Alunos e Professores; abas ignoradas indicam 'Relatório não gerado' e escolas sem achados indicam 'Unidade não possui inconsistência'.",
     ])
 
     # ==================================================================
-    # 9. TESTES
+    # 10. TESTES
     # ==================================================================
-    _par(story, estilos["h1"], "9. Testes")
+    _par(story, estilos["h1"], "10. Testes")
     _bullets(story, estilos["item"], [
-        "6 testes unitários locais para o unificador de inconsistências;",
+        "Suíte offline completa (coletores, verificação, adequação, unificador e common);",
+        "Comandos: uv run python -m pytest (suíte offline) e uv run ruff check . (lint);",
         "33 testes de segurança em tests/security/, pulados por padrão (exigem SECURITY_LIVE=1);",
         "Alvo definido por SECURITY_TARGET (obrigatório; sem padrão);",
         "Não intrusivos: poucas requisições, sem fuzzing nem brute-force;",
@@ -781,9 +831,9 @@ def build_documentacao_pdf(logo_base64: str | None = None) -> bytes:
     ])
 
     # ==================================================================
-    # 10. LICENÇA E CONTATO
+    # 11. LICENÇA E CONTATO
     # ==================================================================
-    _par(story, estilos["h1"], "10. Licença e Contato")
+    _par(story, estilos["h1"], "11. Licença e Contato")
     _bullets(story, estilos["item"], [
         "Código aberto sob GNU Affero General Public License v3.0 (AGPL-3.0);",
         "Licença alternativa para uso governamental ou comercial (Prefeituras, Secretarias, órgãos "
@@ -800,13 +850,14 @@ def build_documentacao_pdf(logo_base64: str | None = None) -> bytes:
     _tabela(story, estilos,
             ["Modelo", "Localização", "Conteúdo"],
             [
-                ["modelo_coleta.xlsx", "docs/modelo_coleta.xlsx", "6 abas: Vinculação institucional e Conv, Funcionamento e Identificação, Estrutura física, Equipamentos e recursos tecnológicos, Recursos humanos e Organização escolar."],
-                ["modelo_coleta_gestor.xlsx", "docs/modelo_coleta_gestor.xlsx", "Aba Vínculo do gestor (1 aba no modelo)."],
+                ["modelo_coleta.xlsx", "apps/coleta_cadastros_escolas/docs/modelo_coleta.xlsx", "6 abas: Vinculação institucional e Conv, Funcionamento e Identificação, Estrutura física, Equipamentos e recursos tecnoló, Recursos humanos e Organização escolar."],
+                ["modelo_coleta_gestor.xlsx", "apps/coleta_gestor/docs/modelo_coleta_gestor.xlsx", "3 abas: Vínculo do gestor, Identificação e Dados pessoais."],
             ],
             col_widths=[4.6, 4.6, 7.8])
     _par(story, estilos["corpo"],
-         "Observação: arquivos de dados (.xlsx, .xls, .csv, .log) são ignorados pelo Git e não devem "
-         "ser versionados.")
+         "Observação: arquivos de dados (.xlsx, .xls, .csv e .log) são ignorados pelo Git por padrão; "
+         "as únicas exceções versionadas são os modelos dos coletores e as referências de estrutura "
+         "em apps/*/docs/.")
 
     doc.multi_build(story)
     buf.seek(0)

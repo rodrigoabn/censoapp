@@ -23,6 +23,11 @@ docs_temporarios/
 .idea/
 
 # Evitar subir planilhas de dados locais ou logs
+*.xlsx
+*.xls
 *.csv
 *.log
+# Exceções versionadas: modelos dos coletores e referências de estrutura
+!apps/*/docs/modelo*.xlsx
+!apps/verificacao_inconsistencias/docs/*.xlsx
 logs/
