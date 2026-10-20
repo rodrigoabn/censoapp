@@ -21,6 +21,7 @@ docs_temporarios/
 .antigravity/
 .vscode/
 .idea/
+.playwright-mcp/
 
 # Evitar subir planilhas de dados locais ou logs
 *.xlsx
