@@ -5,7 +5,7 @@
 > Referências de linha são da data da revisão (podem deslocar).
 
 **Estado base (2026-10-18 — revisão):** `master @ c37aa4f` · suíte **83 passed / 33 skipped** · Docker parado · auth em modo `senha`.
-**Estado atual (2026-10-20 — Fase 6 encerrada):** Fases 5, 3, 4 e 6 mergeadas no `master` local (Fase 6 em `9f880ac`; hotfix da coleta do gestor em `151e189`; T8/T9 em `87e646d`; merges anteriores em `4f9b128`, correção do monitor em `495de94`) · suíte **666 passed / 33 skipped** · `ruff` limpo · **CI configurada no GitHub** (`112e8fb` fixou o runner; os commits locais recentes ainda não foram enviados) · **Python de produção: 3.14** (`da8f048` — faixa `>=3.14,<3.15`; Docker, devcontainer e CI alinhados; imagem Docker buildada e validada com Chromium no container) · **sem push** (master local à frente do `origin/master` @ `87a3124`) · hospedagem: **somente rede interna da SEDUCT** (equipe interna; hospedagem externa descartada).
+**Estado atual (2026-10-20 — Fase 6 encerrada):** Fases 5, 3, 4 e 6 mergeadas no `master` local (Fase 6 em `9f880ac`; hotfix da coleta do gestor em `151e189`; T8/T9 em `87e646d`; merges anteriores em `4f9b128`, correção do monitor em `495de94`) · suíte **666 passed / 33 skipped** · `ruff` limpo · **CI configurada no GitHub** (`112e8fb` fixou o runner; os commits locais recentes ainda não foram enviados) · **Python de produção: 3.14** (`da8f048` — faixa `>=3.14,<3.15`; Docker, devcontainer e CI alinhados; imagem Docker buildada e validada com Chromium no container) · **`origin/master` em dia** (push de 2026-10-20, `8df55fb`; inclui o fix de feedback da verificação) · hospedagem: **somente rede interna da SEDUCT** (equipe interna; hospedagem externa descartada).
 
 ---
 
@@ -126,7 +126,7 @@
 ### Operação (fora do código)
 
 - [ ] **E3 — Apagar `credenciais.json` da raiz** ⚠️ **MANTER** por enquanto. Credenciais podem ser necessárias para testes futuros de coleta. Apagar apenas após validação definitiva do ambiente de produção.
-- [x] **E5 — Push dos commits locais** para `origin/master` (2026-10-18; CI passa a rodar no GitHub).
+- [x] **E5 — Push dos commits locais** para `origin/master` (2026-10-18; CI passa a rodar no GitHub; revalidado em 2026-10-20 com `8df55fb`).
 - [ ] **E6 — Deploy real na SEDUCT** (dia da implantação): domínio real + `[auth]` OIDC + CA do Caddy + firewall — runbook cobre.
 - **LGPD:** responsabilidade pessoal do usuário (decisão de 2026-10-18).
 
