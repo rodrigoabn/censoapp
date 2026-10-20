@@ -46,10 +46,10 @@ uv add <pacote>                                     # adicionar dependência
 - **Saída de relatórios**: ZIP de CSVs via `zipper.py`
 - **Saída de recibos**: ZIP de PDFs via `zipper.py`
 
-## Ambiente e secrets
+## Credenciais e ambiente
 
-- **Credenciais**: `apps/coleta_cadastros_escolas/docs/credenciais.json` (gitignored)
-- **Sem autenticação própria e sem secrets**: o HUB roda na rede local, em HTTP puro, e não usa `.streamlit/secrets.toml`; o acesso é controlado pela rede (firewall/VPN) e as credenciais do Educacenso protegem as coletas. Credenciais, uploads e relatórios com PII não são criptografados em trânsito — veja `docs/deploy.md`.
+- **Credenciais**: `apps/coleta_cadastros_escolas/docs/credenciais.json` (gitignored; atualmente removido — recrie localmente quando for coletar e nunca versione).
+- **Sem autenticação própria e sem `.streamlit/secrets.toml`**: o HUB roda na rede local, em HTTP puro; o acesso é controlado pela rede (firewall/VPN) e as credenciais do Educacenso protegem as coletas. Credenciais, uploads e relatórios com PII não são criptografados em trânsito — veja `docs/deploy.md`.
 - **Dependências de sistema para Playwright** em `packages.txt` (libnss3, libnspr4, etc.) — instale com `uv run playwright install --with-deps chromium` ou pelo gerenciador de pacotes da distribuição
 - Chromium é baixado automaticamente na primeira coleta (`_ensure_chromium()`); no host, as libs de sistema precisam existir antes
 
@@ -73,7 +73,7 @@ uv add <pacote>                                     # adicionar dependência
 
 - `*.xlsx`, `*.xls`, `*.csv`, `*.log` são **gitignorados por padrão** — não espere commitar arquivos de dados
 - Exceções versionadas: `apps/*/docs/modelo*.xlsx` (modelos dos coletores) e `apps/verificacao_inconsistencias/docs/*.xlsx` (referências de estrutura)
-- `.opencode/` é gitignorado (configuração local de agentes)
+- `.opencode/`, `.antigravity/` e `.playwright-mcp/` são gitignorados (configuração/artefatos locais de agentes)
 
 ## Estado atual (2026-10-20 — operação local)
 
