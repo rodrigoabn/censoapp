@@ -692,6 +692,7 @@ def render_validation_frontend(config: dict, logo_base64: str | None = None) -> 
     # Etapa 3: resultados prontos -> exibir resumo + download
     if resultados is not None and finalizado:
         incon = [r for r in resultados if r.get("status") == "inconsistente"]
+        erros = [r for r in resultados if r.get("status") == "erro"]
 
         if incon:
             if not is_aluno:
@@ -713,6 +714,11 @@ def render_validation_frontend(config: dict, logo_base64: str | None = None) -> 
                 file_name=_output_filename(config),
                 mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
             )
+        elif erros:
+            for r in erros:
+                st.error(r.get("detalhes") or "Falha ao validar o arquivo enviado.")
+        else:
+            st.success("Nenhuma inconsistência encontrada.")
 
     # Etapa 1: formulario submetido -> processar
     if not submitted:
