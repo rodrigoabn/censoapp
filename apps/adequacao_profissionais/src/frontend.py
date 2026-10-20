@@ -4,6 +4,9 @@ from datetime import datetime
 
 import streamlit as st
 
+from apps.common.banner import banner_titulo
+from apps.common.orientacoes import COLS_ORIENTACOES, card_orientacoes
+
 from .processor import adequar_profissionais
 from .upload import read_zip_csvs, write_zip_from_dataframes
 
@@ -19,33 +22,39 @@ def render_adequacao_profissionais_frontend(logo_base64: str | None = None) -> N
     Layout idêntico às outras aplicações do HUB.
     """
 
-    # ── Banner ──
-    if logo_base64:
-        st.markdown(f"""
-        <div style="text-align:center; padding: 16px 8px 20px 8px;">
-            <img src="data:image/png;base64,{logo_base64}"
-                 style="width:64px; height:64px; border-radius:12px;
-                        box-shadow:0 4px 12px rgba(0,0,0,0.2);
-                        background:#fff; padding:5px;" />
-            <h2 style="margin:0; color:#ffffff; font-weight:700;">Adequação de Relatórios de Profissionais Escolares</h2>
-        </div>""", unsafe_allow_html=True)
-    else:
-        st.markdown("""
-        <div style="text-align:center; margin-bottom:1.5rem;">
-            <h2 style="color:#ffffff;">Adequação de Relatórios de Profissionais Escolares</h2>
+    # ── Banner (tema HUB) ──
+    banner_titulo(
+        st,
+        "Adequação de Relatórios de Profissionais Escolares",
+        "Converte o ZIP de profissionais exportado do Educacenso para o layout padronizado.",
+        logo_base64,
+    )
 
-        </div>""", unsafe_allow_html=True)
+    # ── Formulário (coluna principal) + Orientações (coluna direita) ──
+    col_form, col_help = st.columns(COLS_ORIENTACOES)
 
-    # ── Formulário ──
-    st.markdown('<div class="custom-card">', unsafe_allow_html=True)
-    with st.form("adequacao_profissionais_form"):
-        arquivo = st.file_uploader(
-            "Arquivo ZIP com CSVs de profissionais",
-            type=["zip"],
-            help="ZIP contendo os CSVs exportados do Educacenso (um por escola).",
+    with col_form:
+        st.markdown('<div class="custom-card">', unsafe_allow_html=True)
+        with st.form("adequacao_profissionais_form"):
+            arquivo = st.file_uploader(
+                "Arquivo ZIP com CSVs de profissionais",
+                type=["zip"],
+                help="ZIP contendo os CSVs exportados do Educacenso (um por escola).",
+            )
+            submitted = st.form_submit_button("Executar")
+        st.markdown('</div>', unsafe_allow_html=True)
+
+    with col_help:
+        card_orientacoes(
+            st,
+            corpo="""
+            1. Envie o arquivo ZIP com os CSVs exportados do Educacenso (relação profissional-escola).
+            2. Clique em **Executar**: o sistema lerá os CSVs e aplicará as regras de adequação.
+            3. Após o processamento, o botão **Baixar ZIP Adequado** ficará disponível.
+            4. O ZIP resultante contém os mesmos CSVs porém com as correções aplicadas.
+            5. O arquivo pode ser uploadado posteriormente na aplicação de **Verificação de Inconsistências no Cadastro de Profissionais Escolares**.
+            """,
         )
-        submitted = st.form_submit_button("Processar e Adequar", type="primary")
-    st.markdown('</div>', unsafe_allow_html=True)
 
     # ── Processamento ──
     if submitted and arquivo is not None:
@@ -82,13 +91,3 @@ def render_adequacao_profissionais_frontend(logo_base64: str | None = None) -> N
             )
     elif submitted and arquivo is None:
         st.error("Por favor, envie o arquivo ZIP antes de processar.")
-
-    # ── Ajuda ──
-    with st.expander("Orientações de uso"):
-        st.markdown("""
-        1. Envie o arquivo ZIP com os CSVs exportados do Educacenso (relação profissional-escola).
-        2. Clique em **Processar e Adequar**: o sistema lerá os CSVs e aplicará as regras de adequação.
-        3. Após o processamento, o botão **Baixar ZIP Adequado** ficará disponível.
-        4. O ZIP resultante contém os mesmos CSVs porém com as correções aplicadas.
-        5. O arquivo pode ser uploadado posteriormente na aplicação de **Verificação de Inconsistências no Cadastro de Profissionais Escolares**.
-        """)

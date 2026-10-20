@@ -112,8 +112,8 @@ st.markdown("""
         --status-warning-bg: rgba(234, 179, 8, 0.2);
         --status-danger: #ef4444;
         --status-danger-bg: rgba(239, 68, 68, 0.2);
-        --status-info: #3b82f6;
-        --status-info-bg: rgba(59, 130, 246, 0.2);
+        --status-info: #1e4482;
+        --status-info-bg: rgba(30, 68, 130, 0.2);
 
         /* Arredondamento */
         --radius-sm: 6px;
@@ -277,9 +277,9 @@ st.markdown("""
 
     /* Focus */
     input:focus, select:focus, textarea:focus, button:focus, [data-baseweb="input"] input:focus {
-        outline: 3px solid #3b82f6 !important;
+        outline: 3px solid #1e4482 !important;
         outline-offset: 2px !important;
-        border-color: #3b82f6 !important;
+        border-color: #1e4482 !important;
         box-shadow: none !important;
     }
 
@@ -315,8 +315,8 @@ st.markdown("""
     }
     /* Ativo (Streamlit input selecionado) */
     section[data-testid="stSidebar"] div[data-testid="stRadio"] [role="radiogroup"] > label:has(input:checked) {
-        background-color: rgba(59, 130, 246, 0.08) !important;
-        border-left: 3px solid #3b82f6 !important;
+        background-color: rgba(30, 68, 130, 0.08) !important;
+        border-left: 3px solid #1e4482 !important;
         color: #f0f0f0 !important;
     }
     /* Ocultar círculo de seleção original */
@@ -378,15 +378,28 @@ st.markdown("""
         background-color: rgba(255, 255, 255, 0.05) !important;
         border-color: var(--text-primary) !important;
     }
-    /* Botão de sucesso (Download) */
-    .stDownloadButton > button {
-        border: 1px solid var(--status-ok) !important;
-        color: var(--status-ok) !important;
+
+    /* ── Botões de ação do conteúdo — todos azuis (ação, download e submit
+           de formulário), para que nenhum botão do HUB fique com cor própria.
+           Escopo restrito a stMain: o menu lateral mantém o estilo de item. ── */
+    [data-testid="stMain"] .stButton > button,
+    [data-testid="stMain"] .stDownloadButton > button,
+    [data-testid="stMain"] [data-testid="stFormSubmitButton"] button {
+        background-color: var(--status-info) !important;
+        color: #ffffff !important;
+        border: 1px solid var(--status-info) !important;
+        border-radius: var(--radius-sm) !important;
+        font-weight: 600 !important;
+        padding: 0.5rem 1.2rem !important;
+        transition: all 0.2s ease !important;
+        box-shadow: none !important;
     }
-    .stDownloadButton > button:hover {
-        background-color: var(--status-ok-bg) !important;
-        color: var(--text-primary) !important;
-        border-color: var(--status-ok) !important;
+    [data-testid="stMain"] .stButton > button:hover,
+    [data-testid="stMain"] .stDownloadButton > button:hover,
+    [data-testid="stMain"] [data-testid="stFormSubmitButton"] button:hover {
+        background-color: #2b5da8 !important;
+        border-color: #2b5da8 !important;
+        color: #ffffff !important;
     }
 
     /* ── Inputs e Dropdowns ── */
@@ -419,8 +432,8 @@ st.markdown("""
         border: 1px solid transparent !important;
     }
     [data-baseweb="tag"]:active, [data-baseweb="tag"]:focus {
-        border-color: #3b82f6 !important;
-        background-color: rgba(59, 130, 246, 0.12) !important;
+        border-color: #1e4482 !important;
+        background-color: rgba(30, 68, 130, 0.12) !important;
         color: #93c5fd !important;
     }
 
@@ -593,8 +606,9 @@ st.markdown("""
     color: #ffffff;
 }
 [data-testid="stSidebar"] [data-testid="stButton"] button[kind="primary"] {
-    background: var(--status-info, #3b82f6);
-    color: #ffffff;
+    background: var(--status-info, #1e4482) !important;
+    color: #ffffff !important;
+    border-color: var(--status-info, #1e4482) !important;
 }
 </style>
 """, unsafe_allow_html=True)
@@ -619,6 +633,7 @@ _MENU_GROUPS = {
         "Cadastro de Turmas",
         "Cadastro de Aluno",
         "Cadastro de Profissionais Escolares",
+        "Unificador de Inconsistências por Unidade Escolar",
     ],
 }
 
@@ -644,12 +659,6 @@ for _grupo, _itens in _MENU_GROUPS.items():
     _exp = st.sidebar.expander(_grupo, expanded=st.session_state["nav_page"] in _itens)
     for _i, _label in enumerate(_itens):
         _nav_item(_exp, _label, f"nav_{_grupo}_{_i}")
-
-_nav_item(
-    st.sidebar,
-    "Unificador de Inconsistências por Unidade Escolar",
-    "nav_unificador_inconsistencias",
-)
 
 page = st.session_state["nav_page"]
 

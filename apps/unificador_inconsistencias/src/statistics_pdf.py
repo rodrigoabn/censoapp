@@ -272,7 +272,8 @@ def _draw_page_header_footer(canvas, document) -> None:
         page_height - 1.52 * cm,
         "Gerência de Administração de Sistemas de TI",
     )
-    logo = ImageReader(str(image_directory / "image.png"))
+    # Marca institucional "Censo Escolar" (a interface do HUB usa imagem.png).
+    logo = ImageReader(str(image_directory / "image1.png"))
     logo_width = 2.7 * cm
     logo_height = 1.3 * cm
     canvas.drawImage(

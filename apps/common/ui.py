@@ -22,6 +22,8 @@ from typing import Any, Callable
 
 import streamlit as st
 
+from apps.common.banner import banner_titulo
+from apps.common.orientacoes import COLS_ORIENTACOES, card_orientacoes
 from apps.common.school_list import read_school_list
 
 
@@ -73,7 +75,7 @@ SUBMIT_CSS = """
     color: #ffffff !important;
 }
 [data-testid="stFormSubmitButton"] button:hover {
-    background-color: #2f6fe0 !important;
+    background-color: #2b5da8 !important;
 }
 </style>
 """
@@ -399,36 +401,20 @@ def render_coleta_frontend(config: dict, logo_base64=None, *, ctx: FrontendCtx):
     init_state(p, st=st)
 
     # ── Banner (tema HUB) ───────────────────────────────────────────────────
-    if logo_base64:
-        banner_html = f"""
-        <div class="title-container" style="display:flex; align-items:center; gap:1.5rem;">
-            <img src="data:image/png;base64,{logo_base64}"
-                 style="width:68px; height:68px; border-radius:12px;
-                        box-shadow:0 4px 12px rgba(0,0,0,0.2);
-                        background:#fff; padding:5px;" />
-            <div>
-                <h1 style="margin:0; padding:0; line-height:1.2; color:white !important;">
-                    {config['title']}
-                </h1>
-                <p style="margin-top:0.3rem; color:#bfdbfe; font-size:1rem; margin-bottom:0;">
-                    {config['subtitle']}
-                </p>
-            </div>
-        </div>"""
-    else:
-        banner_html = f"""
-        <div class="title-container">
-            <h1>{config['title']}</h1>
-            <p>{config.get('subtitle_sem_logo') or config['subtitle']}</p>
-        </div>"""
-    st.markdown(banner_html, unsafe_allow_html=True)
+    banner_titulo(
+        st,
+        config["title"],
+        config["subtitle"],
+        logo_base64,
+        subtitulo_sem_logo=config.get("subtitle_sem_logo"),
+    )
 
     # Coleta em andamento: exibe monitor/progresso e botão de interrupção.
     if st.session_state[f"{p}running"]:
         ctx.monitor(config)
         return
 
-    col_form, col_help = st.columns([1.4, 1])
+    col_form, col_help = st.columns(COLS_ORIENTACOES)
 
     with col_form:
         st.markdown('<div class="custom-card">', unsafe_allow_html=True)
@@ -440,23 +426,24 @@ def render_coleta_frontend(config: dict, logo_base64=None, *, ctx: FrontendCtx):
                 type=["xlsx", "xls"],
                 help="Deve conter as colunas: 'código do inep' e 'nome da unidade'.",
             )
-            submitted = st.form_submit_button("Iniciar extração")
+            submitted = st.form_submit_button("Executar")
         st.markdown('</div>', unsafe_allow_html=True)
 
     with col_help:
-        st.markdown('<div class="custom-card">', unsafe_allow_html=True)
-        st.markdown("""
-        <h3>Orientações de uso</h3>
-        <div class="badge badge-warning">Atenção</div>
-        Esta aplicação não guarda em nenhum arquivo o seu Login e Senha de acesso ao Educacenso.
-        """, unsafe_allow_html=True)
-        st.markdown(f"""
-        {textos.modo_leitura}
-        - Informe seu **Login (CPF)** e **Senha** de acesso ao Educacenso.
-        - Envie a **lista de escolas** (.xlsx / .xls) com as colunas *código do inep* e *nome da unidade*.
-        {textos.ajuda_final}
-        """, unsafe_allow_html=True)
-        st.markdown('</div>', unsafe_allow_html=True)
+        card_orientacoes(
+            st,
+            corpo=f"""
+            {textos.modo_leitura}
+            - Informe seu **Login (CPF)** e **Senha** de acesso ao Educacenso.
+            - Envie a **lista de escolas** (.xlsx / .xls) com as colunas *código do inep* e *nome da unidade*.
+            {textos.ajuda_final}
+            """,
+            aviso=(
+                '<div class="badge badge-warning">Atenção</div>\n'
+                "Esta aplicação não guarda em nenhum arquivo o seu Login e "
+                "Senha de acesso ao Educacenso."
+            ),
+        )
 
     # Download persistente de uma coleta anterior já finalizada.
     if st.session_state[f"{p}finalized"]:

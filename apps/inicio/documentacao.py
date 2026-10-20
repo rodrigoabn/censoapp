@@ -2,18 +2,27 @@
 
 O PDF é montado em tempo de execução com reportlab (Platypus), sem dependências
 de sistema, e fica disponível para download na Tela Inicial.
+
+A marca usada nos documentos é a institucional "Censo Escolar"
+(``imagem/image1.png``); a interface do HUB usa a marca atual
+(``imagem/image.png``).
 """
 
 from __future__ import annotations
 
 import base64
 import io
+import re
 from datetime import datetime
+from pathlib import Path
+
+_RAIZ = Path(__file__).resolve().parents[2]
+_LOGO_PDF = _RAIZ / "imagem" / "image1.png"
 
 _FONTE = "Helvetica"
 _FONTE_B = "Helvetica-Bold"
 _AZUL = "#1d4ed8"
-_AZUL_CLARO = "#3b82f6"
+_AZUL_CLARO = "#1e4482"
 _CINZA = "#6b7280"
 _CINZA_CLARO = "#f1f5f9"
 _GRID = "#cbd5e1"
@@ -32,7 +41,7 @@ def _estilos(cores=None):
         textColor=colors.HexColor("#1f2937"), alignment=TA_JUSTIFY,
         spaceAfter=6,
     )
-    return {
+    est = {
         "h1": ParagraphStyle(
             "h1", fontName=_FONTE_B, fontSize=15, leading=18,
             textColor=colors.HexColor(_AZUL), spaceBefore=16, spaceAfter=7,
@@ -78,22 +87,29 @@ def _estilos(cores=None):
             textColor=colors.HexColor(_CINZA), alignment=TA_CENTER, spaceAfter=2,
         ),
         "toc_h1": ParagraphStyle(
-            "toc_h1", fontName=_FONTE_B, fontSize=10.5, leading=14,
-            textColor=colors.HexColor("#111827"),
+            "toc_h1", fontName=_FONTE_B, fontSize=10.5, leading=13,
+            textColor=colors.HexColor("#111827"), spaceBefore=0, spaceAfter=0,
         ),
         "toc_h2": ParagraphStyle(
-            "toc_h2", fontName=_FONTE, fontSize=9.5, leading=13,
+            "toc_h2", fontName=_FONTE, fontSize=9.5, leading=11.5,
             textColor=colors.HexColor("#374151"), leftIndent=14,
+            spaceBefore=0, spaceAfter=0,
         ),
         "toc_h3": ParagraphStyle(
-            "toc_h3", fontName=_FONTE, fontSize=9, leading=12,
+            "toc_h3", fontName=_FONTE, fontSize=9, leading=11,
             textColor=colors.HexColor("#6b7280"), leftIndent=28,
+            spaceBefore=0, spaceAfter=0,
         ),
         "nota": ParagraphStyle(
             "nota", fontName=_FONTE, fontSize=8.8, leading=12,
             textColor=colors.HexColor("#374151"), spaceAfter=6,
         ),
     }
+    # Título do sumário: mesma aparência de "h1", mas fora do próprio sumário.
+    est["h1_sem_sumario"] = ParagraphStyle(
+        "h1_sem_sumario", parent=est["h1"],
+    )
+    return est
 
 
 def _par(story, estilo, texto):
@@ -156,7 +172,19 @@ def _rodape_pagina(canvas, doc):
 
 
 class _DocTemplate(object):
-    """Ajuda a manter o fluxo padrão do BaseDocTemplate com TOC."""
+    """Template do PDF com sumário (TableOfContents) populado automaticamente.
+
+    Entram no sumário os estilos ``h1`` (seções) e ``h2`` (subseções) e os
+    ``h3`` numerados (ex.: 8.3.1). Os ``h3`` sem numeração ("Saída: ...",
+    "Detalhes técnicos", "Aba: ...") são rótulos auxiliares e ficam de fora.
+
+    O reportlab é importado sob demanda (dentro dos métodos) para não pesar
+    no carregamento do HUB; por isso o gancho ``afterFlowable`` é instalado
+    no template real como atributo de instância.
+    """
+
+    _NIVEIS = {"h1": 0, "h2": 1}
+    _H3_NUMERADO = re.compile(r"^\d+(\.\d+)+\s")
 
     def __init__(self, arquivo):
         from reportlab.lib.pagesizes import A4
@@ -184,16 +212,41 @@ class _DocTemplate(object):
             PageTemplate(id="capa", frames=[frame], onPage=lambda c, d: None),
             PageTemplate(id="corpo", frames=[frame], onPage=_rodape_pagina),
         ])
+        self.doc.afterFlowable = self._after_flowable
+
+    def _after_flowable(self, flowable):
+        """Publica cada título no sumário (chamado pelo reportlab a cada flowable)."""
+        from reportlab.platypus import Paragraph
+
+        if not isinstance(flowable, Paragraph):
+            return
+        nome = flowable.style.name
+        if nome in self._NIVEIS:
+            nivel = self._NIVEIS[nome]
+        elif nome == "h3" and self._H3_NUMERADO.match(flowable.getPlainText()):
+            nivel = 2
+        else:
+            return
+        self.doc.notify("TOCEntry", (nivel, flowable.getPlainText(), self.doc.page))
 
     def multi_build(self, story):
         self.doc.multiBuild(story)
 
 
-def build_documentacao_pdf(logo_base64: str | None = None) -> bytes:
+def _logo_base64() -> str | None:
+    """Marca institucional (imagem/image1.png) em base64, ou None se ausente."""
+    try:
+        return base64.b64encode(_LOGO_PDF.read_bytes()).decode("ascii")
+    except OSError:
+        return None
+
+
+def build_documentacao_pdf() -> bytes:
     """Gera e retorna os bytes do PDF da documentação completa."""
     from reportlab.lib.units import cm
     from reportlab.platypus import (
         Image,
+        NextPageTemplate,
         PageBreak,
     )
     from reportlab.platypus.tableofcontents import TableOfContents
@@ -211,9 +264,11 @@ def build_documentacao_pdf(logo_base64: str | None = None) -> bytes:
     # CAPA
     # ------------------------------------------------------------------
     story.append(_esp(90))
+    logo_base64 = _logo_base64()
     if logo_base64:
         try:
-            img = Image(io.BytesIO(base64.b64decode(logo_base64)), width=3.2 * cm, height=3.2 * cm)
+            # Só a largura: o reportlab mantém a proporção da marca.
+            img = Image(io.BytesIO(base64.b64decode(logo_base64)), width=6.4 * cm)
             img.hAlign = "CENTER"
             story.append(img)
             story.append(_esp(18))
@@ -222,7 +277,7 @@ def build_documentacao_pdf(logo_base64: str | None = None) -> bytes:
     _par(story, estilos["cap_titulo"], "APLICAÇÕES DE APOIO<br/>CENSO ESCOLAR")
     _par(story, estilos["cap_sub"], "Documentação Técnica e Manual do Usuário")
     story.append(_esp(10))
-    _par(story, estilos["cap_meta"], "Versão: 1.0")
+    _par(story, estilos["cap_meta"], "Versão: 1.1")
     _par(story, estilos["cap_meta"], f"Data: {datetime.now().strftime('%d/%m/%Y')}")
     _par(story, estilos["cap_meta"], "Autor: Rodrigo Nunes")
     _par(story, estilos["cap_meta"], "Secretaria Municipal de Educação - Campos dos Goytacazes/RJ")
@@ -231,12 +286,14 @@ def build_documentacao_pdf(logo_base64: str | None = None) -> bytes:
          "Este documento descreve o HUB de aplicações de apoio ao Censo Escolar: as aplicações de "
          "coleta de dados cadastrais e de relatórios no Educacenso (modo leitura), as aplicações de "
          "verificação de possíveis inconsistências e todas as regras de validação implementadas.")
+    # A partir daqui as páginas usam o template "corpo", com rodapé paginado.
+    story.append(NextPageTemplate("corpo"))
     story.append(PageBreak())
 
     # ------------------------------------------------------------------
     # SUMÁRIO
     # ------------------------------------------------------------------
-    _par(story, estilos["h1"], "Sumário")
+    _par(story, estilos["h1_sem_sumario"], "Sumário")
     story.append(toc)
     story.append(PageBreak())
 
@@ -246,9 +303,9 @@ def build_documentacao_pdf(logo_base64: str | None = None) -> bytes:
     _par(story, estilos["h1"], "1. Visão Geral do Sistema")
     _par(story, estilos["corpo"],
          "O projeto é um HUB de aplicações em Streamlit, gerenciado pelo gerenciador de ambientes "
-         "Python <b>uv</b>. O menu lateral esquerdo dá acesso às aplicações organizadas em três grupos "
-         "e uma opção independente: Coleta do Educacenso, Adequação de Relatórios, "
-         "Gerador de Base de Dados e Inconsistências e Unificador de Inconsistências por Unidade Escolar. "
+         "Python <b>uv</b>. O menu lateral esquerdo dá acesso às aplicações organizadas em três grupos: "
+         "Coleta do Educacenso, Adequação de Relatórios e Gerador de Base de Dados e Inconsistências "
+         "(que reúne as cinco telas de verificação e o Unificador de Inconsistências por Unidade Escolar). "
          "Além disso, a Tela Inicial disponibiliza esta documentação para download em PDF.")
     _par(story, estilos["corpo"],
          "Todas as aplicações de coleta operam em <b>modo leitura</b> sobre o Educacenso "
@@ -259,7 +316,7 @@ def build_documentacao_pdf(logo_base64: str | None = None) -> bytes:
             [
                 ["Tela Inicial", "Tela Inicial",
                  "Hero com a marca do projeto e botão para baixar esta documentação (PDF)."],
-                ["Unificador de Inconsistências por Unidade Escolar", "Unificador de Inconsistências por Unidade Escolar",
+                ["Gerador de Base de Dados e Inconsistências", "Unificador de Inconsistências por Unidade Escolar",
                  "Gera um ZIP com um XLSX por escola ativa e um PDF analítico em A4 vertical, com o brasão municipal à esquerda, a marca Censo Escolar à direita, identificação da Secretaria, Diretoria e Gerência de TI, cards com totais de Creches, Escolas e unidades gerais, gráfico de inconsistências por relatório separado por tipo de unidade e tabela detalhada por escola. A listagem classifica CEM/CMEI como Creche e as demais como Escola, ordenadas por tipo e nome."],
                 ["Coleta do Educacenso", "Dados Cadastrais da Unidades",
                  "Raspa a ficha cadastral completa de cada escola do Educacenso e consolida em um XLSX de 6 abas."],
@@ -315,8 +372,8 @@ def build_documentacao_pdf(logo_base64: str | None = None) -> bytes:
     _par(story, estilos["h2"], "2.3 Credenciais")
     _bullets(story, estilos["item"], [
         "Usuário e senha do Educacenso (CPF e senha), digitados na tela de cada aplicação de coleta;",
-        "Nunca são persistidos em arquivo;",
-        "Arquivo de credenciais opcional em apps/coleta_cadastros_escolas/docs/credenciais.json (gitignored);",
+        "Nunca são persistidos em arquivo: devem ser digitados a cada coleta;",
+        "O HUB não guarda credenciais em disco, nem em memória após o fim da coleta;",
     ])
 
     # ==================================================================
@@ -378,6 +435,20 @@ def build_documentacao_pdf(logo_base64: str | None = None) -> bytes:
         "Tela Inicial: centraliza a marca e o botão para baixar esta documentação em PDF;",
         "Aplicações de coleta: exigem login (CPF + senha) e um arquivo com a lista de escolas;",
         "Aplicações de verificação: exigem o arquivo de dados (XLSX ou ZIP) e geram relatório de inconsistências.",
+    ])
+    _par(story, estilos["h2"], "5.1 Convenções de interface")
+    _par(story, estilos["corpo"],
+         "Todas as telas seguem o mesmo esqueleto visual, para que o uso do HUB seja previsível em "
+         "qualquer aplicação:")
+    _bullets(story, estilos["item"], [
+        "<b>Cabeçalho padrão</b>: marca do Censo Escolar, título da aplicação e uma linha de "
+        "descrição, dentro de um cartão no topo da página;",
+        "<b>Coluna principal à esquerda</b> (formulário, uploads e resultados) e <b>coluna direita</b> "
+        "com o card <b>Orientações de uso</b>, que traz o passo a passo da aplicação;",
+        "<b>Botão de ação único</b>: em todas as telas o botão que executa o processo chama-se "
+        "<b>Executar</b> e é azul; os botões de download mantêm o prefixo \"Baixar\";",
+        "<b>Alerta de campo obrigatório</b>: a mensagem em vermelho itálico sob o título indica o "
+        "arquivo que precisa ser enviado para a operação ser concluída.",
     ])
 
     # ==================================================================
@@ -791,9 +862,11 @@ def build_documentacao_pdf(logo_base64: str | None = None) -> bytes:
     # ==================================================================
     _par(story, estilos["h1"], "9. Padrões Técnicos e Arquitetura")
     _par(story, estilos["corpo"],
-         "Todas as aplicações seguem o mesmo esqueleto: auth.py (autenticação), scraper, frontend.py, "
-         "exporter ou zipper e modelo.py; a leitura da lista de escolas é compartilhada em "
-         "apps/common/school_list.py. Os templates de modelo ficam em "
+         "As aplicações de <b>coleta</b> seguem o mesmo esqueleto: auth.py (autenticação), scraper, "
+         "frontend.py, exporter ou zipper e modelo.py; a leitura da lista de escolas é compartilhada em "
+         "apps/common/school_list.py. As demais aplicações (adequação, verificação e unificador) são "
+         "autocontidas e compartilham apenas os componentes de interface em apps/common/ (cabeçalho "
+         "padrão e card de Orientações de uso). Os templates de modelo ficam em "
          "apps/coleta_cadastros_escolas/docs/modelo_coleta.xlsx (6 abas) e apps/coleta_gestor/docs/modelo_coleta_gestor.xlsx (3 abas).")
     _par(story, estilos["h2"], "9.1 Automação e autenticação")
     _bullets(story, estilos["item"], [
@@ -818,6 +891,7 @@ def build_documentacao_pdf(logo_base64: str | None = None) -> bytes:
         "Saída de relatórios: ZIP de CSVs via zipper.py;",
         "Saída de recibos: ZIP de PDFs via zipper.py;",
         "Unificador: relação de escolas ativas com código INEP de 8 dígitos iniciado por 33 na primeira coluna e nome na segunda; relatórios de inconsistências em XLS/XLSX;",
+        "Unificador: a relação de escolas ativas é obrigatória (a tela sinaliza em vermelho e a operação é barrada sem ela); os demais relatórios são opcionais e podem ser marcados como \"Não usar este relatório\";",
         "Saída do unificador: ZIP com um XLSX por unidade e abas Cadastro da Unidade, Gestores, Turmas, Alunos e Professores; abas ignoradas indicam 'Relatório não gerado' e escolas sem achados indicam 'Unidade não possui inconsistência'.",
     ])
 

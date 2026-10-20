@@ -9,6 +9,9 @@ import streamlit as st
 from openpyxl import load_workbook
 from openpyxl.utils import get_column_letter
 
+from apps.common.banner import banner_titulo
+from apps.common.orientacoes import COLS_ORIENTACOES, card_orientacoes
+
 from .checar_estrutura import checar_estrutura
 from .upload import (
     checar_colunas,
@@ -324,29 +327,12 @@ def render_validation_frontend(config: dict, logo_base64: str | None = None) -> 
     is_aluno = config.get("split_aluno", False)
     is_zip = config.get("source") == "zip"
 
-    if logo_base64:
-        banner_html = f"""
-        <div class="title-container" style="display:flex; align-items:center; gap:1.5rem;">
-            <img src="data:image/png;base64,{logo_base64}"
-                 style="width:68px; height:68px; border-radius:12px;
-                        box-shadow:0 4px 12px rgba(0,0,0,0.2);
-                        background:#fff; padding:5px;" />
-            <div>
-                <h1 style="margin:0; padding:0; line-height:1.2; color:white !important;">
-                    {config['title']}
-                </h1>
-                <p style="margin-top:0.3rem; color:#bfdbfe; font-size:1rem; margin-bottom:0;">
-                    {config['subtitle']}
-                </p>
-            </div>
-        </div>"""
-    else:
-        banner_html = f"""
-        <div class="title-container">
-            <h1>{config['title']}</h1>
-            <p>{config['subtitle']}</p>
-        </div>"""
-    st.markdown(banner_html, unsafe_allow_html=True)
+    banner_titulo(
+        st,
+        config["title"],
+        config["subtitle"],
+        logo_base64,
+    )
 
     if is_aluno:
         st.markdown("""
@@ -358,7 +344,7 @@ def render_validation_frontend(config: dict, logo_base64: str | None = None) -> 
         </style>
         """, unsafe_allow_html=True)
 
-    col_form, col_help = st.columns([1.4, 1])
+    col_form, col_help = st.columns(COLS_ORIENTACOES)
 
     with col_form:
         st.markdown('<div class="custom-card">', unsafe_allow_html=True)
@@ -400,36 +386,32 @@ def render_validation_frontend(config: dict, logo_base64: str | None = None) -> 
                     type=["xlsx", "xls"],
                     help="Deve conter as colunas: 'codigo do inep' e 'nome da unidade'.",
                 )
-            submitted = st.form_submit_button("Carregar e processar" if is_zip else "Verificar estrutura")
+            submitted = st.form_submit_button("Executar")
         st.markdown('</div>', unsafe_allow_html=True)
 
     with col_help:
-        st.markdown('<div class="custom-card">', unsafe_allow_html=True)
-        st.markdown("""
-        <h3>Orientacoes de uso</h3>
-        """, unsafe_allow_html=True)
         if is_zip and is_aluno:
-            st.markdown("""
-        1. Envie o arquivo ZIP com os CSVs exportados do Educacenso (um por escola).
-        2. Clique em **Carregar e processar**: unifica e valida as colunas automaticamente.
-        3. Baixe a **relação completa** e as tabelas de **alunos** (curricular, AEE, Atv Complementar, Transporte, Deficiência).
-        """, unsafe_allow_html=True)
+            corpo = """
+            1. Envie o arquivo ZIP com os CSVs exportados do Educacenso (um por escola).
+            2. Clique em **Executar**: unifica e valida as colunas automaticamente.
+            3. Baixe a **relação completa** e as tabelas de **alunos** (curricular, AEE, Atv Complementar, Transporte, Deficiência).
+            """
         elif is_zip:
-            st.markdown("""
-        1. Envie o arquivo ZIP com os CSVs exportados do Educacenso (um por escola).
-        2. Clique em **Carregar e processar**: unifica e valida as colunas automaticamente.
-        3. Baixe a **relação completa** e, em Turmas, as tabelas de **AEE**, **Atividade Complementar** e **Escolarização** (XLSX/CSV).
-        4. Clique em **Iniciar Verificação de Inconsistências**.
-        5. O relatorio de inconsistencias fica disponivel para download.
-        """, unsafe_allow_html=True)
+            corpo = """
+            1. Envie o arquivo ZIP com os CSVs exportados do Educacenso (um por escola).
+            2. Clique em **Executar**: unifica e valida as colunas automaticamente.
+            3. Baixe a **relação completa** e, em Turmas, as tabelas de **AEE**, **Atividade Complementar** e **Escolarização** (XLSX/CSV).
+            4. Clique em **Executar** para rodar a verificação de inconsistências.
+            5. O relatorio de inconsistencias fica disponivel para download.
+            """
         else:
-            st.markdown("""
-        1. Envie o arquivo XLSX exportado do Educacenso.
-        2. Clique em **Verificar estrutura** para validar abas e colunas.
-        3. Apos aprovado, clique em **Iniciar validacoes**.
-        4. O relatorio de inconsistencias fica disponivel para download.
-        """, unsafe_allow_html=True)
-        st.markdown('</div>', unsafe_allow_html=True)
+            corpo = """
+            1. Envie o arquivo XLSX exportado do Educacenso.
+            2. Clique em **Executar** para validar abas e colunas.
+            3. Apos aprovado, clique em **Executar** para rodar as validacoes.
+            4. O relatorio de inconsistencias fica disponivel para download.
+            """
+        card_orientacoes(st, corpo)
 
     estrutura_ok = st.session_state.get(f"{prefix}estrutura_ok", False)
     escolas = st.session_state.get(f"{prefix}escolas")
@@ -655,7 +637,7 @@ def render_validation_frontend(config: dict, logo_base64: str | None = None) -> 
                 if not is_aluno:
                     st.divider()
 
-                    if st.button("Iniciar Verificação de Inconsistências", key=f"{prefix}btn_validar", type="primary"):
+                    if st.button("Executar", key=f"{prefix}btn_validar", type="primary"):
                         with st.spinner("Carregando Relatório de Inconsistências..."):
                             if is_turmas:
                                 df_aee = st.session_state.get(f"{prefix}df_aee")
@@ -679,7 +661,7 @@ def render_validation_frontend(config: dict, logo_base64: str | None = None) -> 
                         st.rerun()
         else:
             st.success("Estrutura da planilha verificada.")
-            if st.button("Iniciar validacoes", key=f"{prefix}btn_validar", type="primary"):
+            if st.button("Executar", key=f"{prefix}btn_validar", type="primary"):
                 raw = st.session_state.get(f"{prefix}arquivo_bytes")
                 inicio = st.session_state.get(f"{prefix}inicio_ano_letivo")
                 termino = st.session_state.get(f"{prefix}termino_ano_letivo")

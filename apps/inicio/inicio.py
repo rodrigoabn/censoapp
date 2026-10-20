@@ -6,8 +6,8 @@ from apps.inicio.documentacao import build_documentacao_pdf
 
 
 @st.cache_data(show_spinner=False)
-def _documentacao_pdf_bytes(logo_base64: str | None) -> bytes:
-    return build_documentacao_pdf(logo_base64)
+def _documentacao_pdf_bytes() -> bytes:
+    return build_documentacao_pdf()
 
 
 def _documentacao_nome() -> str:
@@ -103,7 +103,7 @@ def show_home_page(logo_base64):
     col_btn = st.columns(3)[1]
     with col_btn:
         with st.spinner("Gerando documentação..."):
-            pdf_bytes = _documentacao_pdf_bytes(logo_base64)
+            pdf_bytes = _documentacao_pdf_bytes()
         st.download_button(
             "Baixar Documentação Completa (PDF)",
             data=pdf_bytes,
