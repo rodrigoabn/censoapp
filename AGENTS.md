@@ -79,7 +79,7 @@ docker compose logs -f app                          # logs ao vivo; arquivo em .
 - Exceções versionadas: `apps/*/docs/modelo*.xlsx` (modelos dos coletores) e `apps/verificacao_inconsistencias/docs/*.xlsx` (referências de estrutura)
 - `.opencode/` é gitignorado (configuração local de agentes)
 
-## Estado atual (2026-10-19)
+## Estado atual (2026-10-20)
 
 HUB com 10 apps em `apps/` — Tela Inicial + Coleta (4), Adequação (3), Verificação (1) e Unificador (1). O app de Verificação de Inconsistências está implementado e verificado; o histórico completo das fases está em `docs/plano_de_melhoria.md`. Resumo do que está no ar:
 
@@ -91,3 +91,4 @@ HUB com 10 apps em `apps/` — Tela Inicial + Coleta (4), Adequação (3), Verif
 6. **Validação de Turmas — tabela Escolarização** (`rules/turmas.py`): `read_turmas_zip` adiciona `periodo_turma`/`verifica_integral` (só escolarização); regras sigla↔etapa (`Divergência entre Sigla e Etapa`), carga `M`/`T` fora de [20h,35h] (`Carga Horária menor que 20h ou maior do que 35h.`) e integral `I` < 35h (`Integral não pode ser inferior a 35h`); relatório modo `"turma"` com colunas de contexto (etapa, carga semanal, periodo_turma, verifica_integral).
 7. **Documentação completa em PDF** (Tela Inicial): `build_documentacao_pdf(logo_base64=None)` (`apps/inicio/documentacao.py`) com **reportlab==5.0.0** — capa, sumário (`TableOfContents` + `multiBuild`), rodapé paginado; download via `st.download_button` com nome datado. Detalhes reportlab 5: `TableOfContents` em `reportlab.platypus.tableofcontents`; `ParagraphStyle(parent=...)` exige instância de estilo; medidas em `reportlab.lib.units.cm`.
 8. **Fase 6 — régua fina**: fim da "piscada" na troca de apps (animação `fadeIn` do banner removida); **referências de estrutura versionadas** em `apps/verificacao_inconsistencias/docs/` — a checagem de estrutura deixou de ser silenciosamente inerte; `.gitignore` ignora planilhas por padrão (exceções: modelos e referências); relatórios de inconsistências com PII são memoizados **por sessão** (sem cache global; só o agregado cor/raça mantém `st.cache_data` com `ttl=300`).
+9. **Coleta do Gestor corrigida**: o vínculo é aberto por `list` → **`editing`** no modal (o código anterior exigia `visibility`, que o modal não tem); após extrair o vínculo, todos os diálogos são fechados e a Fase B espera as abas `Identificação`/`Dados pessoais` antes de extrair. Corrige a planilha que saía sem dados; regressão em `tests/test_coleta_gestor_fluxo.py` (merge `151e189`).
