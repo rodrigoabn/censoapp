@@ -15,7 +15,7 @@ jobs:
         uses: astral-sh/setup-uv@v6
         with:
           enable-cache: true
-          # Produção é Python 3.14 (Dockerfile/devcontainer). Sem isto, o uv
+          # Produção é Python 3.14 (uv.lock/devcontainer). Sem isto, o uv
           # escolhe o Python mais novo (3.15+), para o qual o lock não tem
           # wheels, e tenta compilar do fonte — falha.
           python-version: "3.14"

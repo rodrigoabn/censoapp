@@ -5,6 +5,11 @@ base = "dark"
 toolbarMode = "minimal"
 
 [browser]
-# Intranet: nada de telemetria para data.streamlit.io (a CSP do Caddy já
-# bloqueia; desligar aqui evita a tentativa e o ruído no console).
+# Nada de telemetria para data.streamlit.io.
 gatherUsageStats = false
+
+[server]
+# Servidor local sem interface gráfica: não tenta abrir um navegador no host.
+# Para abrir automaticamente em uma estação de trabalho, rode com
+# `--server.headless false`.
+headless = true

@@ -3,7 +3,7 @@ name = "censo-seduct"
 version = "0.1.0"
 description = "Aplicações de Apoio - Censo Escolar (HUB de aplicações Streamlit)"
 readme = "README.md"
-# Produção roda em Python 3.14 (Dockerfile e devcontainer). O limite <3.15 evita
+# Produção roda em Python 3.14 (uv/devcontainer). O limite <3.15 evita
 # que o uv escolha 3.15+, sem wheels para o stack travado (compilaria do fonte).
 requires-python = ">=3.14,<3.15"
 license = "AGPL-3.0-or-later"

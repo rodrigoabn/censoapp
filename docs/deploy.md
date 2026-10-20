@@ -1,206 +1,185 @@
-# Implantação na intranet — HUB de Aplicações de Apoio (Censo Escolar)
+# Execução local — HUB de Aplicações de Apoio (Censo Escolar)
 
-Runbook para publicar o HUB em infraestrutura própria (SEDUCT) com Docker,
-proxy reverso com TLS e autenticação institucional.
+Runbook para rodar o HUB no servidor local **sem Docker**, usando apenas o
+`uv` para criar o ambiente e o Streamlit para servir a aplicação.
 
-## 1. Arquitetura
+## 1. Modelo de operação
 
 ```text
-navegador ──https──► Caddy (TLS + cabeçalhos) ──http──► app Streamlit :8501
-                                                          ├─ Playwright/Chromium (embutido na imagem)
-                                                          ├─ ./logs          (volume: log rotativo)
-                                                          └─ secrets.toml    (montado somente-leitura)
+navegador ──http──► Streamlit :<porta>   (servidor local)
+                         ├─ Playwright/Chromium instalado no host
+                         ├─ ./logs/censoapp.log (log rotativo)
+                         └─ /tmp/educacenso_*_tmp_ (temporários da coleta)
 ```
 
-- `caddy` publica apenas 80/443 (ajustáveis) — é o único serviço exposto no host.
-- `app` não publica porta; fica acessível só na rede interna do compose (`expose: 8501`).
-- Estado durável: `./logs` (log) e o volume `caddy_data` (CA/certificados TLS).
-- Firewall: entrada só em 80/443; saída do container `app` para o Educacenso
-  (`acesso.inep.gov.br` / `www.educacenso.inep.gov.br`). A telemetria do
-  Streamlit está desligada (`.streamlit/config.toml` → `gatherUsageStats = false`).
+- A aplicação é usada **5 a 15 vezes por ano**, ficando no ar por **5 a 7 dias**
+  em cada janela.
+- O operador sobe e derruba manualmente com `uv run streamlit run app.py` e
+  escolhe a porta no momento (`--server.port`; padrão 8501).
+- **Sem Docker, sem Caddy, sem TLS e sem autenticação própria do HUB.** O
+  acesso é controlado pela rede (firewall/VPN) e as credenciais do Educacenso
+  protegem as coletas.
+- O reinício após queda do servidor é responsabilidade de um script externo do
+  operador (via journal); este repositório não gerencia serviço.
+
+> **Atenção (LGPD/rede):** sem autenticação própria, qualquer pessoa que
+> alcançar a porta do servidor consegue abrir o HUB. Restrinja a porta à rede
+> local/VPN, nunca a exponha diretamente à internet, e mantenha o firewall do
+> host fechado para origens não autorizadas.
 
 ## 2. Pré-requisitos
 
-- Docker Engine + `docker compose` (v2).
-- **Saída para internet durante o build** (apt, PyPI e Chromium do Playwright).
-  Em rede fechada: construa a imagem em uma máquina com internet e transporte
-  com `docker save censoapp:latest | gzip > censoapp.tar.gz` /
-  `docker load < censoapp.tar.gz`.
-- DNS interno apontando o domínio (ex.: `censo.seduct.intra`) para o servidor.
-- Portas 80/443 livres (ou ajuste em `.env`).
+- Linux no servidor local (o host onde o `uv` será executado).
+- `git` e `uv` instalados. Para instalar o `uv`:
 
-## 3. Primeiro deploy
+  ```bash
+  curl -LsSf https://astral.sh/uv/install.sh | sh
+  ```
 
-```bash
-git clone <repo> censoapp && cd censoapp
-cp .env.example .env                 # ajuste CENSO_DOMAIN, portas e CENSO_AUTH_MODE=oidc
-mkdir -p logs                        # o app roda como uid 1000: logs/ aceita escrita
-touch .streamlit/secrets.toml       # OBRIGATÓRIO antes do 1º up — ver gotcha abaixo
-$EDITOR .streamlit/secrets.toml     # preencha [auth] (OIDC) ou [auth_simples] (senha)
-docker compose up -d --build
-docker compose ps                    # o serviço app deve chegar a "healthy"
-curl -k https://localhost/_stcore/health   # "ok" (troque a porta se mudou no .env)
-```
+- Python 3.14: o `uv` baixa a versão exigida pelo `pyproject.toml` no
+  `uv sync` (não é necessário instalar manualmente).
+- Bibliotecas de sistema do Chromium/Playwright. Instale uma única vez, com
+  privilégio de root, usando o próprio Playwright (recomendado):
 
-> **Gotcha (importante)**: o compose monta `./.streamlit/secrets.toml` como
-> arquivo. Se ele **não existir** no primeiro `up`, o Docker cria um
-> **diretório** no lugar e a aplicação quebra. Correção:
-> `docker compose down && rmdir .streamlit/secrets.toml && touch .streamlit/secrets.toml`
-> e suba de novo.
+  ```bash
+  uv run playwright install --with-deps chromium
+  ```
 
-> **Permissões de `logs/`**: o app roda como uid 1000 (`appuser`). Crie o
-> diretório no host com esse dono (`mkdir -p logs`; em Docker rootful com outro
-> usuário: `sudo chown -R 1000:1000 logs`). Se o diretório não for gravável, o
-> HUB **continua no ar** — o log cai para o stderr do container
-> (`docker compose logs app`) com um aviso; corrija e reinicie.
+  Alternativa em Debian/Ubuntu (a lista está em `packages.txt`):
 
-O Caddy só inicia depois que o `app` fica `healthy` (`depends_on: service_healthy`).
+  ```bash
+  sudo xargs -a packages.txt apt-get install -y
+  uv run playwright install chromium
+  ```
 
-## 4. Autenticação
+  Em outras distribuições, use `uv run playwright install-deps chromium`.
+- Saída de rede para o portal do Educacenso (`acesso.inep.gov.br` e
+  `www.educacenso.inep.gov.br`) e, na primeira instalação, para baixar
+  dependências e o Chromium.
 
-O portão vive em `auth_gate.py` e roda no topo do `app.py`, **antes de qualquer
-render**. O modo é detectado pela configuração e pode ser forçado com
-`CENSO_AUTH_MODE` (valor inválido → erro explícito no start):
+## 3. Primeira execução
 
-| Configuração            | Modo     | Uso                                   |
-|-------------------------|----------|---------------------------------------|
-| seção `[auth]`          | `oidc`   | **Produção** — SSO institucional      |
-| seção `[auth_simples]`  | `senha`  | Fallback do MVP (senha compartilhada) |
-| nenhuma das duas        | `aberto` | Somente uso local/dev (mostra aviso)  |
-
-Se `CENSO_AUTH_MODE=oidc` for forçado sem `[auth]`, o HUB **fecha por padrão**
-(tela de erro, nada renderiza). Não use `aberto` na intranet.
-
-Recomendação: na intranet, fixe `CENSO_AUTH_MODE=oidc` no `.env` — assim uma
-configuração faltante falha fechado em vez de cair no modo senha.
-
-### 4.1 OIDC (recomendado)
-
-Exemplo em `.streamlit/secrets.toml.example`. Para Google:
-
-```toml
-[auth]
-redirect_uri = "https://censo.seduct.intra/oauth2callback"
-cookie_secret = "<python -c \"import secrets; print(secrets.token_hex(32))\">"
-client_id = "<client id>"
-client_secret = "<client secret>"
-server_metadata_url = "https://accounts.google.com/.well-known/openid-configuration"
-```
-
-Para Keycloak interno, troque a última linha por:
-
-```toml
-server_metadata_url = "https://keycloak.seduct.intra/realms/<realm>/.well-known/openid-configuration"
-```
-
-- Registre o `redirect_uri` **exatamente** como está (HTTPS, caminho
-  `/oauth2callback`) no provedor.
-- Após editar secrets: `docker compose restart app`.
-- Com o usuário logado, a sidebar mostra a identificação e o botão **Sair**.
-
-### 4.2 Senha única (fallback)
-
-```toml
-[auth_simples]
-senha = "<senha forte compartilhada>"
-```
-
-Comparação com `hmac.compare_digest`; “Sair” revoga a sessão. Use apenas
-enquanto o OIDC não estiver disponível.
-
-## 5. TLS e confiança da CA (Caddy `tls internal`)
-
-Com `tls internal`, o Caddy gera uma CA própria. Para confiar no parque:
+Na raiz do projeto:
 
 ```bash
-docker compose cp caddy:/data/caddy/pki/authorities/local/root.crt ./caddy-root.crt
-# instale/distribua caddy-root.crt nos navegadores (ex.: GPO)
+uv sync
+uv run playwright install --with-deps chromium   # uma única vez no host
+mkdir -p logs
+uv run streamlit run app.py --server.port 8501
 ```
 
-Alternativa com certificado corporativo real: monte o par
-`cert.pem`/`key.pem` no serviço `caddy` e troque `tls internal` por
-`tls /caminho/cert.pem /caminho/key.pem` em `deploy/Caddyfile`; nesse caso
-habilite também a linha comentada de **HSTS** (só faça isso com certificado
-confiável — HSTS com CA interna não distribuída é difícil de reverter).
-Depois: `docker compose restart caddy`.
+O Streamlit imprime as URLs (`Local URL` e `Network URL`). Em um servidor sem
+interface gráfica o navegador não abre sozinho (`.streamlit/config.toml` define
+`server.headless = true`); acesse pelo navegador de outra máquina.
 
-Para os **testes de segurança** a partir de um host com a CA instalada:
+Se o diretório `logs/` não existir ou não for gravável, o HUB continua no ar e
+o log cai para o stderr do terminal (veja a seção 7).
+
+## 4. Acesso e porta
+
+- Por padrão o Streamlit escuta em todas as interfaces (`0.0.0.0`); acesse:
+
+  ```text
+  http://<ip-ou-nome-do-servidor>:8501/
+  ```
+
+- Para escolher outra porta na hora:
+
+  ```bash
+  uv run streamlit run app.py --server.port 8510
+  ```
+
+- Para permitir acesso **somente da própria máquina** (e usar um túnel SSH):
+
+  ```bash
+  uv run streamlit run app.py --server.address 127.0.0.1 --server.port 8501
+  ```
+
+- Libere a porta escolhida no firewall **apenas** para as origens autorizadas.
+
+## 5. Parar e reiniciar
+
+- Pare com `Ctrl+C` no terminal onde o Streamlit está rodando.
+- Se o terminal for encerrado, o processo cai junto. Para janelas longas, rode
+  em `tmux`/`screen` ou com `nohup`; se o operador já usa um script de reinício
+  via journal, mantenha esse script como está.
+- Para reiniciar depois de uma queda, repita o comando da seção 3 (não é
+  preciso reinstalar dependências nem o Chromium).
+
+## 6. Atualização
 
 ```bash
-export REQUESTS_CA_BUNDLE=$PWD/caddy-root.crt
+# pare o HUB (Ctrl+C)
+git pull
+uv sync
+uv run streamlit run app.py --server.port 8501
 ```
 
-## 6. Cabeçalhos e CSP
-
-O `deploy/Caddyfile` aplica: `X-Content-Type-Options: nosniff`,
-`X-Frame-Options: DENY`, `Referrer-Policy`, `Permissions-Policy` e uma
-`Content-Security-Policy` compatível com o Streamlit (sem CDNs externas —
-`default-src 'self'`).
-
-Se alguma versão futura do Streamlit precisar de um recurso novo, o console do
-navegador mostra `Refused to ...`; ajuste a diretiva no `Caddyfile` e rode
-`docker compose restart caddy`.
+`uv sync` respeita o `uv.lock` versionado. Se o `git pull` não trouxer mudanças
+de dependências, o comando é rápido; não há build de imagem.
 
 ## 7. Logs, dados e privacidade
 
-- Log do HUB: `./logs/censoapp.log`, rotativo (5 MB × 5 arquivos), via
-  `logging_setup.py`; no container `CENSO_LOG_DIR=/app/logs`.
-- Se o diretório não puder ser gravado (ex.: `./logs` criado pelo Docker como
-  root), o HUB **não cai**: o log vai para o stderr do container
-  (`docker compose logs app`) com um aviso — corrija o dono do diretório.
-- **Sem PII no log**: registrar códigos INEP e mensagens técnicas, nunca
-  nomes de alunos/gestores, CPF ou credenciais.
-- Temporários de coleta ficam em `/tmp` do container (`educacenso_*_tmp_`) e
-  são removidos ao final de cada execução.
-- Caches (`st.cache_data`) ficam **só em RAM**: os relatórios da verificação
-  usam `max_entries=12` e o PDF da documentação é chaveado pela logo (entrada
-  única). Nada é persistido em disco.
+- Log do HUB: `./logs/censoapp.log`, rotativo (5 MB × 5 arquivos), configurado
+  por `logging_setup.py`. Variáveis opcionais:
+  - `CENSO_LOG_DIR` — diretório do log (padrão: `logs/` relativo ao diretório
+    de execução);
+  - `CENSO_LOG_LEVEL` — nível do logger (padrão: `INFO`).
+- Se o diretório não puder ser gravado, o HUB **não cai**: o log vai para o
+  stderr com um aviso. Corrija a permissão e reinicie.
+- **Sem PII no log**: códigos INEP e mensagens técnicas; nunca nomes de
+  alunos/gestores, CPF ou credenciais.
+- Temporários de coleta ficam em `/tmp` (`educacenso_*_tmp_`) e são removidos
+  ao final de cada execução.
+- Relatórios de inconsistências com PII são memoizados **por sessão**; somente
+  o agregado de cor/raça usa `st.cache_data` (`ttl=300`). Nada é persistido em
+  disco pelo HUB.
 - XLSX/ZIP gerados são baixados pelo navegador do usuário; o servidor não os
   arquiva.
 
-## 8. Atualização
+## 8. Testes
+
+Suíte offline (não depende de rede nem do HUB no ar):
 
 ```bash
-git pull
-docker compose up -d --build
-docker compose ps          # app "healthy"
-docker image prune -f      # ocasional: remove imagens antigas
+uv run python -m pytest -q
+uv run ruff check .
 ```
 
-O Caddy permanece no ar durante a recriação do `app` (os dados de TLS ficam no
-volume `caddy_data`; não o remova, senão a CA muda).
-
-## 9. Testes de segurança após a implantação
-
-O alvo dos testes ao vivo é o domínio interno — defina sempre `SECURITY_TARGET`
-(não há alvo padrão):
+Auditoria HTTP opcional contra o HUB em execução (testes não intrusivos,
+pulados por padrão). O alvo é obrigatório:
 
 ```bash
-SECURITY_LIVE=1 SECURITY_TARGET=https://censo.seduct.intra/ \
+SECURITY_LIVE=1 SECURITY_TARGET=http://localhost:8501/ \
   uv run python -m pytest tests/security/
 ```
 
-## 10. Critérios de aceite da implantação
+A auditoria cobre métodos HTTP e exposição de caminhos/arquivos sensíveis. Os
+testes de TLS, HSTS e cabeçalhos de proxy foram removidos junto com o Caddy:
+não há terminador TLS nesta modalidade.
 
-- [ ] `docker compose ps` → `app` **healthy** e `caddy` **running**
-- [ ] `curl -k https://<dominio>/_stcore/health` → `ok`
-- [ ] Cabeçalhos de segurança presentes (`curl -k -D - -o /dev/null https://<dominio>/`)
-- [ ] Sem secrets → aviso de modo local; com `[auth]`: login institucional e
-      “Sair” funcionam; com `CENSO_AUTH_MODE=oidc` sem `[auth]`: HUB fecha
-- [ ] `./logs/censoapp.log` recebe linhas (sem PII)
-- [ ] Coleta de teste (1–2 escolas) roda com o Chromium do container
-- [ ] `SECURITY_LIVE=1 SECURITY_TARGET=https://<interno>/ uv run python -m pytest tests/security/`
+## 9. Critérios de aceite da execução
 
-## 11. Troubleshooting
+- [ ] `uv sync` conclui sem erro (Python 3.14 do `uv.lock`).
+- [ ] `curl http://localhost:8501/_stcore/health` responde `ok`.
+- [ ] O HUB abre direto na Tela Inicial, **sem tela de senha**.
+- [ ] O menu lateral troca de página e o download da documentação em PDF funciona.
+- [ ] `./logs/censoapp.log` recebe linhas (sem PII).
+- [ ] Uma coleta de teste (1–2 escolas) roda com o Chromium do host.
+- [ ] `uv run python -m pytest -q` e `uv run ruff check .` passam.
+- [ ] (Opcional) auditoria `tests/security/` contra `http://localhost:<porta>/`.
+
+## 10. Troubleshooting
 
 | Sintoma | Causa provável | Ação |
 |---|---|---|
-| App quebra com `IsADirectoryError`/secrets | Docker criou diretório no lugar do `secrets.toml` | Seção 3 (gotcha): `down` → `rmdir` → `touch` → `up` |
-| Caddy responde 502 | `app` ainda subindo ou `unhealthy` | `docker compose logs app`; aguarde o `start_period` |
-| Porta 80/443 ocupada | outro serviço no host | `.env`: `CADDY_HTTP_PORT`/`CADDY_HTTPS_PORT` |
-| Chromium não inicia no container | kernel/sandbox do host | já roda como não-root; se ainda falhar, adicione `security_opt: ["seccomp=unconfined"]` ao serviço `app` (último recurso) e registre a mudança; `shm_size: "1gb"` ajuda em coletas grandes |
-| Página branca + erros `Refused to ...` no console | CSP bloqueou recurso novo | Ajuste a `Content-Security-Policy` em `deploy/Caddyfile` + `restart caddy` (seção 6) |
-| Nada no log | diretório/volume | `docker compose exec app ls /app/logs`; confira `CENSO_LOG_DIR` |
-| Aviso "Não foi possível gravar ..." e log só no stderr | `logs/` criado pelo Docker como root ou uid divergente | `sudo chown -R 1000:1000 logs` no host e `docker compose restart app` (o HUB segue no ar) |
-| `StreamlitMissingAuthlibError` ao clicar em "Entrar" (modo oidc) | imagem antiga sem a dependência `authlib` | `docker compose up -d --build` (authlib consta no `pyproject`/`uv.lock`) |
-| Navegador não confia no certificado | CA do Caddy não distribuída | Seção 5 (instalar `root.crt` ou usar certificado corporativo) |
+| `uv: command not found` | `uv` não instalado ou fora do `PATH` | Instale (seção 2) e reabra o terminal; em geral fica em `~/.local/bin` |
+| `uv sync` falha ao resolver Python | 3.14 indisponível/ rede bloqueada | `uv python install 3.14` e repita; confira a saída de rede |
+| `Address already in use` | porta ocupada | Escolha outra `--server.port`; veja `ss -ltnp | grep 8501` |
+| Chromium não inicia / falta `.so` | bibliotecas de sistema ausentes | `uv run playwright install --with-deps chromium` (root) |
+| Chromium não baixa | rede bloqueada no servidor | Instale em máquina com internet e copie o cache do Playwright, ou libere o download |
+| Download da coleta abre e fecha | processo/pasta temporária sem permissão | Confira `/tmp` e o usuário que roda o HUB; o log mostra o erro |
+| Nada no log | diretório ausente/sem permissão | `mkdir -p logs`; `CENSO_LOG_DIR`; o HUB avisa no stderr |
+| HUB cai ao fechar o terminal | processo em foreground | Use `tmux`/`screen`/`nohup` ou o script de reinício do operador |
+| Outra máquina da rede não acessa | bind em `127.0.0.1` ou firewall | Use o endereço padrão (`0.0.0.0`) e libere a porta para as origens certas |
+| Página em branco/WebSocket falha | rede/proxy intermediário | Acesse direto pelo IP:porta; não há proxy reverso nesta modalidade |

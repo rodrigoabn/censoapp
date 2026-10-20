@@ -1,20 +1,18 @@
-"""Configuração compartilhada dos testes dinâmicos de segurança.
+"""Configuração compartilhada dos testes HTTP de segurança.
 
-Alvo: o HUB na intranet — defina sempre `SECURITY_TARGET` (não há alvo
-padrão), por exemplo:
+Alvo: o HUB em execução no servidor local — defina sempre `SECURITY_TARGET`
+(não há alvo padrão), por exemplo:
 
-    SECURITY_LIVE=1 SECURITY_TARGET=https://censo.seduct.intra/ \
+    SECURITY_LIVE=1 SECURITY_TARGET=http://localhost:8501/ \
         uv run python -m pytest tests/security/
 
-Com TLS interno (CA do Caddy), aponte `REQUESTS_CA_BUNDLE` para o certificado
-raiz (ver runbook).
+O HUB roda sem proxy/TLS e sem autenticação própria; por isso a suíte cobre
+apenas o nível da aplicação (métodos HTTP e exposição de informação). Testes
+de TLS, HSTS e cabeçalhos de proxy não se aplicam a esta modalidade.
 
-Os testes só executam quando SECURITY_LIVE=1 (evita bater na produção
-acidentalmente). São NÃO INTRUSIVOS: poucas requisições, sem fuzzing e sem
-brute-force. Não tocam o Educacenso (terceiro).
-
-Parte dos cabeçalhos vem do proxy de hospedagem, não da aplicação; onde
-aplicável, os testes rotulam o achado como nível "app" ou "plataforma".
+Os testes só executam quando SECURITY_LIVE=1 (evita bater no HUB sem querer).
+São NÃO INTRUSIVOS: poucas requisições, sem fuzzing e sem brute-force. Não
+tocam o Educacenso (terceiro).
 """
 
 from __future__ import annotations

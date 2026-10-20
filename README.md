@@ -1,6 +1,18 @@
 
 Este é um **HUB de aplicações** em Streamlit (gerenciado pelo **uv**). O menu lateral esquerdo dá acesso às aplicações.
 
+## ▶️ Como executar
+
+Requisitos: `uv` e as bibliotecas de sistema do Chromium (detalhes em [`docs/deploy.md`](docs/deploy.md)).
+
+```bash
+uv sync
+uv run playwright install --with-deps chromium   # uma vez no host
+uv run streamlit run app.py --server.port 8501
+```
+
+O HUB roda na rede local, **sem Docker e sem autenticação própria**; a porta pode ser escolhida em cada execução. O runbook completo (pré-requisitos, atualização, logs e troubleshooting) está em [`docs/deploy.md`](docs/deploy.md).
+
 ## ⚖️ Licença / License
 
 [![Licença: AGPL v3](https://img.shields.io/badge/Licença-AGPL_v3-blue.svg)](LICENSE)

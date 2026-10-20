@@ -3,9 +3,9 @@
 - `CENSO_LOG_DIR`  — diretório do arquivo (default `logs/`, relativo ao cwd).
 - `CENSO_LOG_LEVEL` — nível do logger raiz (default `INFO`).
 
-Se o diretório não puder ser gravado (ex.: `./logs` criado pelo Docker como
-root), cai para um handler de stderr com aviso — o HUB nunca deixa de subir
-por causa do log.
+Se o diretório não puder ser gravado (ex.: `./logs` sem permissão para o
+usuário que roda o HUB), cai para um handler de stderr com aviso — o HUB nunca
+deixa de subir por causa do log.
 
 A função é idempotente de propósito: o script do Streamlit roda de novo a cada
 interação (rerun), e cada execução chama `configurar_logging()` — o handler do
@@ -60,7 +60,7 @@ def configurar_logging(log_dir=None, level=None, env=None) -> Path:
                 encoding="utf-8",
             )
         except OSError as exc:
-            # Ex.: ./logs criado pelo Docker como root (ver docs/deploy.md).
+            # Ex.: ./logs sem permissão de escrita (ver docs/deploy.md).
             # O HUB não pode deixar de subir por causa do log: cai para o stderr.
             erro = exc
             handler = logging.StreamHandler()

@@ -3,14 +3,13 @@
 ## Comandos principais
 
 ```bash
-uv run streamlit run app.py                         # inicia o HUB (local)
+uv run streamlit run app.py --server.port 8501      # sobe o HUB (sem Docker; porta escolhida na hora)
+uv sync                                              # cria/atualiza o .venv e as dependências
+uv run playwright install --with-deps chromium       # uma vez no host (libs do Chromium)
 uv run python -m pytest                             # suíte offline (segurança pulada sem SECURITY_LIVE=1)
 uv run ruff check .                                 # lint (config no pyproject)
-SECURITY_LIVE=1 uv run python -m pytest tests/security/  # auditoria ao vivo (alvo: ver "Testes")
+SECURITY_LIVE=1 SECURITY_TARGET=http://localhost:8501/ uv run python -m pytest tests/security/  # auditoria HTTP ao vivo
 uv add <pacote>                                     # adicionar dependência
-
-docker compose up -d --build                        # intranet: app + Caddy (runbook: docs/deploy.md)
-docker compose logs -f app                          # logs ao vivo; arquivo em ./logs/censoapp.log
 ```
 
 ## Arquitetura
@@ -50,28 +49,25 @@ docker compose logs -f app                          # logs ao vivo; arquivo em .
 ## Ambiente e secrets
 
 - **Credenciais**: `apps/coleta_cadastros_escolas/docs/credenciais.json` (gitignored)
-- **`.streamlit/secrets.toml`** (gitignored) — no container é montado **somente-leitura** em `/app/.streamlit/`; exemplo comentado em `.streamlit/secrets.toml.example`
-- **Dependências de sistema para Playwright** em `packages.txt` (libnss3, libnspr4, etc.)
-- Chromium instalado automaticamente na primeira execução via `playwright install chromium` (ver `_ensure_chromium()`); na imagem Docker ele já vem embutido
+- **Sem autenticação própria e sem secrets**: o HUB roda na rede local e não usa `.streamlit/secrets.toml`; o acesso é controlado pela rede (firewall/VPN) e as credenciais do Educacenso protegem as coletas.
+- **Dependências de sistema para Playwright** em `packages.txt` (libnss3, libnspr4, etc.) — instale com `uv run playwright install --with-deps chromium` ou pelo gerenciador de pacotes da distribuição
+- Chromium é baixado automaticamente na primeira coleta (`_ensure_chromium()`); no host, as libs de sistema precisam existir antes
 
-## Implantação (intranet) — Fase 2
+## Execução local — uv (sem Docker)
 
-- **Runbook completo**: `docs/deploy.md` (TLS interno do Caddy, secrets, cabeçalhos/CSP, testes de segurança, troubleshooting).
-- **Compose**: `docker-compose.yml` — app Streamlit + proxy `caddy`; copie `.env.example` → `.env`. `./logs` e `.streamlit/secrets.toml` são montados como volumes (o arquivo de secrets **precisa existir antes do primeiro `up`**, senão o Docker cria um diretório no lugar; crie `logs/` com uid 1000 — se não for gravável, o log cai para o stderr e o HUB segue no ar).
-- **Autenticação** (`auth_gate.py`, chamado no topo do `app.py`, antes de qualquer render): modo detectado pela config e forçável por `CENSO_AUTH_MODE`:
-  - `oidc` — seção `[auth]` nos secrets (SSO via `st.login`); **fecha por padrão** se forçado sem `[auth]`;
-  - `senha` — seção `[auth_simples]` (senha única compartilhada; fallback enquanto não houver OIDC);
-  - `aberto` — sem secrets (uso local; mostra aviso na sidebar).
-- **Logging** (`logging_setup.py`, idempotente a cada rerun): arquivo rotativo `censoapp.log` (5 MB × 5) em `CENSO_LOG_DIR` (no container: `/app/logs`); nunca registrar PII.
+- **Runbook completo**: `docs/deploy.md` (pré-requisitos, `uv sync`, Chromium, porta, logs, testes e troubleshooting).
+- **Subir**: `uv run streamlit run app.py --server.port <porta>` na raiz do projeto; a porta é escolhida a cada execução (padrão 8501). O HUB escuta em `0.0.0.0`; restrinja a porta à rede local/VPN.
+- **Sem autenticação de aplicação**: não há `auth_gate.py`, Caddy, TLS ou compose. O reinício após queda fica a cargo do script externo do operador (journal).
+- **Logging** (`logging_setup.py`, idempotente a cada rerun): arquivo rotativo `censoapp.log` (5 MB × 5) em `CENSO_LOG_DIR` (padrão `./logs`); se não for gravável, cai para o stderr e o HUB segue no ar; nunca registrar PII.
 - **CI**: `.github/workflows/ci.yml` (push/PR → `uv sync --frozen` + `ruff check .` + `pytest -q`).
 
 ## Testes
 
-- `tests/` cobre a suíte offline (fakes, sem rede): `uv run python -m pytest` → 660 passed / 33 skipped; lint com `uv run ruff check .`
-- `tests/security/` é ao vivo; **os 33 testes de segurança são pulados por padrão** — exigem `SECURITY_LIVE=1`
-- Alvo via `SECURITY_TARGET` (**obrigatório** — sem padrão; ex.: `https://censo.seduct.intra/`); com TLS interno, use `REQUESTS_CA_BUNDLE` apontando para a CA do Caddy
+- `tests/` cobre a suíte offline (fakes, sem rede): `uv run python -m pytest` → 655 passed / 18 skipped; lint com `uv run ruff check .`
+- `tests/security/` é ao vivo; **os 18 testes HTTP de segurança são pulados por padrão** — exigem `SECURITY_LIVE=1`
+- Alvo via `SECURITY_TARGET` (**obrigatório** — sem padrão; ex.: `http://localhost:8501/`); não há TLS/HSTS/Caddy nesta modalidade
 - Não intrusivos: poucas requisições, sem fuzzing/brute-force
-- Níveis: "app" vs "plataforma" nos achados
+- Escopo: métodos HTTP e exposição de caminhos/arquivos sensíveis
 
 ## .gitignore — Atenção
 
@@ -79,9 +75,9 @@ docker compose logs -f app                          # logs ao vivo; arquivo em .
 - Exceções versionadas: `apps/*/docs/modelo*.xlsx` (modelos dos coletores) e `apps/verificacao_inconsistencias/docs/*.xlsx` (referências de estrutura)
 - `.opencode/` é gitignorado (configuração local de agentes)
 
-## Estado atual (2026-10-20)
+## Estado atual (2026-10-20 — operação local)
 
-HUB com 10 apps em `apps/` — Tela Inicial + Coleta (4), Adequação (3), Verificação (1) e Unificador (1). O app de Verificação de Inconsistências está implementado e verificado; o histórico completo das fases está em `docs/plano_de_melhoria.md`. Resumo do que está no ar:
+HUB com 10 apps em `apps/` — Tela Inicial + Coleta (4), Adequação (3), Verificação (1) e Unificador (1). O app de Verificação de Inconsistências está implementado e verificado; o histórico completo das fases está em `docs/plano_de_melhoria.md`. **Operação local (2026-10-20):** sem Docker/Caddy/TLS e sem autenticação própria do HUB; `uv sync` + `uv run streamlit run app.py --server.port <porta>`; porta escolhida a cada execução; runbook em `docs/deploy.md`. Resumo do que está no ar:
 
 1. **Listagem "Matrículas sem CPF informado (XLSX)"** (tela Cadastro de Aluno): `rules/aluno.py` → `extrair_alunos_sem_cpf(df)` seleciona CPF `'--'`, vazio ou `NaN` (via `_normalizar`); registrada em `validations.py` como `VALIDATIONS["aluno"]["extrair_sem_cpf"]`; botão no bloco "RELATÓRIOS DE APOIO" (aviso quando não há registros).
 2. **Seletor "Ano letivo"** (somente tela Aluno): `st.selectbox` de anos (decrescente, 2026→2000) salvo em `st.session_state[{prefix}ano_letivo]`; CSS do dropdown (width 5cm, max-height 360px) só nessa tela.
@@ -92,3 +88,4 @@ HUB com 10 apps em `apps/` — Tela Inicial + Coleta (4), Adequação (3), Verif
 7. **Documentação completa em PDF** (Tela Inicial): `build_documentacao_pdf(logo_base64=None)` (`apps/inicio/documentacao.py`) com **reportlab==5.0.0** — capa, sumário (`TableOfContents` + `multiBuild`), rodapé paginado; download via `st.download_button` com nome datado. Detalhes reportlab 5: `TableOfContents` em `reportlab.platypus.tableofcontents`; `ParagraphStyle(parent=...)` exige instância de estilo; medidas em `reportlab.lib.units.cm`.
 8. **Fase 6 — régua fina**: fim da "piscada" na troca de apps (animação `fadeIn` do banner removida); **referências de estrutura versionadas** em `apps/verificacao_inconsistencias/docs/` — a checagem de estrutura deixou de ser silenciosamente inerte; `.gitignore` ignora planilhas por padrão (exceções: modelos e referências); relatórios de inconsistências com PII são memoizados **por sessão** (sem cache global; só o agregado cor/raça mantém `st.cache_data` com `ttl=300`).
 9. **Coleta do Gestor corrigida**: o vínculo é aberto por `list` → **`editing`** no modal (o código anterior exigia `visibility`, que o modal não tem); após extrair o vínculo, todos os diálogos são fechados e a Fase B espera as abas `Identificação`/`Dados pessoais` antes de extrair. Corrige a planilha que saía sem dados; regressão em `tests/test_coleta_gestor_fluxo.py` (merge `151e189`).
+10. **Operação local**: HUB sobe com `uv sync` + `uv run streamlit run app.py` (sem Docker, Caddy ou TLS) e sem tela de senha; a porta é escolhida na hora e o reinício é feito pelo script externo do operador. A antiga stack de intranet (compose/OIDC/Caddy/HSTS) foi removida; a auditoria de segurança ficou restrita a métodos HTTP e exposição de arquivos.

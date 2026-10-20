@@ -348,6 +348,8 @@ def build_documentacao_pdf(logo_base64: str | None = None) -> bytes:
     # ==================================================================
     _par(story, estilos["h1"], "4. Segurança, LGPD e Modo Leitura")
     _bullets(story, estilos["item"], [
+        "<b>Acesso:</b> o HUB não possui autenticação própria; deve rodar em rede local restrita "
+        "(firewall/VPN). As credenciais do Educacenso são exigidas nas coletas e não são persistidas;",
         "<b>Modo leitura:</b> todos os módulos de autenticação definem READ_ONLY = True e contam com "
         "uma proteção adicional (_assert_read_only) que impede qualquer escrita de dados no Educacenso;",
         "<b>Login:</b> realizado via Keycloak (acesso.inep.gov.br) com CPF e senha, sempre de forma "
@@ -824,11 +826,11 @@ def build_documentacao_pdf(logo_base64: str | None = None) -> bytes:
     _bullets(story, estilos["item"], [
         "Suíte offline completa (coletores, verificação, adequação, unificador e common);",
         "Comandos: uv run python -m pytest (suíte offline) e uv run ruff check . (lint);",
-        "33 testes de segurança em tests/security/, pulados por padrão (exigem SECURITY_LIVE=1);",
+        "18 testes HTTP de segurança em tests/security/, pulados por padrão (exigem SECURITY_LIVE=1);",
         "Alvo definido por SECURITY_TARGET (obrigatório; sem padrão);",
         "Não intrusivos: poucas requisições, sem fuzzing nem brute-force;",
-        "Níveis: \"app\" versus \"plataforma\" nos achados;",
-        "Comando de auditoria ao vivo: SECURITY_LIVE=1 SECURITY_TARGET=https://<interno>/ uv run python -m pytest tests/security/.",
+        "Escopo: métodos HTTP e exposição de caminhos/arquivos sensíveis (sem TLS/HSTS: não há proxy);",
+        "Comando de auditoria ao vivo: SECURITY_LIVE=1 SECURITY_TARGET=http://localhost:8501/ uv run python -m pytest tests/security/.",
     ])
 
     # ==================================================================
