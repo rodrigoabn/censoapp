@@ -2,7 +2,8 @@
 
 Cobre: `status_color` parametrizado pela tupla de cada app, `escapar` e
 `linha_monitor` (mesmos casos pinados pelos monitores dos apps), `init_state`
-idempotente (setdefault das 8 chaves) e a guarda de Chromium
+idempotente (setdefault das 10 chaves), o relógio da coleta (duração, marcação
+de início/término e o relógio digital do monitor) e a guarda de Chromium
 (`chromium_already_installed`) — que evita reinstalar o navegador a cada
 processo quando ele já está no cache do Playwright. Também trava os nomes
 históricos dos frontends de Relatórios, Recibos, Cadastros e Gestor
@@ -12,6 +13,8 @@ históricos dos frontends de Relatórios, Recibos, Cadastros e Gestor
 from __future__ import annotations
 
 import types
+
+import pytest
 
 from apps.common import ui
 
@@ -79,7 +82,7 @@ class _StFalso:
         self.session_state: dict = {}
 
 
-def test_init_state_cria_as_oito_chaves():
+def test_init_state_cria_as_dez_chaves():
     st_falso = _StFalso()
     ui.init_state("p_", st=st_falso)
     assert st_falso.session_state == {
@@ -91,6 +94,8 @@ def test_init_state_cria_as_oito_chaves():
         "p_finalized": False,
         "p_zip": None,
         "p_pending": None,
+        "p_inicio": None,
+        "p_fim": None,
     }
 
 
@@ -101,7 +106,93 @@ def test_init_state_nao_sobrescreve_valores_existentes():
     ui.init_state("p_", st=st_falso)
     assert st_falso.session_state["p_running"] is True
     assert st_falso.session_state["p_zip"] == ("bytes", "arquivo.zip")
-    assert len(st_falso.session_state) == 8
+    assert len(st_falso.session_state) == 10
+
+
+# ── relógio da coleta ────────────────────────────────────────────────────────
+
+
+def test_duracao_em_hh_mm_ss():
+    assert ui._duracao(0) == "00:00:00"
+    assert ui._duracao(9) == "00:00:09"
+    assert ui._duracao(75) == "00:01:15"
+    assert ui._duracao(3723) == "01:02:03"
+    assert ui._duracao(-5) == "00:00:00"
+
+
+def test_resumo_mostra_inicio_termino_e_execucao():
+    from datetime import datetime
+
+    inicio = datetime(2026, 10, 20, 19, 57, 3)
+    fim = datetime(2026, 10, 20, 20, 1, 20)
+    html = ui._relogio_resumo_html(inicio, fim)
+
+    assert "Horário inicial" in html
+    assert "Horário de término" in html
+    assert "Tempo de execução" in html
+    assert "20/10/2026 19:57:03" in html
+    assert "20/10/2026 20:01:20" in html
+    assert "00:04:17" in html
+
+
+def test_relogio_digital_mostra_tempo_em_andamento():
+    from datetime import datetime
+
+    inicio = datetime(2026, 10, 20, 19, 57, 3)
+    html = ui._relogio_andamento_html(83.0, inicio)
+
+    assert "Tempo em andamento" in html
+    assert "relogio-digital" in html
+    assert "00:01:23" in html
+    assert "20/10/2026 19:57:03" in html
+
+
+def test_monitor_desenha_o_relogio_digital_durante_a_coleta():
+    import re
+    import threading
+    from datetime import datetime, timedelta
+
+    class _Rerun(Exception):
+        pass
+
+    class _St:
+        def __init__(self, ss):
+            self.session_state = ss
+            self.markdowns = []
+
+        def markdown(self, body, **kwargs):
+            self.markdowns.append(body)
+
+        def button(self, label, **kwargs):
+            return False
+
+        def progress(self, valor):
+            pass
+
+        def warning(self, msg):
+            pass
+
+        def rerun(self):
+            raise _Rerun()
+
+    ss = {
+        "p_lock": threading.Lock(),
+        "p_shared": {"current": None, "last": None, "count": 0, "total": 1, "done": False},
+        "p_stop": threading.Event(),
+        "p_inicio": datetime.now() - timedelta(seconds=90),
+    }
+    st_falso = _St(ss)
+    ctx = ui.FrontendCtx(
+        st=st_falso, zipper=None, textos=ui.TextosFrontend(),
+        scrape_worker=None, monitor=None, finalize=None, start=None,
+    )
+
+    with pytest.raises(_Rerun):
+        ui.monitor_base({"state_prefix": "p_"}, ctx=ctx)
+
+    html = "\n".join(st_falso.markdowns)
+    assert "relogio-digital" in html
+    assert re.search(r"00:01:2\d|00:01:3\d", html), html
 
 
 # ── guarda do Chromium ──────────────────────────────────────────────────────

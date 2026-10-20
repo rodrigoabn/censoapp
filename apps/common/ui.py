@@ -17,6 +17,7 @@ import sys
 import threading
 import time
 from dataclasses import dataclass
+from datetime import datetime
 from pathlib import Path
 from typing import Any, Callable
 
@@ -79,6 +80,115 @@ SUBMIT_CSS = """
 }
 </style>
 """
+
+RELOGIO_CSS = """
+<style>
+/* Relógio da coleta: digital (andamento) e resumo de tempos (conclusão) */
+.stMarkdown div.relogio-caixa {
+    background-color: var(--bg-card) !important;
+    border: 1px solid var(--border-default) !important;
+    border-radius: var(--radius-md) !important;
+    padding: 14px 18px !important;
+    margin-bottom: 1rem !important;
+}
+.stMarkdown div.relogio-titulo {
+    font-family: 'Segoe UI', Tahoma, sans-serif !important;
+    text-transform: uppercase;
+    font-size: 0.72rem;
+    font-weight: 700;
+    letter-spacing: 1.2px;
+    color: var(--text-secondary) !important;
+    margin-bottom: 0.6rem !important;
+}
+.stMarkdown div.relogio-rotulo {
+    font-family: 'Segoe UI', Tahoma, sans-serif !important;
+    text-transform: uppercase;
+    font-size: 0.68rem;
+    font-weight: 700;
+    letter-spacing: 1px;
+    color: var(--text-secondary) !important;
+    margin-bottom: 0.1rem !important;
+}
+.stMarkdown div.relogio-digital {
+    font-family: Consolas, 'Courier New', monospace !important;
+    font-size: 2.3rem;
+    font-weight: 700;
+    letter-spacing: 4px;
+    line-height: 1.15;
+    color: #93c5fd !important;
+    text-shadow: 0 0 14px rgba(147, 197, 253, 0.35);
+}
+.stMarkdown div.relogio-valor {
+    font-family: Consolas, 'Courier New', monospace !important;
+    font-size: 1rem;
+    font-weight: 700;
+    color: #ffffff !important;
+}
+</style>
+"""
+
+
+def _duracao(segundos: float) -> str:
+    """Duração em HH:MM:SS."""
+    total = int(max(0, segundos))
+    horas, resto = divmod(total, 3600)
+    minutos, segs = divmod(resto, 60)
+    return f"{horas:02d}:{minutos:02d}:{segs:02d}"
+
+
+def _horario(momento: datetime) -> str:
+    """Horário no formato DD/MM/AAAA HH:MM:SS."""
+    return momento.strftime("%d/%m/%Y %H:%M:%S")
+
+
+def _estado(ss: Any, chave: str, padrao: Any = None) -> Any:
+    """Lê uma chave do session_state tolerando estado incompleto (fakes de teste)."""
+    try:
+        return ss[chave]
+    except (KeyError, AttributeError):
+        return padrao
+
+
+def _relogio_andamento_html(segundos: float, inicio: datetime) -> str:
+    """Bloco do relógio digital durante a coleta."""
+    return (
+        '<div class="relogio-caixa">'
+        '<div class="relogio-titulo">Acompanhamento do download</div>'
+        '<div style="display:flex; align-items:center; gap:2.4rem; flex-wrap:wrap;">'
+        '<div>'
+        '<div class="relogio-rotulo">Tempo em andamento</div>'
+        f'<div class="relogio-digital">{_duracao(segundos)}</div>'
+        '</div>'
+        '<div>'
+        '<div class="relogio-rotulo">Início da coleta</div>'
+        f'<div class="relogio-valor">{_horario(inicio)}</div>'
+        '</div>'
+        '</div>'
+        '</div>'
+    )
+
+
+def _relogio_resumo_html(inicio: datetime, fim: datetime) -> str:
+    """Bloco com horário inicial, horário de término e tempo de execução."""
+    return (
+        '<div class="relogio-caixa">'
+        '<div class="relogio-titulo">Acompanhamento do download</div>'
+        '<div style="display:flex; gap:2.6rem; flex-wrap:wrap; align-items:flex-end;">'
+        '<div>'
+        '<div class="relogio-rotulo">Horário inicial</div>'
+        f'<div class="relogio-valor">{_horario(inicio)}</div>'
+        '</div>'
+        '<div>'
+        '<div class="relogio-rotulo">Horário de término</div>'
+        f'<div class="relogio-valor">{_horario(fim)}</div>'
+        '</div>'
+        '<div>'
+        '<div class="relogio-rotulo">Tempo de execução</div>'
+        f'<div class="relogio-valor">{_duracao((fim - inicio).total_seconds())}</div>'
+        '</div>'
+        '</div>'
+        '</div>'
+    )
 
 
 def chromium_already_installed() -> bool:
@@ -151,6 +261,8 @@ def init_state(p: str, *, st: Any = st) -> None:
     ss.setdefault(f"{p}finalized", False)
     ss.setdefault(f"{p}zip", None)
     ss.setdefault(f"{p}pending", None)
+    ss.setdefault(f"{p}inicio", None)
+    ss.setdefault(f"{p}fim", None)
 
 
 def worker_base(
@@ -207,6 +319,7 @@ def worker_base(
             shared["error"] = str(exc)
     finally:
         with lock:
+            shared["fim"] = datetime.now()
             shared["done"] = True
 
 
@@ -236,6 +349,8 @@ def start_base(config: dict, login: str, senha: str, escolas: list[dict], *, ctx
     ss[f"{p}thread"] = thread
     ss[f"{p}running"] = True
     ss[f"{p}finalized"] = False
+    ss[f"{p}inicio"] = datetime.now()
+    ss[f"{p}fim"] = None
     ss[f"{p}{config.get('arquivo_key', 'zip')}"] = None
     ss[f"{p}pending"] = None
     ss[f"{p}tmp_dir"] = pasta
@@ -264,6 +379,14 @@ def monitor_base(config: dict, *, ctx: FrontendCtx) -> None:
         ctx.finalize(config, count)
         st.rerun()
         return
+
+    # Relógio digital: tempo em andamento (o monitor redesenha a cada 0,5s).
+    inicio = _estado(ss, f"{p}inicio")
+    if inicio is not None:
+        st.markdown(
+            _relogio_andamento_html((datetime.now() - inicio).total_seconds(), inicio),
+            unsafe_allow_html=True,
+        )
 
     # Botão de interrupção.
     if not ss[f"{p}stop"].is_set():
@@ -322,6 +445,10 @@ def finalize_base(config: dict, count: int, *, ctx: FrontendCtx) -> None:
     with ss[f"{p}lock"]:
         error = ss[f"{p}shared"].get("error")
         failures = ss[f"{p}shared"].get("failures", [])
+        fim_coleta = ss[f"{p}shared"].get("fim")
+
+    # Horário de término (o instante em que a thread de coleta encerrou).
+    ss[f"{p}fim"] = fim_coleta or datetime.now()
 
     ss[f"{p}running"] = False
 
@@ -397,6 +524,7 @@ def render_coleta_frontend(config: dict, logo_base64=None, *, ctx: FrontendCtx):
     p = config["state_prefix"]
     chave = config.get("arquivo_key", "zip")
     st.markdown(SUBMIT_CSS, unsafe_allow_html=True)
+    st.markdown(RELOGIO_CSS, unsafe_allow_html=True)
     ensure_chromium()
     init_state(p, st=st)
 
@@ -447,6 +575,14 @@ def render_coleta_frontend(config: dict, logo_base64=None, *, ctx: FrontendCtx):
 
     # Download persistente de uma coleta anterior já finalizada.
     if st.session_state[f"{p}finalized"]:
+        # Resumo do relógio: horário inicial, horário de término e execução.
+        inicio = _estado(st.session_state, f"{p}inicio")
+        fim = _estado(st.session_state, f"{p}fim")
+        if inicio is not None and fim is not None:
+            st.markdown(
+                _relogio_resumo_html(inicio, fim),
+                unsafe_allow_html=True,
+            )
         if st.session_state[f"{p}{chave}"]:
             arquivo_bytes, nome_arquivo = st.session_state[f"{p}{chave}"]
             st.download_button(
