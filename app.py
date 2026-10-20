@@ -19,7 +19,6 @@ from apps.unificador_inconsistencias.src.frontend import (
 )
 from apps.verificacao_inconsistencias.src.frontend import render_validation_frontend
 from apps.verificacao_inconsistencias.src.validations import VALIDATIONS
-from auth_gate import CHAVE_SESSAO, exigir_autenticacao
 from hub_sessao import liberar_execucoes
 from logging_setup import configurar_logging
 
@@ -67,11 +66,11 @@ st.set_page_config(
 )
 
 # ---------------------------------------------------------------------------
-# Logging do HUB (arquivo rotativo; sem PII) e portão de autenticação —
-# nada abaixo disto pode renderizar sem login
+# Logging do HUB (arquivo rotativo; sem PII). A aplicação roda na rede local,
+# sem autenticação própria: o acesso é controlado pela rede e pelas
+# credenciais do Educacenso usadas nas coletas.
 # ---------------------------------------------------------------------------
 configurar_logging()
-exigir_autenticacao(st)
 
 # ---------------------------------------------------------------------------
 # CSS Global — Tema Azul
@@ -660,9 +659,8 @@ if "prev_nav_page" not in st.session_state:
 if st.session_state["prev_nav_page"] != page:
     # Sinaliza parada de execuções em andamento antes de limpar o estado.
     liberar_execucoes(st.session_state)
-    # Preserva a navegação e a marca de sessão autenticada (modo senha):
-    # sem `auth_ok` o portão de autenticação pede a senha de novo.
-    keep = {"nav_page", "prev_nav_page", CHAVE_SESSAO}
+    # Preserva apenas a navegação: o restante é estado da página anterior.
+    keep = {"nav_page", "prev_nav_page"}
     for k in list(st.session_state.keys()):
         if k not in keep:
             del st.session_state[k]

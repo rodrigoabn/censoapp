@@ -298,7 +298,7 @@ def build_documentacao_pdf(logo_base64: str | None = None) -> bytes:
     _par(story, estilos["h1"], "2. Requisitos do Sistema")
     _par(story, estilos["h2"], "2.1 Software")
     _bullets(story, estilos["item"], [
-        "Python 3.13 ou superior;",
+        "Python 3.14;",
         "Gerenciador de pacotes e ambientes uv;",
         "Streamlit (>= 1.58);",
         "pandas (>= 3.0), openpyxl (>= 3.1), xlrd (>= 2.0.2) para arquivos XLS;",
@@ -316,7 +316,6 @@ def build_documentacao_pdf(logo_base64: str | None = None) -> bytes:
         "Usuário e senha do Educacenso (CPF e senha), digitados na tela de cada aplicação de coleta;",
         "Nunca são persistidos em arquivo;",
         "Arquivo de credenciais opcional em apps/coleta_cadastros_escolas/docs/credenciais.json (gitignored);",
-        "Segredos do Streamlit em .streamlit/secrets.toml (gitignored).",
     ])
 
     # ==================================================================
@@ -329,7 +328,9 @@ def build_documentacao_pdf(logo_base64: str | None = None) -> bytes:
          "criar o ambiente virtual .venv e instalar os pacotes.")
     _par(story, estilos["h2"], "3.2 Iniciar o HUB")
     _par(story, estilos["corpo"],
-         "Execute o comando abaixo na raiz do projeto e acesse a URL indicada pelo Streamlit:")
+         "Execute o comando abaixo na raiz do projeto e acesse a URL indicada pelo Streamlit. "
+         "A porta pode ser escolhida no momento da execução com <b>--server.port</b> "
+         "(padrão 8501):")
     _par(story, estilos["corpo_central"], "<b>uv run streamlit run app.py</b>")
     _par(story, estilos["corpo"],
          "Na primeira execução de qualquer aplicação de coleta, o Chromium é instalado "
