@@ -5,7 +5,7 @@
 > Referências de linha são da data da revisão (podem deslocar).
 
 **Estado base (2026-10-18 — revisão; histórico):** `master @ c37aa4f` · suíte **83 passed / 33 skipped** · Docker parado · auth em modo `senha`.
-**Estado atual (2026-10-20 — operação local):** Fases 1–6 mergeadas (`9f880ac`; hotfix do gestor `151e189`; correção da finalização da verificação `8df55fb`) · suíte **655 passed / 19 skipped** · `ruff` limpo · **operação local (E6 redefinida):** sem Docker/Caddy e sem TLS por padrão, sem autenticação própria; `uv sync` + `uv run streamlit run app.py --server.port <porta>` (porta escolhida a cada execução), runbook em `docs/deploy.md` · **Python 3.14** (`da8f048`) · `origin/master` em `f0a6c4a`; commits da operação local ainda locais (sem push) · hospedagem: somente rede interna da SEDUCT.
+**Estado atual (2026-10-20 — operação local):** Fases 1–6 mergeadas (`9f880ac`; hotfix do gestor `151e189`; correção da finalização da verificação `8df55fb`) · suíte **655 passed / 19 skipped** · `ruff` limpo · **operação local (E6 redefinida):** sem Docker/Caddy e sem TLS por padrão, sem autenticação própria; `uv sync` + `uv run streamlit run app.py --server.port <porta>` (porta escolhida a cada execução), runbook em `docs/deploy.md` · **Python 3.14** (`da8f048`) · `origin/master` em `b5611ef` (operação local publicada; último commit: `.gitignore` de artefatos do Playwright MCP) · hospedagem: somente rede interna da SEDUCT.
 
 ---
 
