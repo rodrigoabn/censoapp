@@ -34,8 +34,14 @@ def test_navegacao_troca_pagina_e_limpa_estado(monkeypatch):
 
     at.button(key=f"nav_{_GRUPO}_0").click().run()
     assert at.session_state["nav_page"] == "Dados Cadastrais da Unidades"
+    assert at.session_state["prev_nav_page"] == "Dados Cadastrais da Unidades"
     assert "estado_da_pagina_anterior" not in at.session_state
 
+    # A segunda troca prova que a limpeza continua ativa (prev_nav_page não
+    # pode ter sido apagado junto com o estado da página anterior).
+    at.session_state["segundo_estado"] = "y"
     at.button(key=f"nav_{_GRUPO}_1").click().run()
     assert at.session_state["nav_page"] == "Dados dos Gestores Escolares"
+    assert at.session_state["prev_nav_page"] == "Dados dos Gestores Escolares"
+    assert "segundo_estado" not in at.session_state
     assert not at.exception

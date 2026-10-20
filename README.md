@@ -11,7 +11,7 @@ uv run playwright install --with-deps chromium   # uma vez no host
 uv run streamlit run app.py --server.port 8501
 ```
 
-O HUB roda na rede local, **sem Docker e sem autenticação própria**; a porta pode ser escolhida em cada execução. O runbook completo (pré-requisitos, atualização, logs e troubleshooting) está em [`docs/deploy.md`](docs/deploy.md).
+O HUB roda na rede local, **sem Docker na operação e sem autenticação própria**; a porta pode ser escolhida em cada execução. O tráfego é **HTTP puro**: restrinja a rede/VPN ou use loopback + túnel SSH (credenciais, uploads e relatórios com PII não são criptografados em trânsito). O runbook completo (pré-requisitos, firewall, migração, atualização, logs e troubleshooting) está em [`docs/deploy.md`](docs/deploy.md).
 
 ## ⚖️ Licença / License
 

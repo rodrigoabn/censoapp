@@ -16,11 +16,18 @@ navegador ──http──► Streamlit :<porta>   (servidor local)
   em cada janela.
 - O operador sobe e derruba manualmente com `uv run streamlit run app.py` e
   escolhe a porta no momento (`--server.port`; padrão 8501).
-- **Sem Docker, sem Caddy, sem TLS e sem autenticação própria do HUB.** O
-  acesso é controlado pela rede (firewall/VPN) e as credenciais do Educacenso
-  protegem as coletas.
+- **Sem Docker, sem Caddy e sem autenticação própria do HUB.** A aplicação é
+  servida em **HTTP puro**; o acesso é controlado pela rede (firewall/VPN) e as
+  credenciais do Educacenso protegem as coletas.
 - O reinício após queda do servidor é responsabilidade de um script externo do
   operador (via journal); este repositório não gerencia serviço.
+
+> **Confidencialidade:** em HTTP puro, as credenciais do Educacenso, as
+> planilhas enviadas e os relatórios com PII trafegam **sem criptografia**.
+> Firewall/VPN limitam quem conecta, mas não protegem contra observação do
+> tráfego. Para acesso remoto, prefira `--server.address 127.0.0.1` + túnel SSH
+> (ou VPN). Se houver certificado, o Streamlit aceita `--server.sslCertFile` e
+> `--server.sslKeyFile`.
 
 > **Atenção (LGPD/rede):** sem autenticação própria, qualquer pessoa que
 > alcançar a porta do servidor consegue abrir o HUB. Restrinja a porta à rede
@@ -38,8 +45,10 @@ navegador ──http──► Streamlit :<porta>   (servidor local)
 
 - Python 3.14: o `uv` baixa a versão exigida pelo `pyproject.toml` no
   `uv sync` (não é necessário instalar manualmente).
-- Bibliotecas de sistema do Chromium/Playwright. Instale uma única vez, com
-  privilégio de root, usando o próprio Playwright (recomendado):
+- Bibliotecas de sistema do Chromium/Playwright. Instale uma única vez como o
+  **usuário operador** (não rode `uv`/`uv sync` com `sudo`; o Playwright eleva
+  apenas o `apt` quando necessário):
+- Recomendado, usando o próprio Playwright:
 
   ```bash
   uv run playwright install --with-deps chromium
@@ -48,6 +57,7 @@ navegador ──http──► Streamlit :<porta>   (servidor local)
   Alternativa em Debian/Ubuntu (a lista está em `packages.txt`):
 
   ```bash
+  sudo apt-get update
   sudo xargs -a packages.txt apt-get install -y
   uv run playwright install chromium
   ```
@@ -77,11 +87,14 @@ o log cai para o stderr do terminal (veja a seção 7).
 
 ## 4. Acesso e porta
 
-- Por padrão o Streamlit escuta em todas as interfaces (`0.0.0.0`); acesse:
+- Por padrão o Streamlit escuta em todas as interfaces (`0.0.0.0`). Em host com
+  mais de uma interface, limite ao IP da LAN:
 
-  ```text
-  http://<ip-ou-nome-do-servidor>:8501/
+  ```bash
+  uv run streamlit run app.py --server.address <ip-da-lan> --server.port 8501
   ```
+
+  e acesse `http://<ip-ou-nome-do-servidor>:8501/`.
 
 - Para escolher outra porta na hora:
 
@@ -96,15 +109,57 @@ o log cai para o stderr do terminal (veja a seção 7).
   ```
 
 - Libere a porta escolhida no firewall **apenas** para as origens autorizadas.
+  Exemplo com UFW (ajuste `<CIDR-da-rede>`; **garanta a regra do SSH antes de
+  habilitar**, senão você pode perder o acesso remoto):
+
+  ```bash
+  sudo ufw allow 22/tcp
+  sudo ufw default deny incoming
+  sudo ufw allow from <CIDR-da-rede> to any port 8501 proto tcp
+  sudo ufw enable
+  sudo ufw status verbose
+  ```
+
+  Em `firewalld`, use uma regra rica equivalente (porta 8501/tcp, origem
+  restrita) e recarregue. Verifique de uma máquina **não autorizada** que
+  `nc -vz <ip-do-servidor> 8501` falha; de uma autorizada,
+  `curl http://<ip>:8501/_stcore/health` deve responder `ok`.
 
 ## 5. Parar e reiniciar
 
 - Pare com `Ctrl+C` no terminal onde o Streamlit está rodando.
 - Se o terminal for encerrado, o processo cai junto. Para janelas longas, rode
-  em `tmux`/`screen` ou com `nohup`; se o operador já usa um script de reinício
-  via journal, mantenha esse script como está.
+  em `tmux`/`screen` ou com `nohup`; mantenha a supervisão do seu script de
+  reinício, mas **atualize o comando dele** para o novo modelo (seção 5.1) — um
+  script antigo que sobe Docker/Caddy não serve.
 - Para reiniciar depois de uma queda, repita o comando da seção 3 (não é
   preciso reinstalar dependências nem o Chromium).
+
+### 5.1 Migração do modelo anterior (Docker/Caddy)
+
+Se o servidor já rodava a stack antiga:
+
+1. **Pare a stack antiga.** No checkout antigo, `docker compose down`. Se o
+   `git pull` já removeu o compose, localize e pare os containers:
+   `docker ps --format '{{.Names}}' | grep censoapp` → `docker stop <nomes>` →
+   `docker rm <nomes>`. A imagem `censoapp:latest` pode ser removida
+   (`docker image rm censoapp:latest`); os volumes `censoapp_caddy_data` e
+   `censoapp_caddy_config` continham só a CA/certificados do Caddy e não são
+   mais usados.
+2. **Libere as portas.** Confirme que 80/443/8501 estão livres:
+   `ss -ltnp | grep -E ':(80|443|8501)'`.
+3. **Descarte a configuração antiga.** Remova `.env` (CENSO_DOMAIN/portas/
+   CENSO_AUTH_MODE) e `.streamlit/secrets.toml` (senha/OIDC). O HUB novo não lê
+   esses arquivos; não os recrie. Se a senha antiga era compartilhada, avise os
+   usuários e rotacione o que for necessário.
+4. **Atualize o script de reinício.** Mantenha a supervisão via journal, mas
+   troque o comando para o `uv`, com diretório e usuário corretos:
+   `WorkingDirectory=/caminho/censoapp`, `User=<operador>`,
+   `ExecStart=/caminho/uv run streamlit run app.py --server.port 8501`.
+   Rode `uv sync` como operador antes da primeira subida; não use `sudo`.
+5. **Ajuste o firewall.** Feche 80/443 e libere a porta nova apenas para a rede
+   autorizada (seção 4).
+6. **Valide** com os critérios da seção 9.
 
 ## 6. Atualização
 
@@ -155,8 +210,9 @@ SECURITY_LIVE=1 SECURITY_TARGET=http://localhost:8501/ \
 ```
 
 A auditoria cobre métodos HTTP e exposição de caminhos/arquivos sensíveis. Os
-testes de TLS, HSTS e cabeçalhos de proxy foram removidos junto com o Caddy:
-não há terminador TLS nesta modalidade.
+testes de TLS/HSTS e dos cabeçalhos fornecidos pelo Caddy foram removidos com o
+proxy. O HUB **não envia** `X-Frame-Options`, CSP nem `nosniff`; a restrição de
+rede é o controle compensatório e o HUB não deve ser embutido em iframe.
 
 ## 9. Critérios de aceite da execução
 
@@ -167,6 +223,8 @@ não há terminador TLS nesta modalidade.
 - [ ] `./logs/censoapp.log` recebe linhas (sem PII).
 - [ ] Uma coleta de teste (1–2 escolas) roda com o Chromium do host.
 - [ ] `uv run python -m pytest -q` e `uv run ruff check .` passam.
+- [ ] A porta não responde de uma máquina/rede não autorizada (`nc -vz`).
+- [ ] Na migração, não há containers `censoapp-*` antigos no ar (`docker ps`).
 - [ ] (Opcional) auditoria `tests/security/` contra `http://localhost:<porta>/`.
 
 ## 10. Troubleshooting
@@ -175,11 +233,14 @@ não há terminador TLS nesta modalidade.
 |---|---|---|
 | `uv: command not found` | `uv` não instalado ou fora do `PATH` | Instale (seção 2) e reabra o terminal; em geral fica em `~/.local/bin` |
 | `uv sync` falha ao resolver Python | 3.14 indisponível/ rede bloqueada | `uv python install 3.14` e repita; confira a saída de rede |
-| `Address already in use` | porta ocupada | Escolha outra `--server.port`; veja `ss -ltnp | grep 8501` |
-| Chromium não inicia / falta `.so` | bibliotecas de sistema ausentes | `uv run playwright install --with-deps chromium` (root) |
+| `Address already in use` | porta ocupada | Escolha outra `--server.port`; veja `ss -ltnp \| grep 8501` |
+| Chromium não inicia / falta `.so` | bibliotecas de sistema ausentes | `uv run playwright install --with-deps chromium` (o Playwright eleva só o apt; não rode `uv` com sudo) |
 | Chromium não baixa | rede bloqueada no servidor | Instale em máquina com internet e copie o cache do Playwright, ou libere o download |
 | Download da coleta abre e fecha | processo/pasta temporária sem permissão | Confira `/tmp` e o usuário que roda o HUB; o log mostra o erro |
 | Nada no log | diretório ausente/sem permissão | `mkdir -p logs`; `CENSO_LOG_DIR`; o HUB avisa no stderr |
 | HUB cai ao fechar o terminal | processo em foreground | Use `tmux`/`screen`/`nohup` ou o script de reinício do operador |
-| Outra máquina da rede não acessa | bind em `127.0.0.1` ou firewall | Use o endereço padrão (`0.0.0.0`) e libere a porta para as origens certas |
+| Outra máquina da rede não acessa | bind em `127.0.0.1` ou firewall | Use `--server.address 0.0.0.0`/IP da LAN e libere a porta para as origens certas |
+| HUB antigo ainda pede senha / 80/443 respondem | stack Docker/Caddy antiga no ar | `docker ps`; pare/remova os containers e siga a seção 5.1 |
+| `.venv` com dono root / erros de permissão | `uv`/`uv sync` executado com sudo | remova `.venv` e rode `uv sync` como o usuário operador |
+| Perdeu o acesso remoto após ligar o UFW | regra do SSH não liberada | Acesse pelo console e ajuste `ufw allow 22/tcp` (seção 4) |
 | Página em branco/WebSocket falha | rede/proxy intermediário | Acesse direto pelo IP:porta; não há proxy reverso nesta modalidade |

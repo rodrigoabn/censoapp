@@ -24,23 +24,19 @@ SENSITIVE_PATHS = [
     "pyproject.toml",
     ".env",
     "docs_temporarios/arquivo%20professor.csv",
+    "logs/censoapp.log",
 ]
 
 
 @pytest.mark.parametrize("path", SENSITIVE_PATHS)
-def test_sensitive_paths_not_served(session, base_url, path):
+def test_sensitive_paths_not_served(session, base_url, root_response, path):
     resp = session.get(base_url + path, timeout=TIMEOUT, allow_redirects=False)
-    # Streamlit SPA costuma devolver o index (200) para rotas desconhecidas;
-    # o crítico é NÃO servir o conteúdo real do arquivo sensível.
+    # Streamlit SPA devolve o index (200) para rotas desconhecidas. Exigir que o
+    # corpo seja o MESMO index garante que nenhum arquivo real foi servido —
+    # inclusive pyproject/requirements, que não têm marcadores óbvios.
     if resp.status_code == 200:
-        body = resp.text[:4096].lower()
-        leaked_markers = [
-            "private_key", "service_account", "-----begin",
-            "aws_secret", "password =", "senha =",
-            "import streamlit",  # código-fonte app.py
-        ]
-        assert not any(m in body for m in leaked_markers), (
-            f"Possível vazamento de conteúdo sensível em /{path}"
+        assert resp.content == root_response.content, (
+            f"Possível vazamento: /{path} retornou 200 com conteúdo diferente do index."
         )
 
 

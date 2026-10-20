@@ -5,7 +5,7 @@
 > Referências de linha são da data da revisão (podem deslocar).
 
 **Estado base (2026-10-18 — revisão; histórico):** `master @ c37aa4f` · suíte **83 passed / 33 skipped** · Docker parado · auth em modo `senha`.
-**Estado atual (2026-10-20 — operação local):** Fases 1–6 mergeadas (`9f880ac`; hotfix do gestor `151e189`; correção da finalização da verificação `8df55fb`) · suíte **655 passed / 18 skipped** · `ruff` limpo · **operação local (E6 redefinida):** sem Docker/Caddy/TLS e sem autenticação própria; `uv sync` + `uv run streamlit run app.py --server.port <porta>` (porta escolhida a cada execução), runbook em `docs/deploy.md` · **Python 3.14** (`da8f048`) · `origin/master` em `f0a6c4a`; commits da operação local ainda locais (sem push) · hospedagem: somente rede interna da SEDUCT.
+**Estado atual (2026-10-20 — operação local):** Fases 1–6 mergeadas (`9f880ac`; hotfix do gestor `151e189`; correção da finalização da verificação `8df55fb`) · suíte **655 passed / 19 skipped** · `ruff` limpo · **operação local (E6 redefinida):** sem Docker/Caddy e sem TLS por padrão, sem autenticação própria; `uv sync` + `uv run streamlit run app.py --server.port <porta>` (porta escolhida a cada execução), runbook em `docs/deploy.md` · **Python 3.14** (`da8f048`) · `origin/master` em `f0a6c4a`; commits da operação local ainda locais (sem push) · hospedagem: somente rede interna da SEDUCT.
 
 ---
 
@@ -127,7 +127,7 @@
 
 - [ ] **E3 — Apagar `credenciais.json` da raiz** ⚠️ **MANTER** por enquanto. Credenciais podem ser necessárias para testes futuros de coleta. Apagar apenas após validação definitiva do ambiente de produção.
 - [x] **E5 — Push dos commits locais** para `origin/master` (2026-10-18; CI passa a rodar no GitHub; revalidado em 2026-10-20 com `8df55fb`).
-- [x] **E6 — Execução local com uv (redefinida em 2026-10-20).** Sem Docker/Caddy/TLS e sem autenticação de aplicação: `uv sync` + `uv run streamlit run app.py --server.port <porta>` no servidor local; porta escolhida a cada janela; Chromium/deps no host; logs nativos; runbook `docs/deploy.md`. **Validação local (2026-10-20):** suíte **655 passed / 18 skipped** + ruff; HUB em `:8599` com health `ok`, Tela Inicial sem login, navegação até a coleta e PDF de 46 KB baixado; auditoria HTTP **18/18**. O deploy real é manual, nas janelas de uso do operador (5–15×/ano); a stack Docker/Caddy do ensaio foi removida.
+- [x] **E6 — Execução local com uv (redefinida em 2026-10-20).** Sem Docker/Caddy e sem TLS por padrão, sem autenticação de aplicação: `uv sync` + `uv run streamlit run app.py --server.port <porta>` no servidor local; porta escolhida a cada janela; Chromium/deps no host; logs nativos; runbook `docs/deploy.md`. **Validação local (2026-10-20):** suíte **655 passed / 19 skipped** + ruff; HUB em `:8599` com health `ok`, Tela Inicial sem login, navegação até a coleta e PDF de 46 KB baixado; auditoria HTTP **19/19**. O deploy real é manual, nas janelas de uso do operador (5–15×/ano); a stack Docker/Caddy do ensaio foi removida.
 - **LGPD:** responsabilidade pessoal do usuário (decisão de 2026-10-18).
 
 ---

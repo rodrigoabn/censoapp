@@ -309,8 +309,9 @@ def build_documentacao_pdf(logo_base64: str | None = None) -> bytes:
     _par(story, estilos["h2"], "2.2 Dependências de sistema para o Playwright")
     _par(story, estilos["corpo"],
          "O arquivo <b>packages.txt</b> relaciona as bibliotecas de sistema exigidas pelo Chromium "
-         "em ambientes Linux (libnss3, libnspr4, entre outras). Em distribuições Linux utilize o "
-         "gerenciador de pacotes para instalá-las antes da primeira execução.")
+         "em ambientes Linux (libnss3, libnspr4, entre outras). O comando recomendado é "
+         "<b>uv run playwright install --with-deps chromium</b>; alternativamente, instale a lista "
+         "com o gerenciador de pacotes e rode <b>uv run playwright install chromium</b>.")
     _par(story, estilos["h2"], "2.3 Credenciais")
     _bullets(story, estilos["item"], [
         "Usuário e senha do Educacenso (CPF e senha), digitados na tela de cada aplicação de coleta;",
@@ -348,8 +349,9 @@ def build_documentacao_pdf(logo_base64: str | None = None) -> bytes:
     # ==================================================================
     _par(story, estilos["h1"], "4. Segurança, LGPD e Modo Leitura")
     _bullets(story, estilos["item"], [
-        "<b>Acesso:</b> o HUB não possui autenticação própria; deve rodar em rede local restrita "
-        "(firewall/VPN). As credenciais do Educacenso são exigidas nas coletas e não são persistidas;",
+        "<b>Acesso e confidencialidade:</b> o HUB não possui autenticação própria e é servido em HTTP puro; "
+        "deve rodar em rede local restrita (firewall/VPN), pois credenciais, uploads e relatórios com PII "
+        "trafegam sem criptografia. As credenciais do Educacenso são exigidas nas coletas e não são persistidas;",
         "<b>Modo leitura:</b> todos os módulos de autenticação definem READ_ONLY = True e contam com "
         "uma proteção adicional (_assert_read_only) que impede qualquer escrita de dados no Educacenso;",
         "<b>Login:</b> realizado via Keycloak (acesso.inep.gov.br) com CPF e senha, sempre de forma "
@@ -826,10 +828,10 @@ def build_documentacao_pdf(logo_base64: str | None = None) -> bytes:
     _bullets(story, estilos["item"], [
         "Suíte offline completa (coletores, verificação, adequação, unificador e common);",
         "Comandos: uv run python -m pytest (suíte offline) e uv run ruff check . (lint);",
-        "18 testes HTTP de segurança em tests/security/, pulados por padrão (exigem SECURITY_LIVE=1);",
+        "19 testes HTTP de segurança em tests/security/, pulados por padrão (exigem SECURITY_LIVE=1);",
         "Alvo definido por SECURITY_TARGET (obrigatório; sem padrão);",
         "Não intrusivos: poucas requisições, sem fuzzing nem brute-force;",
-        "Escopo: métodos HTTP e exposição de caminhos/arquivos sensíveis (sem TLS/HSTS: não há proxy);",
+        "Escopo: métodos HTTP e exposição de caminhos/arquivos sensíveis; TLS/HSTS e cabeçalhos de proxy não se aplicam (o HUB não envia CSP/X-Frame-Options/nosniff; restrinja a rede e não use iframe);",
         "Comando de auditoria ao vivo: SECURITY_LIVE=1 SECURITY_TARGET=http://localhost:8501/ uv run python -m pytest tests/security/.",
     ])
 

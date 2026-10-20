@@ -49,22 +49,22 @@ uv add <pacote>                                     # adicionar dependência
 ## Ambiente e secrets
 
 - **Credenciais**: `apps/coleta_cadastros_escolas/docs/credenciais.json` (gitignored)
-- **Sem autenticação própria e sem secrets**: o HUB roda na rede local e não usa `.streamlit/secrets.toml`; o acesso é controlado pela rede (firewall/VPN) e as credenciais do Educacenso protegem as coletas.
+- **Sem autenticação própria e sem secrets**: o HUB roda na rede local, em HTTP puro, e não usa `.streamlit/secrets.toml`; o acesso é controlado pela rede (firewall/VPN) e as credenciais do Educacenso protegem as coletas. Credenciais, uploads e relatórios com PII não são criptografados em trânsito — veja `docs/deploy.md`.
 - **Dependências de sistema para Playwright** em `packages.txt` (libnss3, libnspr4, etc.) — instale com `uv run playwright install --with-deps chromium` ou pelo gerenciador de pacotes da distribuição
 - Chromium é baixado automaticamente na primeira coleta (`_ensure_chromium()`); no host, as libs de sistema precisam existir antes
 
-## Execução local — uv (sem Docker)
+## Execução local — uv (sem Docker na operação)
 
 - **Runbook completo**: `docs/deploy.md` (pré-requisitos, `uv sync`, Chromium, porta, logs, testes e troubleshooting).
 - **Subir**: `uv run streamlit run app.py --server.port <porta>` na raiz do projeto; a porta é escolhida a cada execução (padrão 8501). O HUB escuta em `0.0.0.0`; restrinja a porta à rede local/VPN.
-- **Sem autenticação de aplicação**: não há `auth_gate.py`, Caddy, TLS ou compose. O reinício após queda fica a cargo do script externo do operador (journal).
+- **Sem autenticação de aplicação**: não há `auth_gate.py`, Caddy ou compose; a aplicação é servida em HTTP puro por padrão. O reinício após queda fica a cargo do script externo do operador (journal), que deve chamar o comando `uv`.
 - **Logging** (`logging_setup.py`, idempotente a cada rerun): arquivo rotativo `censoapp.log` (5 MB × 5) em `CENSO_LOG_DIR` (padrão `./logs`); se não for gravável, cai para o stderr e o HUB segue no ar; nunca registrar PII.
 - **CI**: `.github/workflows/ci.yml` (push/PR → `uv sync --frozen` + `ruff check .` + `pytest -q`).
 
 ## Testes
 
-- `tests/` cobre a suíte offline (fakes, sem rede): `uv run python -m pytest` → 655 passed / 18 skipped; lint com `uv run ruff check .`
-- `tests/security/` é ao vivo; **os 18 testes HTTP de segurança são pulados por padrão** — exigem `SECURITY_LIVE=1`
+- `tests/` cobre a suíte offline (fakes, sem rede): `uv run python -m pytest` → 655 passed / 19 skipped; lint com `uv run ruff check .`
+- `tests/security/` é ao vivo; **os 19 testes HTTP de segurança são pulados por padrão** — exigem `SECURITY_LIVE=1`
 - Alvo via `SECURITY_TARGET` (**obrigatório** — sem padrão; ex.: `http://localhost:8501/`); não há TLS/HSTS/Caddy nesta modalidade
 - Não intrusivos: poucas requisições, sem fuzzing/brute-force
 - Escopo: métodos HTTP e exposição de caminhos/arquivos sensíveis
