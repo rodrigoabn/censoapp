@@ -4,8 +4,8 @@
 > **Revisão completa de 2026-10-18** feita com 4 auditorias em paralelo: (1) cobertura de testes das regras → Fase 3; (2) duplicação entre apps → Fase 4; (3) hotspots de tempo dos 4 coletores → Fase 5; (4) limpezas/docs/PII → Fase 6.
 > Referências de linha são da data da revisão (podem deslocar).
 
-**Estado base (2026-10-18 — revisão):** `master @ c37aa4f` · suíte **83 passed / 33 skipped** · Docker parado · auth em modo `senha`.
-**Estado atual (2026-10-20 — Fase 6 encerrada):** Fases 5, 3, 4 e 6 mergeadas no `master` local (Fase 6 em `9f880ac`; hotfix da coleta do gestor em `151e189`; T8/T9 em `87e646d`; merges anteriores em `4f9b128`, correção do monitor em `495de94`) · suíte **666 passed / 33 skipped** · `ruff` limpo · **CI configurada no GitHub** (`112e8fb` fixou o runner; os commits locais recentes ainda não foram enviados) · **Python de produção: 3.14** (`da8f048` — faixa `>=3.14,<3.15`; Docker, devcontainer e CI alinhados; imagem Docker buildada e validada com Chromium no container) · **`origin/master` em dia** (push de 2026-10-20, `8df55fb`; inclui o fix de feedback da verificação) · hospedagem: **somente rede interna da SEDUCT** (equipe interna; hospedagem externa descartada).
+**Estado base (2026-10-18 — revisão; histórico):** `master @ c37aa4f` · suíte **83 passed / 33 skipped** · Docker parado · auth em modo `senha`.
+**Estado atual (2026-10-20 — operação local):** Fases 1–6 mergeadas (`9f880ac`; hotfix do gestor `151e189`; correção da finalização da verificação `8df55fb`) · suíte **655 passed / 18 skipped** · `ruff` limpo · **operação local (E6 redefinida):** sem Docker/Caddy/TLS e sem autenticação própria; `uv sync` + `uv run streamlit run app.py --server.port <porta>` (porta escolhida a cada execução), runbook em `docs/deploy.md` · **Python 3.14** (`da8f048`) · `origin/master` em `f0a6c4a`; commits da operação local ainda locais (sem push) · hospedagem: somente rede interna da SEDUCT.
 
 ---
 
@@ -14,12 +14,12 @@
 | Fase | Tema | Esforço | Status |
 |---|---|---|---|
 | ✅ 1 | Hotfixes P0/P1 | — | **concluída** |
-| ✅ 2 | Intranet + auth + CI/logging | — | **concluída** |
+| ✅ 2 | Intranet + auth + CI/logging | — | **concluída** (histórico; substituída pela operação local em 2026-10-20) |
 | ✅ 5 | Eficiência da coleta | dias–1 semana | **concluída** (5.0–5.8; 5.9 adiado) |
 | ✅ 3 | Testes golden das regras | 1–2 semanas | **concluída** |
 | ✅ 4 | Refatoração `apps/common` | semanas | **concluída** (4.1–4.8; gates ao vivo 1–4 aprovados) |
 | ✅ 6 | Régua fina | dias | **concluída** (6.1–6.7; gate aprovado 2026-10-20; merge `9f880ac`) |
-| E | Extras: operação (SEDUCT) | — | pendente |
+| ✅ E | Extras: operação local (uv) | — | **concluída** (E6; E3 segue em espera) |
 
 **Ordem sugerida:** 5 ✅ → 3 ✅ → 4 ✅ → **6 ✅ → extras** (régua fina concluída — 6.1–6.7; gate aprovado em 2026-10-20). Alternativa técnica original: 3 → 4 → 5 → 6. A inversão foi segura porque os ganhos da Fase 5 são localizados por app; o refactor da Fase 4 reabsorve depois.
 
@@ -127,7 +127,7 @@
 
 - [ ] **E3 — Apagar `credenciais.json` da raiz** ⚠️ **MANTER** por enquanto. Credenciais podem ser necessárias para testes futuros de coleta. Apagar apenas após validação definitiva do ambiente de produção.
 - [x] **E5 — Push dos commits locais** para `origin/master` (2026-10-18; CI passa a rodar no GitHub; revalidado em 2026-10-20 com `8df55fb`).
-- [ ] **E6 — Deploy real na SEDUCT** (dia da implantação): domínio real + `[auth]` OIDC + CA do Caddy + firewall — runbook cobre. **Ensaio local (2026-10-20):** build OK, `app` healthy, `https://localhost:8443/_stcore/health` → `ok`, HTTP→HTTPS 308 e headers/CSP presentes; auditoria `SECURITY_LIVE=1` → **28 passed / 4 skipped / 1 falha esperada** (HSTS ausente com `tls internal`; habilitar só com certificado corporativo — `docs/deploy.md`).
+- [x] **E6 — Execução local com uv (redefinida em 2026-10-20).** Sem Docker/Caddy/TLS e sem autenticação de aplicação: `uv sync` + `uv run streamlit run app.py --server.port <porta>` no servidor local; porta escolhida a cada janela; Chromium/deps no host; logs nativos; runbook `docs/deploy.md`. **Validação local (2026-10-20):** suíte **655 passed / 18 skipped** + ruff; HUB em `:8599` com health `ok`, Tela Inicial sem login, navegação até a coleta e PDF de 46 KB baixado; auditoria HTTP **18/18**. O deploy real é manual, nas janelas de uso do operador (5–15×/ano); a stack Docker/Caddy do ensaio foi removida.
 - **LGPD:** responsabilidade pessoal do usuário (decisão de 2026-10-18).
 
 ---
@@ -135,7 +135,7 @@
 ## Concluído (histórico)
 
 - [x] **Fase 1 — Hotfixes P0/P1** (8 itens: temporários isolados, interrupção na troca de página, escolas "não coletadas", sessão expirada no download, escape HTML, neutralização de fórmulas, reportlab/devcontainer) — mesclada.
-- [x] **Fase 2 — Intranet + autenticação + CI/logging** (Docker+compose+Caddy/TLS, `auth_gate` oidc/senha/aberto, CI pytest+ruff, logging rotativo sem PII, runbook `docs/deploy.md`) — mesclada (`c37aa4f`).
+- [x] **Fase 2 — Intranet + autenticação + CI/logging** (Docker+compose+Caddy/TLS, `auth_gate` oidc/senha/aberto, CI pytest+ruff, logging rotativo sem PII, runbook `docs/deploy.md`) — mesclada (`c37aa4f`). **Substituída pela operação local em 2026-10-20:** Docker/Caddy/auth removidos; ver E6.
 - [x] **Revisão completa do plano** com 4 auditorias (2026-10-18) — este documento.
 
 ## Fora de escopo (decidido)
@@ -148,3 +148,4 @@ Reescrita FastAPI/React · `sync→async` do Playwright · APIs internas do port
 2. **6.7 — RESOLVIDA (2026-10-19):** memo por sessão nos 4 relatórios com PII (alvo LGPD); `ttl=300` só no agregado cor/raça.
 3. **Fase 4 — RESOLVIDA (2026-10-19):** preservar wrappers/monkeypatch antigos + adaptar imports dos testes **mecanicamente** (9 arquivos; nenhum corpo de teste mudou). O contrato segue "sem mudança de comportamento observável".
 4. **Ordem das fases** — sugerida 5 → 3 → 4 → 6; confirmar na largada de cada uma.
+5. **Operação local — RESOLVIDA (2026-10-20):** sem Docker/Caddy/TLS e sem autenticação própria; execução manual com `uv` + Streamlit, porta escolhida na hora e acesso restrito à rede (firewall/VPN). A senha do Educacenso protege as coletas; o reinício após queda fica no script externo do operador.
