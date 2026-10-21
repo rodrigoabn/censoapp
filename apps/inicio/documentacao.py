@@ -315,7 +315,7 @@ def build_documentacao_pdf() -> bytes:
                  "Hero com a marca do projeto e botão para baixar esta documentação (PDF)."],
                 ["Gerador de Base de Dados e Inconsistências", "Unificador de Inconsistências por Unidade Escolar",
                  "Gera um ZIP com um XLSX por escola ativa e um PDF analítico em A4 vertical, com o brasão municipal à esquerda, a marca do CensoApp à direita, identificação da Secretaria, Diretoria e Gerência de TI, cards com totais de Creches, Escolas e unidades gerais, gráfico de inconsistências por relatório separado por tipo de unidade e tabela detalhada por escola. A listagem classifica CEM/CMEI como Creche e as demais como Escola, ordenadas por tipo e nome."],
-                ["Coleta do Educacenso", "Coleta Automática",
+                ["Coleta de Dados no Educacenso", "Coleta de Dados no Educacenso",
                  "Roda as 6 coletas do Educacenso em sequência, em segundo plano, com o login e a lista de escolas informados uma vez só. Acompanha cada etapa com o relógio e o tempo gasto, permite baixar o artefato de cada uma e entrega um ZIP único com todos os resultados."],
                 ["Coleta do Educacenso", "Dados Cadastrais da Unidades",
                  "Raspa a ficha cadastral completa de cada escola do Educacenso e consolida em um XLSX de 6 abas."],
@@ -462,7 +462,7 @@ def build_documentacao_pdf() -> bytes:
          "A coleta roda em uma thread separada (nunca toca a interface) e interrompe de forma segura.")
 
     # ------------------------------------------------------------------
-    _par(story, estilos["h2"], "6.1 Coleta Automática (rodada de todas as coletas)")
+    _par(story, estilos["h2"], "6.1 Coleta de Dados no Educacenso (rodada de todas as coletas)")
     _par(story, estilos["corpo"],
          "Executa as 6 coletas em sequência, em segundo plano, a partir de um único formulário "
          "(login, senha e lista de escolas). O usuário marca quais aplicações entram na rodada; "

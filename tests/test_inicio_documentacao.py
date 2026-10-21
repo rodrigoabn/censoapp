@@ -49,11 +49,11 @@ def _texto_do_pdf(pdf: bytes) -> str:
     return " ".join(textos)
 
 
-def test_documentacao_menciona_a_coleta_automatica():
+def test_documentacao_menciona_a_coleta_de_dados_no_educacenso():
     """O manual do usuário deve descrever a nova aplicação de Coleta Automática."""
     texto = _texto_do_pdf(build_documentacao_pdf())
     assert "Visão Geral" in texto, texto[:200]
-    assert "Coleta Automática" in texto, texto[:200]
+    assert "Coleta de Dados no Educacenso" in texto, texto[:200]
 
 
 def test_sumario_lista_as_secoes(monkeypatch):

@@ -616,7 +616,6 @@ st.markdown("""
 
 _MENU_GROUPS = {
     "Coleta do Educacenso": [
-        "Coleta Automática",
         "Dados Cadastrais da Unidades",
         "Dados dos Gestores Escolares",
         "Relatórios de Turmas",
@@ -655,6 +654,7 @@ def _nav_item(container, label, key):
 
 # Item raiz (sem grupo)
 _nav_item(st.sidebar, "Tela Inicial", "nav_home")
+_nav_item(st.sidebar, "Coleta de Dados no Educacenso", "nav_coleta_dados")
 
 # Grupos colapsáveis (expande o grupo que contém a página ativa)
 for _grupo, _itens in _MENU_GROUPS.items():
@@ -684,7 +684,7 @@ if page == "Tela Inicial":
     # Home: hero centralizado com rodapé fixo (scroll via CSS global)
     show_home_page(logo_base64)
     render_license_footer()
-elif page == "Coleta Automática":
+elif page == "Coleta de Dados no Educacenso":
     render_coleta_automatica_frontend(logo_base64)
     render_license_footer()
 elif page == "Unificador de Inconsistências por Unidade Escolar":

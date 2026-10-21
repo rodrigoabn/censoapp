@@ -119,9 +119,9 @@
 
 ---
 
-## Fase 7 — Coleta Automática ✅ (2026-10-21)
+## Fase 7 — Coleta de Dados no Educacenso ✅ (2026-10-21)
 
-Nova aplicação no grupo **Coleta do Educacenso** que roda as 6 coletas em sequência, em
+Nova aplicação no menu lateral (fora dos grupos) que roda as 6 coletas em sequência, em
 segundo plano, a partir de um único formulário (login, senha e lista de escolas).
 
 - [x] **7.1 — Registro das etapas** (`apps/coleta_automatica/src/etapas.py`): as 6 etapas

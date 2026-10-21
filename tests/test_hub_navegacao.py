@@ -55,8 +55,16 @@ def test_navegacao_troca_pagina_e_limpa_estado(monkeypatch):
     assert not at.exception
 
 
-def test_menu_tem_a_coleta_automatica(monkeypatch):
+def test_menu_tem_a_coleta_de_dados_no_educacenso(monkeypatch):
+    """A rodada fica no menu raiz (fora do grupo "Coleta do Educacenso")."""
     at = _novo_app(monkeypatch)
-    _botao_do_menu(at, "Coleta Automática").click().run()
+    _botao_do_menu(at, "Coleta de Dados no Educacenso").click().run()
     assert not at.exception
-    assert at.session_state["nav_page"] == "Coleta Automática"
+    assert at.session_state["nav_page"] == "Coleta de Dados no Educacenso"
+
+    # Não é mais um item do grupo "Coleta do Educacenso".
+    at = _novo_app(monkeypatch)
+    rotulos_grupo = [
+        b.label for b in at.button if (b.key or "").startswith("nav_Coleta do Educacenso_")
+    ]
+    assert "Coleta de Dados no Educacenso" not in rotulos_grupo

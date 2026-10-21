@@ -1,4 +1,4 @@
-"""A tela da Coleta Automática.
+"""A tela da Coleta de Dados no Educacenso (rodada automática).
 
 Estados da tela:
 
@@ -41,7 +41,7 @@ from apps.common.ui import (
 from .etapas import ETAPAS
 from .runner import SITUACOES, executar_rodada, limpar_temporarios_antigos
 
-_TITULO = "Coleta Automática"
+_TITULO = "Coleta de Dados no Educacenso"
 _SUBTITULO = "Executa em sequência as coletas do Educacenso, em segundo plano."
 
 #: Cor da situação de cada etapa na tabela.
