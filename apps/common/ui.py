@@ -25,8 +25,8 @@ RELOGIO_CSS = """
 <style>
 /* Cores do relógio digital: azul do mostrador e o brilho dele. */
 :root {
-    --relogio-azul: #93c5fd;
-    --relogio-brilho: 0 0 14px rgba(147, 197, 253, 0.35);
+    --relogio-azul: #6ea8fe;
+    --relogio-brilho: 0 0 12px rgba(110, 168, 254, 0.25);
 }
 /* Relógio da coleta: digital (andamento) e resumo de tempos (conclusão) */
 .stMarkdown div.relogio-caixa {
@@ -54,33 +54,56 @@ RELOGIO_CSS = """
     color: var(--text-secondary) !important;
     margin-bottom: 0.1rem !important;
 }
+.stMarkdown div.relogio-andamento {
+    display: flex !important;
+    flex-direction: column !important;
+    gap: 1rem !important;
+}
 .stMarkdown div.relogio-digital {
     font-family: Consolas, 'Courier New', monospace !important;
-    font-size: 2.3rem;
+    font-size: 2.05rem;
     font-weight: 700;
-    letter-spacing: 4px;
-    line-height: 1.15;
-    color: #93c5fd !important;
-    text-shadow: 0 0 14px rgba(147, 197, 253, 0.35);
-}
-.stMarkdown div.relogio-valor {
-    font-family: Consolas, 'Courier New', monospace !important;
-    font-size: 1rem;
-    font-weight: 700;
-    color: #ffffff !important;
-}
-/* Botão de interromper a coleta: a mesma linguagem do relógio digital
-   (contorno fino, azul do mostrador e o brilho dele). */
-[data-testid="stMain"] [class*="stop_btn"] button {
-    background-color: transparent !important;
-    border: 1px solid var(--relogio-azul) !important;
+    letter-spacing: 3px;
+    line-height: 1.1;
     color: var(--relogio-azul) !important;
-    font-weight: 600 !important;
     text-shadow: var(--relogio-brilho);
 }
+.stMarkdown div.relogio-inicio {
+    display: flex !important;
+    gap: 1.2rem !important;
+    align-items: baseline !important;
+    font-family: Consolas, 'Courier New', monospace !important;
+    font-size: 1.45rem;
+    font-weight: 700;
+    letter-spacing: 1px;
+    line-height: 1.2;
+    color: var(--relogio-azul) !important;
+}
+.stMarkdown div.relogio-escola {
+    font-family: 'Segoe UI', Tahoma, sans-serif !important;
+    font-size: 0.78rem;
+    line-height: 1.45;
+    color: #e5e7eb !important;
+}
+.stMarkdown div.relogio-escola strong {
+    color: #ffffff !important;
+    font-weight: 700;
+    letter-spacing: 0.4px;
+}
+.stMarkdown div.relogio-escola-codigo,
+.stMarkdown div.relogio-escola-status {
+    color: #b2b5be !important;
+}
+/* Botão de interromper a coleta: ação lateral discreta. */
+[data-testid="stMain"] [class*="stop_btn"] button {
+    background-color: transparent !important;
+    border: 1px solid #4b5563 !important;
+    color: #e5e7eb !important;
+    font-weight: 500 !important;
+}
 [data-testid="stMain"] [class*="stop_btn"] button:hover {
-    background-color: rgba(147, 197, 253, 0.12) !important;
-    box-shadow: 0 0 14px rgba(147, 197, 253, 0.25) !important;
+    background-color: rgba(148, 163, 184, 0.1) !important;
+    border-color: #6b7280 !important;
 }
 </style>
 """
@@ -99,49 +122,57 @@ def _horario(momento: datetime) -> str:
     return momento.strftime("%d/%m/%Y %H:%M:%S")
 
 
-def _relogio_andamento_conteudo_html(
-    segundos: float,
-    inicio: datetime,
-    alinhamento: str = "center",
-) -> str:
+def _relogio_andamento_conteudo_html(segundos: float, inicio: datetime) -> str:
     """Conteúdo do relógio digital (sem a caixa), para usar num container.
 
-    Quem usa desenha a borda com `st.container(border=True)` — assim o botão
-    de interromper fica dentro do mesmo cartão do relógio.
-
-    ``alinhamento`` é o `align-items` da linha: ``"flex-end"`` alinha os
-    blocos pela base (o horário fica na linha do relógio).
+    O layout é vertical: o tempo em andamento em destaque, o início da coleta
+    logo abaixo e, na tela da rodada, a linha da escola em coleta. Quem usa
+    desenha a borda com `st.container(border=True)` — assim o botão de
+    interromper fica dentro do mesmo cartão do relógio.
     """
+    data, hora = _horario(inicio).split(" ", 1)
     return (
-        f'<div style="display:flex; align-items:{alinhamento}; '
-        'gap:2.4rem; flex-wrap:wrap;">'
+        '<div class="relogio-andamento">'
         '<div>'
         '<div class="relogio-rotulo">Tempo em andamento</div>'
         f'<div class="relogio-digital">{_duracao(segundos)}</div>'
         '</div>'
         '<div>'
         '<div class="relogio-rotulo">Início da coleta</div>'
-        f'<div class="relogio-valor">{_horario(inicio)}</div>'
+        '<div class="relogio-inicio">'
+        f'<span>{data}</span><span>{hora}</span>'
+        '</div>'
         '</div>'
         '</div>'
     )
 
 
 def _relogio_resumo_conteudo_html(inicio: datetime, fim: datetime) -> str:
-    """Conteúdo do resumo de tempos (sem a caixa), para usar num container."""
+    """Conteúdo do resumo de tempos (sem a caixa), para usar num container.
+
+    Mesma linguagem do relógio da rodada: rótulo em maiúsculas, tempo total
+    em destaque e os horários de início e término logo abaixo.
+    """
+    data_inicio, hora_inicio = _horario(inicio).split(" ", 1)
+    data_fim, hora_fim = _horario(fim).split(" ", 1)
     return (
-        '<div style="display:flex; gap:2.6rem; flex-wrap:wrap; align-items:flex-end;">'
-        '<div>'
-        '<div class="relogio-rotulo">Horário inicial</div>'
-        f'<div class="relogio-valor">{_horario(inicio)}</div>'
-        '</div>'
-        '<div>'
-        '<div class="relogio-rotulo">Horário de término</div>'
-        f'<div class="relogio-valor">{_horario(fim)}</div>'
-        '</div>'
+        '<div class="relogio-andamento">'
         '<div>'
         '<div class="relogio-rotulo">Tempo de execução</div>'
-        f'<div class="relogio-valor">{_duracao((fim - inicio).total_seconds())}</div>'
+        f'<div class="relogio-digital">'
+        f'{_duracao((fim - inicio).total_seconds())}</div>'
+        '</div>'
+        '<div>'
+        '<div class="relogio-rotulo">Início da coleta</div>'
+        '<div class="relogio-inicio">'
+        f'<span>{data_inicio}</span><span>{hora_inicio}</span>'
+        '</div>'
+        '</div>'
+        '<div>'
+        '<div class="relogio-rotulo">Término da coleta</div>'
+        '<div class="relogio-inicio">'
+        f'<span>{data_fim}</span><span>{hora_fim}</span>'
+        '</div>'
         '</div>'
         '</div>'
     )

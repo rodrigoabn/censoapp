@@ -180,6 +180,122 @@ def test_tela_pausada_pergunta_ao_usuario_e_oferece_continuar(monkeypatch):
     assert not any("cadastros_escolas" in a for a in st_falso.avisos)
 
 
+def test_resultado_de_login_invalido_orienta_a_verificar_credenciais(monkeypatch):
+    """Senha incorreta: mostra a mensagem do portal e NÃO oferece Continuar."""
+    estado = _rodada()
+    estado["ca_running"] = False
+    estado["ca_finalized"] = True
+    estado["ca_fim"] = datetime(2026, 10, 20, 21, 16, 0)
+    estado["ca_estado"]["resultados"] = [
+        ResultadoEtapa(
+            chave="cadastros_escolas",
+            titulo="Cadastros das escolas",
+            situacao="falhou",
+            segundos=4.0,
+            motivo="Nome de usuário ou senha inválida.",
+            erro_login=True,
+            mensagem_login="Nome de usuário ou senha inválida.",
+        )
+    ]
+    st_falso = _StFalso(estado)
+    monkeypatch.setattr(frontend, "st", st_falso)
+
+    frontend._tela_resultado()
+
+    texto = " ".join(st_falso.avisos)
+    assert "Login ou senha incorretos" in texto
+    assert "Nome de usuário ou senha inválida." in texto
+    rotulos = [b[0] for b in st_falso.botoes]
+    assert "Continuar" not in rotulos
+    assert "Nova rodada" in rotulos
+    assert "Login inválido" in st_falso.texto
+
+
+def test_resultado_de_login_sem_mensagem_nao_afirma_senha_incorreta(monkeypatch):
+    """Instabilidade no login: orienta verificar credenciais sem inventar motivo."""
+    estado = _rodada()
+    estado["ca_running"] = False
+    estado["ca_finalized"] = True
+    estado["ca_fim"] = datetime(2026, 10, 20, 21, 16, 0)
+    estado["ca_estado"]["resultados"] = [
+        ResultadoEtapa(
+            chave="cadastros_escolas",
+            titulo="Cadastros das escolas",
+            situacao="falhou",
+            segundos=4.0,
+            motivo="PlaywrightTimeoutError: Page.goto: Timeout 30000ms exceeded.",
+            erro_login=True,
+        )
+    ]
+    st_falso = _StFalso(estado)
+    monkeypatch.setattr(frontend, "st", st_falso)
+
+    frontend._tela_resultado()
+
+    texto = " ".join(st_falso.avisos)
+    assert "Não foi possível concluir o login" in texto
+    assert "Login ou senha incorretos" not in texto
+    assert "Continuar" not in [b[0] for b in st_falso.botoes]
+
+
+def test_botao_nova_rodada_fica_dentro_do_cartao_resumo(monkeypatch):
+    """O botão Nova rodada fica no card superior, não no rodapé da tela."""
+    estado = _rodada()
+    estado["ca_running"] = False
+    estado["ca_finalized"] = True
+    estado["ca_fim"] = datetime(2026, 10, 20, 21, 16, 0)
+    st_falso = _StFalso(estado)
+    monkeypatch.setattr(frontend, "st", st_falso)
+
+    frontend._tela_resultado()
+
+    botoes = [b for b in st_falso.botoes if b[0] == "Nova rodada"]
+    assert botoes, "o botão Nova rodada não foi criado"
+    assert botoes[0][2] > 0, "o botão Nova rodada ficou fora do card superior"
+    assert any(c.get("key") == "ca_resumo" for c in st_falso.containers)
+
+
+def test_rerun_da_nova_rodada_sai_fora_do_card(monkeypatch):
+    """O rerun da Nova rodada não pode sair de dentro do card.
+
+    O botão fica dentro do card superior, mas o `st.rerun()` só é chamado
+    depois que o container foi fechado — um rerun de dentro do card deixa o
+    frontend com restos da tela anterior.
+    """
+    estado = _rodada()
+    estado["ca_running"] = False
+    estado["ca_finalized"] = True
+    estado["ca_fim"] = datetime(2026, 10, 20, 21, 16, 0)
+    st_falso = _StFalso(estado)
+    st_falso.clicar_em = "ca_nova_rodada"
+    monkeypatch.setattr(frontend, "st", st_falso)
+
+    with pytest.raises(_Rerun):
+        frontend._tela_resultado()
+
+    assert st_falso.profundidade_no_rerun == 0, (
+        "o rerun da Nova rodada saiu de dentro de um card"
+    )
+    for chave in ("ca_running", "ca_finalized", "ca_estado", "ca_fim"):
+        assert chave not in estado
+
+
+def test_tabela_usa_chave_ca_tabela_para_o_css_de_espacamento(monkeypatch):
+    """O container da tabela precisa da chave usada pelo CSS de espaçamento."""
+    st_falso = _StFalso({})
+    monkeypatch.setattr(frontend, "st", st_falso)
+
+    frontend._tabela_etapas([], [], None)
+
+    assert any(c.get("key") == "ca_tabela" for c in st_falso.containers)
+
+
+def test_css_usa_as_chaves_dos_cartoes_da_tela():
+    """O CSS do botão do resumo e da tabela aponta para as chaves certas."""
+    assert "st-key-ca_resumo" in frontend.TABELA_CSS
+    assert "st-key-ca_tabela" in frontend.TABELA_CSS
+
+
 def test_botao_continuar_dispara_o_evento_e_nao_colide_com_a_chave_do_widget(monkeypatch):
     """A chave do botão não pode ser a mesma que guarda o Event da rodada.
 
@@ -208,8 +324,9 @@ def test_botao_de_interromper_fica_dentro_do_cartao_do_relogio(monkeypatch):
 
     frontend._tela_rodada(estado["ca_estado"])
 
-    botoes = [b for b in st_falso.botoes if b[0] == "⛔ Interromper rodada"]
+    botoes = [b for b in st_falso.botoes if b[0] == "Interromper rodada"]
     assert botoes, "o botão de interromper não foi criado"
+    assert botoes[0][1].get("icon") == ":material/square:"
     assert botoes[0][2] > 0, "o botão ficou fora do cartão do relógio"
 
 
@@ -240,7 +357,32 @@ def test_linha_da_escola_atual_entra_no_cartao_do_relogio(monkeypatch):
 
     frontend._tela_rodada(estado["ca_estado"])
 
-    assert any("Escola atual: CEM ALDEIA" in str(m) for m in st_falso.markdowns)
+    linha = next(
+        (str(m) for m in st_falso.markdowns if "ESCOLA EM COLETA" in str(m)),
+        None,
+    )
+    assert linha is not None, "a linha da escola em coleta não foi criada"
+    assert "CEM ALDEIA" in linha
+    assert "33099510" in linha
+    assert "coletando" in linha
+
+
+def test_linha_da_escola_em_coleta_escapa_nome_e_codigo(monkeypatch):
+    """O nome/código da escola entram em HTML e precisam ser escapados."""
+    estado = _rodada()
+    estado["ca_estado"]["shared_etapa"] = {
+        "current": (1, 2, "<b>CEM</b>", "<script>1</script>"),
+        "count": 0,
+    }
+    st_falso = _StFalso(estado)
+    monkeypatch.setattr(frontend, "st", st_falso)
+
+    frontend._tela_rodada(estado["ca_estado"])
+
+    html = " ".join(str(m) for m in st_falso.markdowns)
+    assert "<b>CEM</b>" not in html
+    assert "&lt;b&gt;CEM&lt;/b&gt;" in html
+    assert "<script>" not in html
 
 
 def test_cartao_avisa_a_nova_tentativa_da_escola(monkeypatch):
@@ -276,8 +418,8 @@ def test_cartao_sem_aviso_nao_mostra_nova_tentativa(monkeypatch):
     assert "nova tentativa" not in html
 
 
-def test_relogio_alinha_os_blocos_pela_base(monkeypatch):
-    """O horário de início fica na linha do relógio (alinhamento pela base)."""
+def test_relogio_usa_o_layout_vertical_com_inicio_abaixo(monkeypatch):
+    """O tempo em andamento e o início da coleta ficam empilhados."""
     estado = _rodada()
     st_falso = _StFalso(estado)
     monkeypatch.setattr(frontend, "st", st_falso)
@@ -285,7 +427,8 @@ def test_relogio_alinha_os_blocos_pela_base(monkeypatch):
     frontend._tela_rodada(estado["ca_estado"])
 
     html = " ".join(str(m) for m in st_falso.markdowns)
-    assert "align-items:flex-end" in html
+    assert "relogio-andamento" in html
+    assert "relogio-inicio" in html
 
 
 def test_tabela_mostra_a_etapa_em_andamento_e_as_pendentes(monkeypatch):
@@ -445,119 +588,3 @@ def test_rerun_da_rodada_sai_fora_do_card(monkeypatch):
     assert st_falso.profundidade_no_rerun == 0, (
         "o rerun da rodada saiu de dentro de um card"
     )
-
-
-def test_resultado_de_login_invalido_orienta_a_verificar_credenciais(monkeypatch):
-    """Senha incorreta: mostra a mensagem do portal e NÃO oferece Continuar."""
-    estado = _rodada()
-    estado["ca_running"] = False
-    estado["ca_finalized"] = True
-    estado["ca_fim"] = datetime(2026, 10, 20, 21, 16, 0)
-    estado["ca_estado"]["resultados"] = [
-        ResultadoEtapa(
-            chave="cadastros_escolas",
-            titulo="Cadastros das escolas",
-            situacao="falhou",
-            segundos=4.0,
-            motivo="Nome de usuário ou senha inválida.",
-            erro_login=True,
-            mensagem_login="Nome de usuário ou senha inválida.",
-        )
-    ]
-    st_falso = _StFalso(estado)
-    monkeypatch.setattr(frontend, "st", st_falso)
-
-    frontend._tela_resultado()
-
-    texto = " ".join(st_falso.avisos)
-    assert "Login ou senha incorretos" in texto
-    assert "Nome de usuário ou senha inválida." in texto
-    rotulos = [b[0] for b in st_falso.botoes]
-    assert "Continuar" not in rotulos
-    assert "Nova rodada" in rotulos
-    assert "Login inválido" in st_falso.texto
-
-
-def test_resultado_de_login_sem_mensagem_nao_afirma_senha_incorreta(monkeypatch):
-    """Instabilidade no login: orienta verificar credenciais sem inventar motivo."""
-    estado = _rodada()
-    estado["ca_running"] = False
-    estado["ca_finalized"] = True
-    estado["ca_fim"] = datetime(2026, 10, 20, 21, 16, 0)
-    estado["ca_estado"]["resultados"] = [
-        ResultadoEtapa(
-            chave="cadastros_escolas",
-            titulo="Cadastros das escolas",
-            situacao="falhou",
-            segundos=4.0,
-            motivo="PlaywrightTimeoutError: Page.goto: Timeout 30000ms exceeded.",
-            erro_login=True,
-        )
-    ]
-    st_falso = _StFalso(estado)
-    monkeypatch.setattr(frontend, "st", st_falso)
-
-    frontend._tela_resultado()
-
-    texto = " ".join(st_falso.avisos)
-    assert "Não foi possível concluir o login" in texto
-    assert "Login ou senha incorretos" not in texto
-    assert "Continuar" not in [b[0] for b in st_falso.botoes]
-
-
-def test_botao_nova_rodada_fica_dentro_do_cartao_resumo(monkeypatch):
-    """O botão Nova rodada fica no card superior, não no rodapé da tela."""
-    estado = _rodada()
-    estado["ca_running"] = False
-    estado["ca_finalized"] = True
-    estado["ca_fim"] = datetime(2026, 10, 20, 21, 16, 0)
-    st_falso = _StFalso(estado)
-    monkeypatch.setattr(frontend, "st", st_falso)
-
-    frontend._tela_resultado()
-
-    botoes = [b for b in st_falso.botoes if b[0] == "Nova rodada"]
-    assert botoes, "o botão Nova rodada não foi criado"
-    assert botoes[0][2] > 0, "o botão Nova rodada ficou fora do card superior"
-    assert any(c.get("key") == "ca_resumo" for c in st_falso.containers)
-
-
-def test_rerun_da_nova_rodada_sai_fora_do_card(monkeypatch):
-    """O rerun da Nova rodada não pode sair de dentro do card.
-
-    O botão fica dentro do card superior, mas o `st.rerun()` só é chamado
-    depois que o container foi fechado — um rerun de dentro do card deixa o
-    frontend com restos da tela anterior.
-    """
-    estado = _rodada()
-    estado["ca_running"] = False
-    estado["ca_finalized"] = True
-    estado["ca_fim"] = datetime(2026, 10, 20, 21, 16, 0)
-    st_falso = _StFalso(estado)
-    st_falso.clicar_em = "ca_nova_rodada"
-    monkeypatch.setattr(frontend, "st", st_falso)
-
-    with pytest.raises(_Rerun):
-        frontend._tela_resultado()
-
-    assert st_falso.profundidade_no_rerun == 0, (
-        "o rerun da Nova rodada saiu de dentro de um card"
-    )
-    for chave in ("ca_running", "ca_finalized", "ca_estado", "ca_fim"):
-        assert chave not in estado
-
-
-def test_tabela_usa_chave_ca_tabela_para_o_css_de_espacamento(monkeypatch):
-    """O container da tabela precisa da chave usada pelo CSS de espaçamento."""
-    st_falso = _StFalso({})
-    monkeypatch.setattr(frontend, "st", st_falso)
-
-    frontend._tabela_etapas([], [], None)
-
-    assert any(c.get("key") == "ca_tabela" for c in st_falso.containers)
-
-
-def test_css_usa_as_chaves_dos_cartoes_da_tela():
-    """O CSS do botão do resumo e da tabela aponta para as chaves certas."""
-    assert "st-key-ca_resumo" in frontend.TABELA_CSS
-    assert "st-key-ca_tabela" in frontend.TABELA_CSS

@@ -120,11 +120,14 @@ def test_resumo_mostra_inicio_termino_e_execucao():
     fim = datetime(2026, 10, 20, 20, 1, 20)
     html = ui._relogio_resumo_conteudo_html(inicio, fim)
 
-    assert "Horário inicial" in html
-    assert "Horário de término" in html
+    assert "Início da coleta" in html
+    assert "Término da coleta" in html
     assert "Tempo de execução" in html
-    assert "20/10/2026 19:57:03" in html
-    assert "20/10/2026 20:01:20" in html
+    assert "relogio-digital" in html
+    assert "20/10/2026" in html
+    assert "19:57:03" in html
+    assert "20/10/2026" in html
+    assert "20:01:20" in html
     assert "00:04:17" in html
 
 
@@ -135,9 +138,12 @@ def test_relogio_digital_mostra_tempo_em_andamento():
     html = ui._relogio_andamento_conteudo_html(83.0, inicio)
 
     assert "Tempo em andamento" in html
+    assert "relogio-andamento" in html
     assert "relogio-digital" in html
     assert "00:01:23" in html
-    assert "20/10/2026 19:57:03" in html
+    assert "relogio-inicio" in html
+    assert "20/10/2026" in html
+    assert "19:57:03" in html
 
 
 # ── guarda do Chromium ──────────────────────────────────────────────────────

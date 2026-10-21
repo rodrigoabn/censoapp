@@ -84,18 +84,42 @@ TABELA_CSS = """
 [data-testid="stMain"] [class*="st-key-ca_resumo"] [data-testid="stColumn"]:last-child > [data-testid="stVerticalBlock"] {
     align-items: flex-end !important;
 }
-/* Botões do cartão do relógio: a mesma linguagem do relógio digital
-   (contorno fino, azul do mostrador e o brilho dele). */
+/* Relógio: blocos próximos e a linha da escola sem o respiro do parágrafo.
+   O Streamlit compensa a margem do parágrafo com -1rem no container do
+   markdown; zerar o parágrafo sem zerar o container faz o conteúdo
+   transbordar do cartão e sobrepor a linha de baixo. */
+[data-testid="stMain"] [class*="st-key-ca_relogio"] [data-testid="stColumn"]:first-child > [data-testid="stVerticalBlock"] {
+    gap: 0.65rem !important;
+}
+[data-testid="stMain"] [class*="st-key-ca_relogio"] [data-testid="stMarkdownContainer"] p {
+    margin-bottom: 0 !important;
+}
+[data-testid="stMain"] [class*="st-key-ca_relogio"] [data-testid="stMarkdownContainer"] {
+    margin-bottom: 0 !important;
+}
+/* O mesmo ajuste no cartão de resumo, para o texto não encostar na borda. */
+[data-testid="stMain"] [class*="st-key-ca_resumo"] [data-testid="stMarkdownContainer"] p {
+    margin-bottom: 0 !important;
+}
+[data-testid="stMain"] [class*="st-key-ca_resumo"] [data-testid="stMarkdownContainer"] {
+    margin-bottom: 0 !important;
+}
+/* Botões laterais do cartão do relógio: ação discreta, como na referência. */
 [data-testid="stMain"] [class*="st-key-ca_relogio"] .stButton > button {
     background-color: transparent !important;
-    border: 1px solid var(--relogio-azul) !important;
-    color: var(--relogio-azul) !important;
-    font-weight: 600 !important;
-    text-shadow: var(--relogio-brilho);
+    border: 1px solid #4b5563 !important;
+    border-radius: 8px !important;
+    color: #e5e7eb !important;
+    font-size: 0.85rem !important;
+    font-weight: 500 !important;
+    padding: 0.45rem 0.95rem !important;
+    box-shadow: none !important;
+    text-shadow: none !important;
 }
 [data-testid="stMain"] [class*="st-key-ca_relogio"] .stButton > button:hover {
-    background-color: rgba(147, 197, 253, 0.12) !important;
-    box-shadow: 0 0 14px rgba(147, 197, 253, 0.25) !important;
+    background-color: rgba(148, 163, 184, 0.1) !important;
+    border-color: #6b7280 !important;
+    box-shadow: none !important;
 }
 /* Tempo e nome do arquivo em fonte monoespaçada. */
 [data-testid="stMain"] .relogio-mono {
@@ -408,10 +432,39 @@ def _cartao_relogio(estado: dict, inicio) -> None:
                     _relogio_andamento_conteudo_html(
                         (datetime.now() - inicio).total_seconds(),
                         inicio,
-                        alinhamento="flex-end",
                     ),
                     unsafe_allow_html=True,
                 )
+
+            # Escola que está sendo coletada no momento.
+            atual = (estado.get("shared_etapa") or {}).get("current")
+            if atual:
+                _i, _total, nome, codigo = atual
+                st.markdown(
+                    "<div class='relogio-escola'>"
+                    "<strong>ESCOLA EM COLETA:</strong> "
+                    f"{escapar(nome)} "
+                    f"<span class='relogio-escola-codigo'>"
+                    f"({escapar(codigo)})</span>: "
+                    "<span class='relogio-escola-status'>coletando…</span>"
+                    "</div>",
+                    unsafe_allow_html=True,
+                )
+
+            # Nova tentativa: o portal estourou timeout e a MESMA escola está
+            # sendo repetida na hora — a fila só segue quando as tentativas
+            # terminarem (as escolas já coletadas ficam preservadas).
+            aviso = (estado.get("shared_etapa") or {}).get("aviso")
+            if aviso:
+                codigo, nome, texto = aviso
+                st.markdown(
+                    linha_monitor(
+                        f"{nome} ({codigo}): {texto}…",
+                        status_color("Nova tentativa"),
+                    ),
+                    unsafe_allow_html=True,
+                )
+
         with col_botao:
             if aguardando:
                 if st.button("Continuar", key="ca_continuar", width="stretch"):
@@ -421,35 +474,12 @@ def _cartao_relogio(estado: dict, inicio) -> None:
                 ):
                     ss["ca_stop"].set()
             elif st.button(
-                "⛔ Interromper rodada", key="ca_interromper", width="content"
+                "Interromper rodada",
+                icon=":material/square:",
+                key="ca_interromper",
+                width="content",
             ):
                 ss["ca_stop"].set()
-
-        # Escola que está sendo coletada no momento.
-        atual = (estado.get("shared_etapa") or {}).get("current")
-        if atual:
-            _i, _total, nome, codigo = atual
-            st.markdown(
-                linha_monitor(
-                    f"Escola atual: {nome} ({codigo}): coletando…",
-                    status_color("Coletando dados ..."),
-                ),
-                unsafe_allow_html=True,
-            )
-
-        # Nova tentativa: o portal estourou timeout e a MESMA escola está sendo
-        # repetida na hora — a fila só segue quando as tentativas terminarem
-        # (as escolas já coletadas ficam preservadas).
-        aviso = (estado.get("shared_etapa") or {}).get("aviso")
-        if aviso:
-            codigo, nome, texto = aviso
-            st.markdown(
-                linha_monitor(
-                    f"{nome} ({codigo}): {texto}…",
-                    status_color("Nova tentativa"),
-                ),
-                unsafe_allow_html=True,
-            )
 
         # Aviso de pausa: a etapa rodou sem coletar nada.
         if aguardando:
