@@ -74,16 +74,18 @@ TABELA_CSS = """
     align-items: center !important;
     justify-content: flex-end !important;
 }
-/* Botões do cartão do relógio: contornados (ação secundária, não é o
-   "Executar" da tela). */
+/* Botões do cartão do relógio: a mesma linguagem do relógio digital
+   (contorno fino, azul do mostrador e o brilho dele). */
 [data-testid="stMain"] [class*="st-key-ca_relogio"] .stButton > button {
     background-color: transparent !important;
-    border: 1px solid #454955 !important;
-    color: var(--text-primary) !important;
+    border: 1px solid var(--relogio-azul) !important;
+    color: var(--relogio-azul) !important;
+    font-weight: 600 !important;
+    text-shadow: var(--relogio-brilho);
 }
 [data-testid="stMain"] [class*="st-key-ca_relogio"] .stButton > button:hover {
-    background-color: rgba(255, 255, 255, 0.05) !important;
-    border-color: var(--text-primary) !important;
+    background-color: rgba(147, 197, 253, 0.12) !important;
+    box-shadow: 0 0 14px rgba(147, 197, 253, 0.25) !important;
 }
 /* Tempo e nome do arquivo em fonte monoespaçada. */
 [data-testid="stMain"] .relogio-mono {

@@ -83,6 +83,11 @@ SUBMIT_CSS = """
 
 RELOGIO_CSS = """
 <style>
+/* Cores do relógio digital: azul do mostrador e o brilho dele. */
+:root {
+    --relogio-azul: #93c5fd;
+    --relogio-brilho: 0 0 14px rgba(147, 197, 253, 0.35);
+}
 /* Relógio da coleta: digital (andamento) e resumo de tempos (conclusão) */
 .stMarkdown div.relogio-caixa {
     background-color: var(--bg-card) !important;
@@ -123,6 +128,19 @@ RELOGIO_CSS = """
     font-size: 1rem;
     font-weight: 700;
     color: #ffffff !important;
+}
+/* Botão de interromper a coleta: a mesma linguagem do relógio digital
+   (contorno fino, azul do mostrador e o brilho dele). */
+[data-testid="stMain"] [class*="stop_btn"] button {
+    background-color: transparent !important;
+    border: 1px solid var(--relogio-azul) !important;
+    color: var(--relogio-azul) !important;
+    font-weight: 600 !important;
+    text-shadow: var(--relogio-brilho);
+}
+[data-testid="stMain"] [class*="stop_btn"] button:hover {
+    background-color: rgba(147, 197, 253, 0.12) !important;
+    box-shadow: 0 0 14px rgba(147, 197, 253, 0.25) !important;
 }
 </style>
 """
