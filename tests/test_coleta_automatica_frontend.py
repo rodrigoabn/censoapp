@@ -93,6 +93,7 @@ def test_estado_concluido_mostra_tabela_e_pacote():
         "aguardando": None,
         "interrompida": False,
         "pacote": None,
+        "etapas_selecionadas": ["gestor"],
     }
     at.run()
     assert not at.exception
@@ -115,3 +116,20 @@ def test_estado_interrompido_avisa_que_nao_ha_pacote():
     at.run()
     assert not at.exception
     assert any("interrompida" in m.value.lower() for m in at.markdown)
+
+
+def test_nova_rodada_apaga_a_pasta_da_rodada_anterior(tmp_path):
+    """A pasta da rodada guarda PII (relatórios, recibos): ela é apagada."""
+    pasta = tmp_path / "coleta_automatica_tmp_teste"
+    pasta.mkdir()
+    (pasta / "relatorio_alunos.zip").write_bytes(b"dados")
+
+    at = _app()
+    at.session_state["ca_running"] = False
+    at.session_state["ca_finalized"] = True
+    at.session_state["ca_pasta"] = str(pasta)
+    at.run()
+    at.button(key="ca_nova_rodada").click().run()
+
+    assert not at.exception
+    assert not pasta.exists(), "a pasta da rodada anterior ficou no disco"

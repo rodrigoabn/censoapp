@@ -177,3 +177,125 @@ def test_rodada_publica_que_terminou(tmp_path):
     estado = _rodar([_etapa("a")], tmp_path=tmp_path)
     assert estado["terminada"] is True
     assert estado["etapa_atual"] is None
+
+
+def test_etapa_interrompida_no_meio_e_marcada_interrompida(tmp_path):
+    """Interromper durante a etapa: a etapa não é "concluída" e a rodada para."""
+    stop = threading.Event()
+
+    def worker(config, login, senha, escolas, stop_event, lock, shared, tmp_dir):
+        shared["total"] = len(escolas)
+        shared["count"] = 1
+        stop_event.set()  # o operador interrompe no meio da etapa
+
+    etapa = Etapa(
+        chave="a",
+        titulo="a",
+        pasta="a",
+        config={"zip_prefix": "a"},
+        zipper=_ZipperFalso(),
+        worker=worker,
+        textos=None,
+    )
+    estado = _rodar([etapa, _etapa("b")], stop_event=stop, tmp_path=tmp_path)
+
+    assert estado["resultados"][0].situacao == "interrompida"
+    assert estado["interrompida"] is True
+    assert estado["resultados"][1].situacao == "nao_executada"
+    assert estado["pacote"] is None
+
+
+def test_ultima_etapa_interrompida_nao_gera_pacote(tmp_path):
+    """Interromper na ÚLTIMA etapa também impede o pacote completo."""
+    stop = threading.Event()
+
+    def worker(config, login, senha, escolas, stop_event, lock, shared, tmp_dir):
+        shared["total"] = len(escolas)
+        shared["count"] = 1
+        stop_event.set()
+
+    etapa = Etapa(
+        chave="a",
+        titulo="a",
+        pasta="a",
+        config={"zip_prefix": "a"},
+        zipper=_ZipperFalso(),
+        worker=worker,
+        textos=None,
+    )
+    estado = _rodar([etapa], stop_event=stop, tmp_path=tmp_path)
+
+    assert estado["resultados"][0].situacao == "interrompida"
+    assert estado["interrompida"] is True
+    assert estado["pacote"] is None
+
+
+def test_erro_ao_montar_o_artefato_encerra_a_rodada_com_erro(tmp_path):
+    """Exceção na construção do artefato não pode travar a tela em "rodando"."""
+
+    class _ZipperQuebrado:
+        def output_filename(self, prefix):
+            return "x.bin"
+
+        def pending_filename(self, prefix):
+            return "x.xlsx"
+
+        def build_xlsx(self, tmp_dir, model=None):
+            raise RuntimeError("disco cheio")
+
+        def build_zip(self, tmp_dir):
+            raise RuntimeError("disco cheio")
+
+    etapa = Etapa(
+        chave="a",
+        titulo="a",
+        pasta="a",
+        config={"zip_prefix": "a"},
+        zipper=_ZipperQuebrado(),
+        worker=_etapa("a").worker,
+        textos=None,
+    )
+    estado = _rodar([etapa], tmp_path=tmp_path)
+
+    assert estado["terminada"] is True
+    assert estado["erro_rodada"] == "disco cheio"
+    assert estado["resultados"][0].situacao == "falhou"
+
+
+def test_limpar_temporarios_antigos_remove_a_pasta_orfa(tmp_path, monkeypatch):
+    """Pastas de rodadas abandonadas não podem ficar para sempre no /tmp."""
+    import os
+    import time
+
+    from apps.coleta_automatica.src import runner
+
+    pasta = tmp_path / "coleta_automatica_tmp_orfã"
+    pasta.mkdir()
+    (pasta / "relatorio_alunos.zip").write_bytes(b"pII")
+    antigo = time.time() - 48 * 3600
+    os.utime(pasta, (antigo, antigo))
+
+    monkeypatch.setattr(runner.tempfile, "gettempdir", lambda: str(tmp_path))
+    removidas = runner.limpar_temporarios_antigos(horas=24)
+
+    assert removidas == 1
+    assert not pasta.exists()
+
+
+def test_limpar_temporarios_antigos_preserva_a_pasta_recente(tmp_path, monkeypatch):
+    """A pasta de uma rodada em uso (recente) não pode ser apagada."""
+    import os
+    import time
+
+    from apps.coleta_automatica.src import runner
+
+    pasta = tmp_path / "coleta_automatica_tmp_ativa"
+    pasta.mkdir()
+    agora = time.time()
+    os.utime(pasta, (agora, agora))
+
+    monkeypatch.setattr(runner.tempfile, "gettempdir", lambda: str(tmp_path))
+    removidas = runner.limpar_temporarios_antigos(horas=24)
+
+    assert removidas == 0
+    assert pasta.exists()

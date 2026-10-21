@@ -15,7 +15,7 @@ uv add <pacote>                                     # adicionar dependência
 ## Arquitetura
 
 - **Entrypoint**: `app.py` — HUB Streamlit com navegação lateral
-- **10 apps** em `apps/`, cada uma autocontida, + código compartilhado em `apps/common/` (`auth`, `banner`, `browser`, `coleta`, `export`, `orientacoes`, `school_list`, `session`, `ui`):
+- **11 apps** em `apps/`, cada uma autocontida, + código compartilhado em `apps/common/` (`auth`, `banner`, `browser`, `coleta`, `export`, `orientacoes`, `school_list`, `session`, `ui`):
   - `inicio/` — página inicial + documentação completa em PDF
   - `coleta_automatica/` — roda as 6 coletas do Educacenso em sequência, em background, e gera um ZIP único com o tempo de cada etapa
   - `coleta_cadastros_escolas/` — raspa dados de escolas do Educacenso → XLSX (6 abas)
