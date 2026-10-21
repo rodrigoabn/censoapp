@@ -119,7 +119,7 @@
 
 ---
 
-## Fase 7 — Coleta de Dados no Educacenso ✅ (2026-10-21)
+## Fase 7 — Coleta de Dados no Educacenso - 1ª Etapa ✅ (2026-10-21)
 
 Nova aplicação no menu lateral (fora dos grupos) que roda as 6 coletas em sequência, em
 segundo plano, a partir de um único formulário (login, senha e lista de escolas).
