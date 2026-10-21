@@ -3,8 +3,7 @@
 O PDF é montado em tempo de execução com reportlab (Platypus), sem dependências
 de sistema, e fica disponível para download na Tela Inicial.
 
-A marca usada nos documentos é a institucional "Censo Escolar"
-(``imagem/image1.png``); a interface do HUB usa a marca atual
+A marca usada nos documentos é a mesma da interface do HUB
 (``imagem/image.png``).
 """
 
@@ -17,7 +16,7 @@ from datetime import datetime
 from pathlib import Path
 
 _RAIZ = Path(__file__).resolve().parents[2]
-_LOGO_PDF = _RAIZ / "imagem" / "image1.png"
+_LOGO_PDF = _RAIZ / "imagem" / "image.png"
 
 _FONTE = "Helvetica"
 _FONTE_B = "Helvetica-Bold"
@@ -199,7 +198,6 @@ class _DocTemplate(object):
             topMargin=2 * cm,
             bottomMargin=1.6 * cm,
             title="Aplicações de Apoio - Censo Escolar - Documentação",
-            author="Rodrigo Nunes",
         )
         frame = Frame(
             self.doc.leftMargin,
@@ -234,7 +232,7 @@ class _DocTemplate(object):
 
 
 def _logo_base64() -> str | None:
-    """Marca institucional (imagem/image1.png) em base64, ou None se ausente."""
+    """Marca do HUB (imagem/image.png) em base64, ou None se ausente."""
     try:
         return base64.b64encode(_LOGO_PDF.read_bytes()).decode("ascii")
     except OSError:
@@ -279,7 +277,6 @@ def build_documentacao_pdf() -> bytes:
     story.append(_esp(10))
     _par(story, estilos["cap_meta"], "Versão: 1.1")
     _par(story, estilos["cap_meta"], f"Data: {datetime.now().strftime('%d/%m/%Y')}")
-    _par(story, estilos["cap_meta"], "Autor: Rodrigo Nunes")
     _par(story, estilos["cap_meta"], "Secretaria Municipal de Educação - Campos dos Goytacazes/RJ")
     story.append(_esp(40))
     _par(story, estilos["nota"],
@@ -317,7 +314,7 @@ def build_documentacao_pdf() -> bytes:
                 ["Tela Inicial", "Tela Inicial",
                  "Hero com a marca do projeto e botão para baixar esta documentação (PDF)."],
                 ["Gerador de Base de Dados e Inconsistências", "Unificador de Inconsistências por Unidade Escolar",
-                 "Gera um ZIP com um XLSX por escola ativa e um PDF analítico em A4 vertical, com o brasão municipal à esquerda, a marca Censo Escolar à direita, identificação da Secretaria, Diretoria e Gerência de TI, cards com totais de Creches, Escolas e unidades gerais, gráfico de inconsistências por relatório separado por tipo de unidade e tabela detalhada por escola. A listagem classifica CEM/CMEI como Creche e as demais como Escola, ordenadas por tipo e nome."],
+                 "Gera um ZIP com um XLSX por escola ativa e um PDF analítico em A4 vertical, com o brasão municipal à esquerda, a marca do CensoApp à direita, identificação da Secretaria, Diretoria e Gerência de TI, cards com totais de Creches, Escolas e unidades gerais, gráfico de inconsistências por relatório separado por tipo de unidade e tabela detalhada por escola. A listagem classifica CEM/CMEI como Creche e as demais como Escola, ordenadas por tipo e nome."],
                 ["Coleta do Educacenso", "Dados Cadastrais da Unidades",
                  "Raspa a ficha cadastral completa de cada escola do Educacenso e consolida em um XLSX de 6 abas."],
                 ["Coleta do Educacenso", "Dados dos Gestores Escolares",
