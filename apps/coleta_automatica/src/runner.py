@@ -239,4 +239,4 @@ def executar_rodada(
         if destino is not None:
             publicar(pacote=(str(destino), destino.name))
 
-    publicar(etapa_atual=None, shared_etapa=None)
+    publicar(terminada=True, etapa_atual=None, shared_etapa=None)

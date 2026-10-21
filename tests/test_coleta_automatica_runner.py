@@ -171,3 +171,9 @@ def test_rodada_sem_coleta_nao_gera_pacote(tmp_path):
     estado = _rodar([_etapa("a", coletadas=0)], tmp_path=tmp_path)
     assert estado["resultados"][0].caminho_artefato is None
     assert estado["pacote"] is None
+
+
+def test_rodada_publica_que_terminou(tmp_path):
+    estado = _rodar([_etapa("a")], tmp_path=tmp_path)
+    assert estado["terminada"] is True
+    assert estado["etapa_atual"] is None

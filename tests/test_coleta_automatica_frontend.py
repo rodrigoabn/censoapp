@@ -64,3 +64,54 @@ def test_lista_invalida_mostra_erro():
     at.button(key="ca_executar").click().run()
     assert not at.exception
     assert at.error
+
+
+def test_estado_concluido_mostra_tabela_e_pacote():
+    from datetime import datetime
+
+    from apps.coleta_automatica.src.runner import ResultadoEtapa
+
+    at = _app()
+    at.session_state["ca_running"] = False
+    at.session_state["ca_finalized"] = True
+    at.session_state["ca_inicio"] = datetime(2026, 10, 20, 21, 15, 3)
+    at.session_state["ca_fim"] = datetime(2026, 10, 20, 21, 34, 50)
+    at.session_state["ca_estado"] = {
+        "resultados": [
+            ResultadoEtapa(
+                chave="gestor",
+                titulo="Cadastro do gestor",
+                situacao="concluida",
+                segundos=48.0,
+                caminho_artefato=None,
+                caminho_pendencias=None,
+                motivo=None,
+            ),
+        ],
+        "etapa_atual": None,
+        "shared_etapa": None,
+        "aguardando": None,
+        "interrompida": False,
+        "pacote": None,
+    }
+    at.run()
+    assert not at.exception
+    assert any("Tempo de execução" in m.value for m in at.markdown)
+    assert any("Cadastro do gestor" in m.value for m in at.markdown)
+
+
+def test_estado_interrompido_avisa_que_nao_ha_pacote():
+    at = _app()
+    at.session_state["ca_running"] = False
+    at.session_state["ca_finalized"] = True
+    at.session_state["ca_estado"] = {
+        "resultados": [],
+        "etapa_atual": None,
+        "shared_etapa": None,
+        "aguardando": None,
+        "interrompida": True,
+        "pacote": None,
+    }
+    at.run()
+    assert not at.exception
+    assert any("interrompida" in m.value.lower() for m in at.markdown)
