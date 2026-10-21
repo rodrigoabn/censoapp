@@ -149,14 +149,22 @@ def _estado(ss: Any, chave: str, padrao: Any = None) -> Any:
         return padrao
 
 
-def _relogio_andamento_conteudo_html(segundos: float, inicio: datetime) -> str:
+def _relogio_andamento_conteudo_html(
+    segundos: float,
+    inicio: datetime,
+    alinhamento: str = "center",
+) -> str:
     """Conteúdo do relógio digital (sem a caixa), para usar num container.
 
     Quem usa desenha a borda com `st.container(border=True)` — assim o botão
     de interromper fica dentro do mesmo cartão do relógio.
+
+    ``alinhamento`` é o `align-items` da linha: ``"flex-end"`` alinha os
+    blocos pela base (o horário fica na linha do relógio).
     """
     return (
-        '<div style="display:flex; align-items:center; gap:2.4rem; flex-wrap:wrap;">'
+        f'<div style="display:flex; align-items:{alinhamento}; '
+        'gap:2.4rem; flex-wrap:wrap;">'
         '<div>'
         '<div class="relogio-rotulo">Tempo em andamento</div>'
         f'<div class="relogio-digital">{_duracao(segundos)}</div>'

@@ -74,6 +74,17 @@ TABELA_CSS = """
     align-items: center !important;
     justify-content: flex-end !important;
 }
+/* Botões do cartão do relógio: contornados (ação secundária, não é o
+   "Executar" da tela). */
+[data-testid="stMain"] [class*="st-key-ca_relogio"] .stButton > button {
+    background-color: transparent !important;
+    border: 1px solid #454955 !important;
+    color: var(--text-primary) !important;
+}
+[data-testid="stMain"] [class*="st-key-ca_relogio"] .stButton > button:hover {
+    background-color: rgba(255, 255, 255, 0.05) !important;
+    border-color: var(--text-primary) !important;
+}
 /* Tempo e nome do arquivo em fonte monoespaçada. */
 [data-testid="stMain"] .relogio-mono {
     font-family: Consolas, 'Courier New', monospace !important;
@@ -364,7 +375,9 @@ def _cartao_relogio(estado: dict, inicio) -> None:
             if inicio is not None:
                 st.markdown(
                     _relogio_andamento_conteudo_html(
-                        (datetime.now() - inicio).total_seconds(), inicio
+                        (datetime.now() - inicio).total_seconds(),
+                        inicio,
+                        alinhamento="flex-end",
                     ),
                     unsafe_allow_html=True,
                 )

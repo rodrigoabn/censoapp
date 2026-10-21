@@ -235,6 +235,19 @@ def test_linha_da_escola_atual_entra_no_cartao_do_relogio(monkeypatch):
     assert any("Escola atual: CEM ALDEIA" in str(m) for m in st_falso.markdowns)
 
 
+def test_relogio_alinha_os_blocos_pela_base(monkeypatch):
+    """O horário de início fica na linha do relógio (alinhamento pela base)."""
+    estado = _rodada()
+    st_falso = _StFalso(estado)
+    monkeypatch.setattr(frontend, "st", st_falso)
+
+    with pytest.raises(_Rerun):
+        frontend._tela_rodada()
+
+    html = " ".join(str(m) for m in st_falso.markdowns)
+    assert "align-items:flex-end" in html
+
+
 def test_tabela_mostra_a_etapa_em_andamento_e_as_pendentes(monkeypatch):
     """A tabela lista as etapas selecionadas, inclusive as que não rodaram."""
     estado = _rodada()
