@@ -462,9 +462,9 @@ def _fragmento_rodada() -> None:
 
     O redesenho usa um **fragmento** e não `sleep` + `st.rerun()`: abortar o
     script no meio da execução deixava a árvore de elementos do frontend com
-    restos da tela anterior (as "Orientações" e o card "Aplicações a coletar"
-    reapareciam junto com a rodada). O fragmento limpa e redesenha apenas os
-    elementos dele, a cada ciclo.
+    restos da tela anterior (as "Orientações" e o card "SELECIONE O QUE
+    DESEJA COLETAR" reapareciam junto com a rodada). O fragmento limpa e
+    redesenha apenas os elementos dele, a cada ciclo.
     """
     ss = st.session_state
     estado = _ler_estado(ss)
@@ -559,8 +559,7 @@ def _tela_formulario() -> None:
 
     clicado = False
     with st.container(border=True):
-        st.markdown("**Aplicações a coletar**")
-        st.caption("Desmarque o que não deve entrar nesta rodada.")
+        st.markdown("**SELECIONE O QUE DESEJA COLETAR**")
         col_esq, col_dir = st.columns(2)
         for coluna, grupo in zip((col_esq, col_dir), (ETAPAS[:3], ETAPAS[3:])):
             with coluna:
@@ -577,8 +576,8 @@ def _tela_formulario() -> None:
 
     # O rerun da rodada sai **fora** do card: um `st.rerun()` de dentro de
     # um container deixa o card aberto e o frontend passa a exibir o resto
-    # do formulário (Orientações e "Aplicações a coletar") junto com a
-    # tela da rodada.
+    # do formulário (Orientações e "SELECIONE O QUE DESEJA COLETAR") junto
+    # com a tela da rodada.
     if clicado:
         _iniciar_rodada(selecionadas, login, senha, arquivo)
 
