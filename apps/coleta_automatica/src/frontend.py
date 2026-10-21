@@ -76,6 +76,52 @@ _ORIENTACOES = (
     "5. Ao final, baixe cada arquivo ou o **pacote completo**."
 )
 
+#: Estilo da tabela de resultados e dos botões de download.
+TABELA_CSS = """
+<style>
+[data-testid="stMain"] .relogio-cabecalho {
+    font-family: 'Segoe UI', Tahoma, sans-serif !important;
+    text-transform: uppercase;
+    font-size: 0.55rem;
+    font-weight: 700;
+    letter-spacing: 0.3px;
+    color: #b2b5be !important;
+    /* Altura mínima igual para todos os cabeçalhos (um rótulo pode quebrar
+       em 2 linhas sem desnivelar a linha do cabeçalho). */
+    min-height: 4em;
+    display: flex;
+    align-items: center;
+}
+[data-testid="stMain"] .relogio-mono {
+    font-family: Consolas, 'Courier New', monospace !important;
+    font-size: 0.82rem;
+    color: #e4e6ec !important;
+}
+/* Download dos dados: verde fosco. */
+[data-testid="stMain"] [class*="st-key-ca_dl_dados_"] button {
+    background-color: #2f6b4f !important;
+    border-color: #3a7d58 !important;
+    color: #f2fbf5 !important;
+    font-size: 0.78rem !important;
+    padding: 0.4rem 0.6rem !important;
+}
+[data-testid="stMain"] [class*="st-key-ca_dl_dados_"] button:hover {
+    background-color: #3a7d58 !important;
+}
+/* Download das pendências: vermelho fosco. */
+[data-testid="stMain"] [class*="st-key-ca_dl_pend_"] button {
+    background-color: #7a3535 !important;
+    border-color: #963f3f !important;
+    color: #fdf2f2 !important;
+    font-size: 0.78rem !important;
+    padding: 0.4rem 0.6rem !important;
+}
+[data-testid="stMain"] [class*="st-key-ca_dl_pend_"] button:hover {
+    background-color: #963f3f !important;
+}
+</style>
+"""
+
 
 def _selecionadas() -> list:
     """Etapas marcadas pelo usuário (todas, por padrão)."""
@@ -209,6 +255,20 @@ def _botao_download(caminho: str, rotulo: str, chave: str) -> None:
     )
 
 
+#: Larguras das colunas da tabela de resultados.
+_COLUNAS_TABELA = [1.5, 1.0, 1.1, 2.5, 1.55, 1.85]
+
+#: Cabeçalho da tabela de resultados.
+_CABECALHOS = (
+    "Tipo de Dados",
+    "Status",
+    "Tempo de coleta",
+    "Nome do arquivo",
+    "Download dos Dados",
+    "Download das Pendências",
+)
+
+
 def _tabela_etapas(
     resultados: list,
     selecionadas: list,
@@ -223,6 +283,14 @@ def _tabela_etapas(
     por_chave = {r.chave: r for r in resultados}
 
     st.markdown("**Tempo por aplicação**")
+
+    cabecalho = st.columns(
+        _COLUNAS_TABELA, border=True, vertical_alignment="center"
+    )
+    for coluna, titulo in zip(cabecalho, _CABECALHOS):
+        with coluna:
+            st.markdown(f"<span class='relogio-cabecalho'>{titulo}</span>", unsafe_allow_html=True)
+
     for etapa in selecionadas:
         resultado = por_chave.get(etapa.chave)
         if resultado is not None:
@@ -244,41 +312,47 @@ def _tabela_etapas(
             artefato = None
             pendencias = None
 
-        (
-            col_etapa,
-            col_situacao,
-            col_tempo,
-            col_resultado,
-            col_download,
-        ) = st.columns([3, 1.6, 1, 2.6, 1])
-        with col_etapa:
+        colunas = st.columns(
+            _COLUNAS_TABELA, border=True, vertical_alignment="center"
+        )
+        with colunas[0]:
             st.markdown(etapa.titulo)
-        with col_situacao:
+        with colunas[1]:
             cor = _COR_SITUACAO.get(situacao, "#b2b5be")
             st.markdown(
                 f"<span style='color:{cor}'>"
                 f"{_ROTULO_SITUACAO.get(situacao, situacao)}</span>",
                 unsafe_allow_html=True,
             )
-        with col_tempo:
-            st.markdown(f"`{_duracao(segundos)}`")
-        with col_resultado:
+        with colunas[2]:
+            st.markdown(f"<span class='relogio-mono'>{_duracao(segundos)}</span>", unsafe_allow_html=True)
+        with colunas[3]:
             if motivo:
                 st.markdown(
                     f"<span style='color:#ef4444'>{escapar(motivo)}</span>",
                     unsafe_allow_html=True,
                 )
             elif artefato:
-                st.markdown(f"`{Path(artefato).name}`")
+                st.markdown(
+                    f"<span class='relogio-mono'>{escapar(Path(artefato).name)}</span>",
+                    unsafe_allow_html=True,
+                )
             else:
                 st.markdown("—")
-        with col_download:
+        with colunas[4]:
             if artefato:
-                _botao_download(artefato, "Baixar", f"ca_dl_{etapa.chave}")
-                if pendencias:
-                    _botao_download(
-                        pendencias, "Pendências", f"ca_dl_pend_{etapa.chave}"
-                    )
+                _botao_download(
+                    artefato,
+                    "Download de Dados",
+                    f"ca_dl_dados_{etapa.chave}",
+                )
+        with colunas[5]:
+            if pendencias:
+                _botao_download(
+                    pendencias,
+                    "Download das Pendências",
+                    f"ca_dl_pend_{etapa.chave}",
+                )
 
 
 def _tela_rodada() -> None:
@@ -440,6 +514,7 @@ def render_coleta_automatica_frontend(logo_base64: str | None = None) -> None:
     """Tela da Coleta Automática (HUB)."""
     ss = st.session_state
     st.markdown(RELOGIO_CSS, unsafe_allow_html=True)
+    st.markdown(TABELA_CSS, unsafe_allow_html=True)
     banner_titulo(st, _TITULO, _SUBTITULO, logo_base64)
 
     estado = _ler_estado(ss)

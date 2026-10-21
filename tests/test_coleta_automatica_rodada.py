@@ -186,6 +186,28 @@ def test_tabela_mostra_a_etapa_em_andamento_e_as_pendentes(monkeypatch):
     assert "Pendente" in texto  # a etapa que ainda vai rodar
 
 
+def test_tabela_tem_os_cabecalhos_pedidos(monkeypatch):
+    """A tabela tem as colunas: Tipo de Dados | Status | Tempo de coleta |
+    Nome do arquivo | Download dos Dados | Download das Pendências."""
+    estado = _rodada()
+    st_falso = _StFalso(estado)
+    monkeypatch.setattr(frontend, "st", st_falso)
+
+    with pytest.raises(_Rerun):
+        frontend._tela_rodada()
+
+    cabecalho = " ".join(str(m) for m in st_falso.markdowns)
+    for titulo in (
+        "Tipo de Dados",
+        "Status",
+        "Tempo de coleta",
+        "Nome do arquivo",
+        "Download dos Dados",
+        "Download das Pendências",
+    ):
+        assert titulo in cabecalho, titulo
+
+
 def test_motivo_da_falha_e_escapado(monkeypatch):
     """O motivo da falha vem do site: precisa ser escapado antes do HTML."""
     estado = _rodada()
