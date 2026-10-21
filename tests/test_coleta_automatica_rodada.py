@@ -42,17 +42,36 @@ class _StFalso:
     def __init__(self, estado):
         self.session_state = estado
         self.markdowns = []
+        self.writes = []
+        self.subheaders = []
+        self.captions = []
+        self.dividers = 0
         self.botoes = []
         self.avisos = []
         self.downloads = []
         self.clicar_em = None
         self.rerun_chamado = False
 
+    @property
+    def texto(self) -> str:
+        """Todo o texto escrito na tela (markdown, write, subheader, caption)."""
+        partes = self.markdowns + self.writes + self.subheaders + self.captions
+        return " ".join(str(p) for p in partes)
+
     def markdown(self, body, **kwargs):
         self.markdowns.append(body)
 
+    def write(self, body, **kwargs):
+        self.writes.append(body)
+
+    def subheader(self, body, **kwargs):
+        self.subheaders.append(body)
+
     def caption(self, body, **kwargs):
-        pass
+        self.captions.append(body)
+
+    def divider(self, **kwargs):
+        self.dividers += 1
 
     def warning(self, msg, **kwargs):
         self.avisos.append(msg)
@@ -178,7 +197,7 @@ def test_tabela_mostra_a_etapa_em_andamento_e_as_pendentes(monkeypatch):
     with pytest.raises(_Rerun):
         frontend._tela_rodada()
 
-    texto = " ".join(str(m) for m in st_falso.markdowns)
+    texto = st_falso.texto
     assert "Cadastros das escolas" in texto
     assert "Concluída" in texto
     assert "Cadastro do gestor" in texto  # a etapa em andamento
@@ -187,8 +206,8 @@ def test_tabela_mostra_a_etapa_em_andamento_e_as_pendentes(monkeypatch):
 
 
 def test_tabela_tem_os_cabecalhos_pedidos(monkeypatch):
-    """A tabela tem as colunas: Tipo de Dados | Status | Tempo de coleta |
-    Nome do arquivo | Download dos Dados | Download das Pendências."""
+    """A tabela tem as colunas: Tipo de dados | Status | Tempo | Arquivo |
+    Dados | Pendências."""
     estado = _rodada()
     st_falso = _StFalso(estado)
     monkeypatch.setattr(frontend, "st", st_falso)
@@ -196,16 +215,51 @@ def test_tabela_tem_os_cabecalhos_pedidos(monkeypatch):
     with pytest.raises(_Rerun):
         frontend._tela_rodada()
 
-    cabecalho = " ".join(str(m) for m in st_falso.markdowns)
-    for titulo in (
-        "Tipo de Dados",
-        "Status",
-        "Tempo de coleta",
-        "Nome do arquivo",
-        "Download dos Dados",
-        "Download das Pendências",
-    ):
+    cabecalho = " ".join(st_falso.captions)
+    for titulo in ("Tipo de dados", "Status", "Tempo", "Arquivo", "Dados", "Pendências"):
         assert titulo in cabecalho, titulo
+
+
+def test_tabela_usa_a_estrutura_do_mockup(monkeypatch):
+    """Título como subheader, uma linha divisória por etapa e status com bolinha."""
+    estado = _rodada()
+    st_falso = _StFalso(estado)
+    monkeypatch.setattr(frontend, "st", st_falso)
+
+    with pytest.raises(_Rerun):
+        frontend._tela_rodada()
+
+    assert "Tempo por aplicação" in st_falso.subheaders
+    # 1 divisória do cabeçalho + 1 por etapa selecionada
+    assert st_falso.dividers == 1 + len(estado["ca_estado"]["etapas_selecionadas"])
+    # o status vem com a bolinha colorida
+    assert "🟡" in st_falso.texto
+
+
+def test_botoes_de_download_da_tabela_sao_cha_maos_baixar(monkeypatch, tmp_path):
+    """Os downloads da tabela são rotulados "Baixar" (colunas Dados/Pendências)."""
+    artefato = tmp_path / "cadastro_escola_educacenso_21-10-2026.xlsx"
+    artefato.write_bytes(b"xlsx")
+    estado = _rodada()
+    estado["ca_estado"]["resultados"] = [
+        ResultadoEtapa(
+            chave="cadastros_escolas",
+            titulo="Cadastros das escolas",
+            situacao="concluida",
+            segundos=1.0,
+            caminho_artefato=str(artefato),
+        )
+    ]
+    st_falso = _StFalso(estado)
+    monkeypatch.setattr(frontend, "st", st_falso)
+
+    with pytest.raises(_Rerun):
+        frontend._tela_rodada()
+
+    rotulos = [d[0] for d in st_falso.downloads]
+    assert rotulos == ["Baixar"]
+    # o nome do arquivo baixado é o do artefato
+    assert st_falso.downloads[0][1]["file_name"] == artefato.name
 
 
 def test_motivo_da_falha_e_escapado(monkeypatch):
@@ -226,6 +280,6 @@ def test_motivo_da_falha_e_escapado(monkeypatch):
     with pytest.raises(_Rerun):
         frontend._tela_rodada()
 
-    texto = " ".join(str(m) for m in st_falso.markdowns)
+    texto = st_falso.texto
     assert "<b>Escola & Cia</b>" not in texto
     assert "&lt;b&gt;" in texto or "Escola &amp; Cia" in texto

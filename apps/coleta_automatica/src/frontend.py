@@ -44,17 +44,6 @@ from .runner import SITUACOES, executar_rodada, limpar_temporarios_antigos
 _TITULO = "Coleta de Dados no Educacenso - 1ª Etapa"
 _SUBTITULO = "Executa em sequência as coletas do Educacenso, em segundo plano."
 
-#: Cor da situação de cada etapa na tabela.
-_COR_SITUACAO = {
-    "concluida": "#22c55e",
-    "concluida_sem_dados": "#eab308",
-    "em_andamento": "#93c5fd",
-    "falhou": "#ef4444",
-    "interrompida": "#eab308",
-    "pendente": "#8b8f99",
-    "nao_executada": "#8b8f99",
-}
-
 #: Rótulo exibido de cada situação na tabela.
 _ROTULO_SITUACAO = {
     "pendente": "Pendente",
@@ -79,79 +68,33 @@ _ORIENTACOES = (
 #: Estilo da tabela de resultados e dos botões de download.
 TABELA_CSS = """
 <style>
-/* Tabela de resultados: linhas e colunas contínuas (não são cards). */
-[data-testid="stMain"] [class*="st-key-relogio_tabela"] {
-    border: 1px solid var(--border-default) !important;
-    border-radius: var(--radius-md);
-    overflow: hidden;
-}
-[data-testid="stMain"] [class*="st-key-relogio_tabela"] [data-testid="stHorizontalBlock"] {
-    border-bottom: 1px solid var(--border-default);
-}
-[data-testid="stMain"] [class*="st-key-relogio_tabela"] [data-testid="stHorizontalBlock"]:last-child {
-    border-bottom: none;
-}
-[data-testid="stMain"] [class*="st-key-relogio_tabela"] [data-testid="stColumn"] {
-    border-right: 1px solid var(--border-default);
-    padding: 0.5rem 0.7rem !important;
-    /* O Streamlit centraliza a coluna verticalmente com margin auto — isso
-       impede a célula de ocupar a altura da linha. Zerando as margens (e
-       esticando) as linhas ficam contínuas, como numa tabela de verdade. */
-    margin-top: 0 !important;
-    margin-bottom: 0 !important;
-    align-self: stretch !important;
-}
-[data-testid="stMain"] [class*="st-key-relogio_tabela"] [data-testid="stColumn"] > div {
-    display: flex !important;
-    flex-direction: column !important;
-    justify-content: center !important;
-}
-[data-testid="stMain"] [class*="st-key-relogio_tabela"] [data-testid="stColumn"]:last-child {
-    border-right: none;
-}
-/* Faixa do cabeçalho. */
-[data-testid="stMain"] [class*="st-key-relogio_tabela"] [data-testid="stHorizontalBlock"]:first-child [data-testid="stColumn"] {
-    background-color: #262b38;
-}
-[data-testid="stMain"] .relogio-cabecalho {
-    font-family: 'Segoe UI', Tahoma, sans-serif !important;
-    text-transform: uppercase;
-    font-size: 0.6rem;
-    font-weight: 700;
-    letter-spacing: 0.4px;
-    color: #c3c7d1 !important;
-    /* Altura mínima igual para todos os cabeçalhos (um rótulo pode quebrar
-       em 2 linhas sem desnivelar a linha do cabeçalho). */
-    min-height: 2.6em;
-    display: flex;
-    align-items: center;
-}
+/* Tempo e nome do arquivo em fonte monoespaçada. */
 [data-testid="stMain"] .relogio-mono {
     font-family: Consolas, 'Courier New', monospace !important;
     font-size: 0.82rem;
     color: #e4e6ec !important;
 }
-/* Download dos dados: verde fosco. */
+/* Download dos dados: verde fosco (borda e texto). */
 [data-testid="stMain"] [class*="st-key-ca_dl_dados_"] button {
-    background-color: #2f6b4f !important;
-    border-color: #3a7d58 !important;
-    color: #f2fbf5 !important;
+    background-color: transparent !important;
+    border: 1px solid #4a8a63 !important;
+    color: #93d6ac !important;
     font-size: 0.78rem !important;
-    padding: 0.4rem 0.6rem !important;
+    padding: 0.35rem 0.8rem !important;
 }
 [data-testid="stMain"] [class*="st-key-ca_dl_dados_"] button:hover {
-    background-color: #3a7d58 !important;
+    background-color: rgba(74, 138, 99, 0.18) !important;
 }
-/* Download das pendências: vermelho fosco. */
+/* Download das pendências: vermelho fosco (borda e texto). */
 [data-testid="stMain"] [class*="st-key-ca_dl_pend_"] button {
-    background-color: #7a3535 !important;
-    border-color: #963f3f !important;
-    color: #fdf2f2 !important;
+    background-color: transparent !important;
+    border: 1px solid #9c4a4a !important;
+    color: #e5a3a3 !important;
     font-size: 0.78rem !important;
-    padding: 0.4rem 0.6rem !important;
+    padding: 0.35rem 0.8rem !important;
 }
 [data-testid="stMain"] [class*="st-key-ca_dl_pend_"] button:hover {
-    background-color: #963f3f !important;
+    background-color: rgba(156, 74, 74, 0.18) !important;
 }
 </style>
 """
@@ -276,7 +219,12 @@ def _mime_do_arquivo(nome: str) -> str:
     return "application/octet-stream"
 
 
-def _botao_download(caminho: str, rotulo: str, chave: str) -> None:
+def _botao_download(
+    caminho: str,
+    rotulo: str,
+    chave: str,
+    largura: str = "stretch",
+) -> None:
     """Botão de download que só lê o arquivo no clique (data como callable)."""
     arquivo = Path(caminho)
     st.download_button(
@@ -285,22 +233,27 @@ def _botao_download(caminho: str, rotulo: str, chave: str) -> None:
         file_name=arquivo.name,
         mime=_mime_do_arquivo(arquivo.name),
         key=chave,
-        use_container_width=True,
+        width=largura,
     )
 
 
 #: Larguras das colunas da tabela de resultados.
-_COLUNAS_TABELA = [1.5, 1.0, 1.1, 2.5, 1.55, 1.85]
+LARGURAS = [2, 1.3, 1.1, 3.2, 1.3, 1.5]
 
 #: Cabeçalho da tabela de resultados.
-_CABECALHOS = (
-    "Tipo de Dados",
-    "Status",
-    "Tempo de coleta",
-    "Nome do arquivo",
-    "Download dos Dados",
-    "Download das Pendências",
-)
+CABECALHO = ["Tipo de dados", "Status", "Tempo", "Arquivo", "Dados", "Pendências"]
+
+#: Ícone (bolinha colorida) de cada situação da tabela.
+ICONES = {
+    "concluida": "🟢",
+    "concluida_sem_dados": "🟡",
+    "em_andamento": "🔵",
+    "pendente": "🟡",
+    "falhou": "🔴",
+    "interrompida": "🟠",
+    "nao_executada": "⚪",
+}
+assert set(ICONES) == set(SITUACOES), "situação sem ícone na tabela"
 
 
 def _tabela_etapas(
@@ -316,16 +269,13 @@ def _tabela_etapas(
     """
     por_chave = {r.chave: r for r in resultados}
 
-    st.markdown("**Tempo por aplicação**")
+    with st.container(border=True):
+        st.subheader("Tempo por aplicação")
 
-    with st.container(key="relogio_tabela"):
-        cabecalho = st.columns(_COLUNAS_TABELA, vertical_alignment="center")
-        for coluna, titulo in zip(cabecalho, _CABECALHOS):
-            with coluna:
-                st.markdown(
-                    f"<span class='relogio-cabecalho'>{titulo}</span>",
-                    unsafe_allow_html=True,
-                )
+        # Cabeçalho: rótulo curto e discreto em cada coluna.
+        for coluna, titulo in zip(st.columns(LARGURAS), CABECALHO):
+            coluna.caption(f"**{titulo}**")
+        st.divider()
 
         for etapa in selecionadas:
             resultado = por_chave.get(etapa.chave)
@@ -348,16 +298,13 @@ def _tabela_etapas(
                 artefato = None
                 pendencias = None
 
-            colunas = st.columns(_COLUNAS_TABELA, vertical_alignment="center")
+            colunas = st.columns(LARGURAS, vertical_alignment="center")
             with colunas[0]:
-                st.markdown(etapa.titulo)
+                st.write(etapa.titulo)
             with colunas[1]:
-                cor = _COR_SITUACAO.get(situacao, "#b2b5be")
-                st.markdown(
-                    f"<span style='color:{cor}'>"
-                    f"{_ROTULO_SITUACAO.get(situacao, situacao)}</span>",
-                    unsafe_allow_html=True,
-                )
+                icone = ICONES.get(situacao, "⚪")
+                rotulo = _ROTULO_SITUACAO.get(situacao, situacao)
+                st.write(f"{icone} {rotulo}")
             with colunas[2]:
                 st.markdown(
                     f"<span class='relogio-mono'>{_duracao(segundos)}</span>",
@@ -376,21 +323,24 @@ def _tabela_etapas(
                         unsafe_allow_html=True,
                     )
                 else:
-                    st.markdown("—")
+                    st.write("—")
             with colunas[4]:
                 if artefato:
                     _botao_download(
                         artefato,
-                        "Download de Dados",
+                        "Baixar",
                         f"ca_dl_dados_{etapa.chave}",
+                        largura="content",
                     )
             with colunas[5]:
                 if pendencias:
                     _botao_download(
                         pendencias,
-                        "Download das Pendências",
+                        "Baixar",
                         f"ca_dl_pend_{etapa.chave}",
+                        largura="content",
                     )
+            st.divider()
 
 
 def _tela_rodada() -> None:
