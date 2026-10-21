@@ -17,6 +17,7 @@ uv add <pacote>                                     # adicionar dependência
 - **Entrypoint**: `app.py` — HUB Streamlit com navegação lateral
 - **10 apps** em `apps/`, cada uma autocontida, + código compartilhado em `apps/common/` (`auth`, `banner`, `browser`, `coleta`, `export`, `orientacoes`, `school_list`, `session`, `ui`):
   - `inicio/` — página inicial + documentação completa em PDF
+  - `coleta_automatica/` — roda as 6 coletas do Educacenso em sequência, em background, e gera um ZIP único com o tempo de cada etapa
   - `coleta_cadastros_escolas/` — raspa dados de escolas do Educacenso → XLSX (6 abas)
   - `coleta_gestor/` — raspa dados de gestores → XLSX (3 abas)
   - `coleta_relatorios/` — baixa relatórios CSV (turmas/alunos/profissionais) → ZIP
@@ -28,6 +29,7 @@ uv add <pacote>                                     # adicionar dependência
   - `unificador_inconsistencias/` — unifica os relatórios de inconsistências por unidade escolar → XLSX
 - **As coletas seguem o mesmo padrão**: `auth.py` + scraper + `frontend.py` + exporter/zipper + `modelo.py`; a lista de escolas vem de `apps/common/school_list.py`
 - **Relógio da coleta**: as 4 apps de coleta registram horário inicial, horário de término e tempo de execução (`apps/common/ui.py`: `start_base` marca o início, a thread de coleta marca o fim, `finalize_base` consolida). Durante a coleta o monitor (`monitor_base`) desenha um relógio digital que atualiza a cada 0,5s; ao final, o resumo dos tempos aparece junto do download persistente.
+- **Coleta Automática** (`apps/coleta_automatica/`): roda as 6 coletas em sequência numa thread (`src/runner.py`), reaproveitando o worker de cada app (`src/etapas.py`); a tela (`src/frontend.py`) mostra o relógio, o tempo por etapa e o download de cada artefato, e entrega o ZIP único. Etapa sem coleta → a rodada **pausa e pergunta**; etapa com erro → a rodada **para**.
 - **Layout comum das telas**: cabeçalho padrão (logo + título + subtítulo, sobre o cartão `.title-container`) renderizado por `apps/common/banner.py` (`banner_titulo`) + conteúdo principal em `st.columns([1.4, 1])`; o card "Orientações de uso" fica sempre na coluna direita e é renderizado por `apps/common/orientacoes.py` (`card_orientacoes`)
 - **Botões**: o botão de ação de toda tela chama-se **Executar** (inclusive nas 3 apps de adequação, nas 5 telas de verificação e no unificador) e todos os botões da área de conteúdo (`stButton`, `stDownloadButton` e submit de formulário) são azuis (`--status-info`); o menu lateral mantém o estilo de item de menu (transparente, item ativo em azul)
 - **Templates de modelo**: `apps/coleta_cadastros_escolas/docs/modelo_coleta.xlsx` (6 abas) e `apps/coleta_gestor/docs/modelo_coleta_gestor.xlsx` (3 abas); referências de estrutura (só cabeçalho) em `apps/verificacao_inconsistencias/docs/`
