@@ -79,3 +79,21 @@ def test_resultado_com_erro_mostra_erro():
     assert not at.exception
     erros = [e.value for e in at.error]
     assert any("não encontrada no arquivo" in e for e in erros), erros
+
+
+def test_tela_de_turmas_titula_as_duas_etapas():
+    """A tela de Cadastro de Turmas nomeia as duas etapas: base e relatório."""
+    at = _rodar("turmas", [])
+    assert not at.exception
+    titulos = [s.value for s in at.subheader]
+    assert "GERAR BASE DE DADOS" in titulos, titulos
+    assert "GERAR RELATÓRIO DE INCONSISTÊNCIAS" in titulos, titulos
+
+
+def test_telas_sem_split_nao_mostram_os_titulos_de_turmas():
+    """Os títulos são específicos da tela de Turmas."""
+    at = _rodar("gestor", [])
+    assert not at.exception
+    titulos = [s.value for s in at.subheader]
+    assert "GERAR BASE DE DADOS" not in titulos, titulos
+    assert "GERAR RELATÓRIO DE INCONSISTÊNCIAS" not in titulos, titulos

@@ -573,6 +573,8 @@ def render_validation_frontend(config: dict, logo_base64: str | None = None) -> 
 
                 if is_aluno:
                     st.markdown("**LISTAGEM DE ALUNOS**")
+                elif is_turmas:
+                    st.subheader("GERAR BASE DE DADOS")
 
                 _render_download_grid(opcoes)
 
@@ -636,6 +638,9 @@ def render_validation_frontend(config: dict, logo_base64: str | None = None) -> 
 
                 if not is_aluno:
                     st.divider()
+
+                    if is_turmas:
+                        st.subheader("GERAR RELATÓRIO DE INCONSISTÊNCIAS")
 
                     if st.button("Executar", key=f"{prefix}btn_validar", type="primary"):
                         with st.spinner("Carregando Relatório de Inconsistências..."):
