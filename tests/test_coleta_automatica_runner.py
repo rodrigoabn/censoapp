@@ -150,3 +150,24 @@ def test_interrupcao_entre_etapas_marca_nao_executada(tmp_path):
         "nao_executada",
     ]
     assert estado["interrompida"] is True
+
+
+def test_pacote_completo_reune_os_artefatos_em_pastas(tmp_path):
+    from apps.coleta_automatica.src.runner import montar_pacote
+
+    estado = _rodar([_etapa("a"), _etapa("b")], tmp_path=tmp_path)
+    zip_path = montar_pacote(estado["resultados"], tmp_path)
+    assert zip_path is not None and zip_path.exists()
+
+    import zipfile
+
+    with zipfile.ZipFile(zip_path) as z:
+        nomes = z.namelist()
+    assert any(n.startswith("a/") for n in nomes)
+    assert any(n.startswith("b/") for n in nomes)
+
+
+def test_rodada_sem_coleta_nao_gera_pacote(tmp_path):
+    estado = _rodar([_etapa("a", coletadas=0)], tmp_path=tmp_path)
+    assert estado["resultados"][0].caminho_artefato is None
+    assert estado["pacote"] is None

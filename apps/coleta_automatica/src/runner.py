@@ -17,11 +17,12 @@ from __future__ import annotations
 
 import threading
 import time
+import zipfile
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, Sequence
 
-from apps.common.export import build_pending_xlsx, remover_temp
+from apps.common.export import build_pending_xlsx, output_filename, remover_temp
 
 from .etapas import Etapa
 
@@ -68,6 +69,29 @@ def _aguardar_confirmacao(
         if continuar_event.wait(timeout=0.2):
             continuar_event.clear()
             return True
+
+
+def montar_pacote(resultados: Sequence[ResultadoEtapa], pasta_base: Path) -> Path | None:
+    """Reúne os artefatos das etapas em um ZIP único, uma pasta por etapa.
+
+    Devolve o caminho do ZIP criado ou ``None`` quando nenhuma etapa produziu
+    artefato.
+    """
+    com_artefato = [r for r in resultados if r.caminho_artefato]
+    if not com_artefato:
+        return None
+
+    pasta_base = Path(pasta_base)
+    pasta_base.mkdir(parents=True, exist_ok=True)
+    destino = pasta_base / output_filename("coleta_completa", ext=".zip")
+    with zipfile.ZipFile(destino, "w", zipfile.ZIP_DEFLATED) as pacote:
+        for resultado in com_artefato:
+            arquivo = Path(resultado.caminho_artefato)
+            pacote.write(arquivo, f"{resultado.chave}/{arquivo.name}")
+            if resultado.caminho_pendencias:
+                pendencias = Path(resultado.caminho_pendencias)
+                pacote.write(pendencias, f"{resultado.chave}/{pendencias.name}")
+    return destino
 
 
 def executar_rodada(
@@ -207,5 +231,12 @@ def executar_rodada(
             )
         )
         remover_temp(pasta_etapa)
+
+    # O pacote completo só existe quando a rodada chegou ao fim sem
+    # interrupção nem falha.
+    if not estado.get("interrompida"):
+        destino = montar_pacote(resultados, pasta_base)
+        if destino is not None:
+            publicar(pacote=(str(destino), destino.name))
 
     publicar(etapa_atual=None, shared_etapa=None)
