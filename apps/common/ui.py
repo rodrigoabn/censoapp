@@ -19,6 +19,8 @@ from typing import Callable
 
 import streamlit as st
 
+from apps.common.session import LoginFalhou
+
 RELOGIO_CSS = """
 <style>
 /* Cores do relógio digital: azul do mostrador e o brilho dele. */
@@ -270,6 +272,13 @@ def worker_base(
 
         with lock:
             shared["failures"] = failures
+    except LoginFalhou as exc:
+        # Falha de login é fatal: a rodada precisa parar e orientar o usuário
+        # a verificar login/senha (não pausar oferecendo "Continuar").
+        with lock:
+            shared["error"] = str(exc) or "Login não concluído: verifique login e senha."
+            shared["login_falhou"] = True
+            shared["login_mensagem"] = exc.mensagem
     except Exception as exc:  # noqa: BLE001
         with lock:
             shared["error"] = str(exc)

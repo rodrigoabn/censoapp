@@ -184,6 +184,35 @@ def registrar_sucesso(outputs, on_school_done, escola, dados) -> None:
     outputs.append((escola, dados))
 
 
+def _mascarar_login(texto: str, login: str) -> str:
+    """Remove o CPF/login de mensagens do portal antes de logar/exibir.
+
+    Só mascara valores com 6+ caracteres: em testes o login é curto ("l") e a
+    substituição ingênua corromperia palavras da própria mensagem.
+    """
+    if texto and login and len(login) >= 6:
+        return texto.replace(login, "***")
+    return texto
+
+
+def _detalhe_falha_login(exc: BaseException | None, login: str) -> str:
+    """Motivo legível de uma falha de login (para o log e para a tela)."""
+    if isinstance(exc, LoginFalhou):
+        detalhe = exc.detalhe or exc.mensagem
+        if detalhe:
+            return _mascarar_login(detalhe, login)
+        return (
+            "O formulário de login continuou visível após a tentativa "
+            "(login ou senha não aceitos)."
+        )
+    if exc is None:
+        return "Falha de login sem detalhe."
+    texto = _mascarar_login(str(exc).strip(), login)
+    if texto:
+        return f"{type(exc).__name__}: {texto}"
+    return f"{type(exc).__name__} (sem detalhe)"
+
+
 def run_coleta(
     browser,
     login: str,
@@ -201,9 +230,16 @@ def run_coleta(
 ) -> tuple[list[tuple[dict, Any]], list[dict]]:
     """Varre a lista de escolas em loop, com sessão única reutilizada.
 
-    Fluxo: login uma única vez (2 tentativas em caso de `LoginFalhou`), loop de
-    escolas com re-login automático quando a sessão Keycloak expirar (antes da
-    escola ou ao abrir a ficha) e encerramento da sessão no final.
+    Fluxo: login uma única vez (2 tentativas em caso de `LoginFalhou` sem
+    mensagem do portal), loop de escolas com re-login automático quando a
+    sessão Keycloak expirar (antes da escola ou ao abrir a ficha) e
+    encerramento da sessão no final.
+
+    Falha no login inicial é **fatal**: o motivo (incluindo a mensagem exibida
+    pelo portal, ex.: "Nome de usuário ou senha inválida.") é logado e a função
+    levanta `LoginFalhou`, para a rodada parar e orientar o usuário a verificar
+    as credenciais — em vez de devolver todas as escolas como "Falha no login"
+    e a rodada pausar oferecendo "Continuar".
     """
     _assert_read_only()
     t_inicio = time.monotonic()
@@ -215,33 +251,41 @@ def run_coleta(
     page = context.new_page()
     logged_in = False
     ultimo_erro: BaseException | None = None
-    for _attempt in range(2):
+    for tentativa in range(1, 3):
         try:
             hooks.login_and_read(page, login, senha)
             logged_in = True
             break
         except LoginFalhou as exc:
             ultimo_erro = exc
-            time.sleep(1)
+            detalhe = _detalhe_falha_login(exc, login)
+            logger.warning(
+                f"Tentativa de login {tentativa}/2 não concluída: {detalhe}"
+            )
+            # Mensagem do portal = recusa definitiva (senha incorreta, conta
+            # bloqueada etc.): repetir não resolve e pode consumir tentativas
+            # da conta. Só repete quando a tela não explicou o motivo.
+            if exc.mensagem:
+                break
+            if tentativa < 2:
+                time.sleep(1)
             continue
         except Exception as exc:  # noqa: BLE001
             ultimo_erro = exc
+            logger.warning(
+                "Tentativa de login "
+                f"{tentativa}/2 falhou: {_detalhe_falha_login(exc, login)}"
+            )
             break
 
     if not logged_in:
-        logger.error(textos.log_abort)
-        falha_de_login = e_timeout(ultimo_erro) if ultimo_erro is not None else False
-        failures.extend(
-            {
-                "codigo_inep": e["codigo_inep"],
-                "nome_unidade": e.get("nome_unidade", ""),
-                "motivo": "Falha no login",
-                "timeout": falha_de_login,
-            }
-            for e in escolas
-        )
+        detalhe = _detalhe_falha_login(ultimo_erro, login)
+        logger.error(f"{textos.log_abort} Motivo: {detalhe}")
         hooks.safe_cleanup(context, page)
-        return outputs, failures
+        mensagem = getattr(ultimo_erro, "mensagem", None)
+        if mensagem:
+            mensagem = _mascarar_login(str(mensagem), login)
+        raise LoginFalhou(mensagem, detalhe=detalhe) from ultimo_erro
 
     logger.info(textos.log_inicio_loop)
 

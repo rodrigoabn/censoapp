@@ -49,17 +49,14 @@ def _sem_espera(monkeypatch):
     monkeypatch.setattr("time.sleep", lambda *_: None)
 
 
-def test_login_falho_marca_todas_as_escolas(monkeypatch):
+def test_login_falho_aborta_a_coleta(monkeypatch):
     def _falha(*a, **k):
-        raise scraper.LoginFalhou()
+        raise scraper.LoginFalhou("Nome de usuário ou senha inválida.")
 
     monkeypatch.setattr(scraper, "_login_and_read", _falha)
-    outputs, failures = scraper.run_scraping(_BrowserFalso(), "l", "s", ESCOLAS)
-    assert outputs == []
-    assert failures == [
-        {"codigo_inep": "111", "nome_unidade": "Escola Um", "motivo": "Falha no login", "timeout": False},
-        {"codigo_inep": "222", "nome_unidade": "Escola Dois", "motivo": "Falha no login", "timeout": False},
-    ]
+    with pytest.raises(scraper.LoginFalhou) as excinfo:
+        scraper.run_scraping(_BrowserFalso(), "l", "s", ESCOLAS)
+    assert excinfo.value.mensagem == "Nome de usuário ou senha inválida."
 
 
 def test_escola_nao_encontrada_vira_falha(monkeypatch):

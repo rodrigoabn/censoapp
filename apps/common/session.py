@@ -29,8 +29,18 @@ def tentativas_navegacao() -> int:
 
 
 class LoginFalhou(Exception):
-    """Login não concluído (instabilidade): o botão '#kc-login' não habilitou
-    e o formulário de login continuou visível após a tentativa."""
+    """Login não concluído.
+
+    ``mensagem`` é o texto exibido pelo portal (ex.: "Nome de usuário ou senha
+    inválida.") quando ele foi capturado; ``None`` quando a tela não exibiu
+    mensagem (instabilidade/timeout). ``detalhe`` é o texto para o log e para a
+    tela, que pode incluir a exceção original.
+    """
+
+    def __init__(self, mensagem: str | None = None, *, detalhe: str | None = None):
+        self.mensagem = " ".join(str(mensagem).split()) if mensagem else None
+        self.detalhe = " ".join(str(detalhe).split()) if detalhe else None
+        super().__init__(self.detalhe or self.mensagem or "")
 
 
 class SessaoExpirada(Exception):
@@ -40,8 +50,52 @@ class SessaoExpirada(Exception):
 
 MOTIVO_INTERROMPIDO = "Coleta interrompida (não processada)"
 
+#: Seletores da mensagem de erro exibida pelo Keycloak na tela de login.
+#:
+#: O Educacenso usa RH-SSO 7.3 (base Keycloak 7), cujo tema padrão renderiza a
+#: mensagem em ``div.alert.alert-error > span.kc-feedback-text``. Os demais
+#: seletores cobrem temas novos/alternativos (``#input-error`` é o usado nas
+#: versões mais recentes).
+SELETORES_MENSAGEM_LOGIN = (
+    ".kc-feedback-text",
+    "#input-error",
+    "#kc-error-message",
+    ".alert-error",
+    ".alert-danger",
+    ".pf-c-alert__title",
+    "[role='alert']",
+)
+
+
+def mensagem_erro_login(page: Page) -> str | None:
+    """Texto do erro de login exibido pelo portal (``None`` quando não há).
+
+    Lê primeiro os seletores mais específicos (a mensagem em si) e só depois os
+    contêineres de alerta; o texto é normalizado em uma única linha.
+    """
+    for seletor in SELETORES_MENSAGEM_LOGIN:
+        try:
+            locator = page.locator(seletor)
+            if locator.count() == 0:
+                continue
+            item = locator.first
+            if not item.is_visible():
+                continue
+            texto = " ".join((item.inner_text() or "").split())
+            if texto:
+                return texto
+        except Exception:  # noqa: BLE001 — seletor ausente/tema diferente
+            continue
+    return None
+
 
 def login_and_read(page: Page, login: str, senha: str) -> None:
+    """Faz o login no Keycloak e aguarda a saída do formulário.
+
+    Levanta ``LoginFalhou`` com a mensagem exibida pelo portal quando o
+    formulário de login continua visível (ex.: "Nome de usuário ou senha
+    inválida.").
+    """
     _assert_read_only()
     page.goto(f"{BASE_URL}/escola/pesquisar", wait_until="domcontentloaded", timeout=30000)
     wait_loader(page)
@@ -66,8 +120,10 @@ def login_and_read(page: Page, login: str, senha: str) -> None:
     page.wait_for_timeout(4000)
 
     # Verifica se o login foi concluído (formulário não deve mais estar visível).
+    # Se o portal recusou as credenciais, a mensagem exibida (ex.: "Nome de
+    # usuário ou senha inválida.") vai junto na exceção e no log.
     if page.locator("input#username").is_visible():
-        raise LoginFalhou()
+        raise LoginFalhou(mensagem_erro_login(page))
 
 
 def raise_if_expired(page: Page) -> None:

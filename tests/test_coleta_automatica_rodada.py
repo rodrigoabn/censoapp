@@ -445,3 +445,61 @@ def test_rerun_da_rodada_sai_fora_do_card(monkeypatch):
     assert st_falso.profundidade_no_rerun == 0, (
         "o rerun da rodada saiu de dentro de um card"
     )
+
+
+def test_resultado_de_login_invalido_orienta_a_verificar_credenciais(monkeypatch):
+    """Senha incorreta: mostra a mensagem do portal e NÃO oferece Continuar."""
+    estado = _rodada()
+    estado["ca_running"] = False
+    estado["ca_finalized"] = True
+    estado["ca_fim"] = datetime(2026, 10, 20, 21, 16, 0)
+    estado["ca_estado"]["resultados"] = [
+        ResultadoEtapa(
+            chave="cadastros_escolas",
+            titulo="Cadastros das escolas",
+            situacao="falhou",
+            segundos=4.0,
+            motivo="Nome de usuário ou senha inválida.",
+            erro_login=True,
+            mensagem_login="Nome de usuário ou senha inválida.",
+        )
+    ]
+    st_falso = _StFalso(estado)
+    monkeypatch.setattr(frontend, "st", st_falso)
+
+    frontend._tela_resultado()
+
+    texto = " ".join(st_falso.avisos)
+    assert "Login ou senha incorretos" in texto
+    assert "Nome de usuário ou senha inválida." in texto
+    rotulos = [b[0] for b in st_falso.botoes]
+    assert "Continuar" not in rotulos
+    assert "Nova rodada" in rotulos
+    assert "Login inválido" in st_falso.texto
+
+
+def test_resultado_de_login_sem_mensagem_nao_afirma_senha_incorreta(monkeypatch):
+    """Instabilidade no login: orienta verificar credenciais sem inventar motivo."""
+    estado = _rodada()
+    estado["ca_running"] = False
+    estado["ca_finalized"] = True
+    estado["ca_fim"] = datetime(2026, 10, 20, 21, 16, 0)
+    estado["ca_estado"]["resultados"] = [
+        ResultadoEtapa(
+            chave="cadastros_escolas",
+            titulo="Cadastros das escolas",
+            situacao="falhou",
+            segundos=4.0,
+            motivo="PlaywrightTimeoutError: Page.goto: Timeout 30000ms exceeded.",
+            erro_login=True,
+        )
+    ]
+    st_falso = _StFalso(estado)
+    monkeypatch.setattr(frontend, "st", st_falso)
+
+    frontend._tela_resultado()
+
+    texto = " ".join(st_falso.avisos)
+    assert "Não foi possível concluir o login" in texto
+    assert "Login ou senha incorretos" not in texto
+    assert "Continuar" not in [b[0] for b in st_falso.botoes]

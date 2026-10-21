@@ -7,7 +7,9 @@ Estados da tela:
 - **rodada pausada** — uma etapa rodou sem coletar nada: a tela pergunta se
   a rodada deve continuar;
 - **rodada concluída** — resumo dos tempos e pacote completo;
-- **rodada interrompida** — o pacote completo não é gerado.
+- **rodada interrompida** — o pacote completo não é gerado;
+- **falha de login** — a rodada para e a tela orienta a verificar login/senha
+  (sem oferecer "Continuar").
 
 A tela **não** usa ``st.form``: o botão "Executar" fica no fim das opções
 selecionáveis e o contador de selecionadas precisa atualizar a cada clique.
@@ -307,26 +309,32 @@ def _tabela_etapas(
                 motivo = resultado.motivo
                 artefato = resultado.caminho_artefato
                 pendencias = resultado.caminho_pendencias
+                erro_login = bool(getattr(resultado, "erro_login", False))
             elif etapa.chave == etapa_atual:
                 situacao = "em_andamento"
                 segundos = segundos_atual
                 motivo = None
                 artefato = None
                 pendencias = None
+                erro_login = False
             else:
                 situacao = "pendente"
                 segundos = 0.0
                 motivo = None
                 artefato = None
                 pendencias = None
+                erro_login = False
 
             colunas = st.columns(LARGURAS, vertical_alignment="center")
             with colunas[0]:
                 st.write(etapa.titulo)
             with colunas[1]:
-                icone = ICONES.get(situacao, "⚪")
-                rotulo = _ROTULO_SITUACAO.get(situacao, situacao)
-                st.write(f"{icone} {rotulo}")
+                if erro_login:
+                    st.write("🔴 Login inválido")
+                else:
+                    icone = ICONES.get(situacao, "⚪")
+                    rotulo = _ROTULO_SITUACAO.get(situacao, situacao)
+                    st.write(f"{icone} {rotulo}")
             with colunas[2]:
                 st.markdown(
                     f"<span class='relogio-mono'>{_duracao(segundos)}</span>",
@@ -479,6 +487,25 @@ def _fragmento_rodada() -> None:
     _tela_rodada(estado)
 
 
+def _aviso_login(resultado) -> None:
+    """Aviso de login recusado: orienta a corrigir as credenciais.
+
+    A mensagem do portal (quando capturada) aparece junto: é ela que diz, por
+    exemplo, "Nome de usuário ou senha inválida.".
+    """
+    if getattr(resultado, "mensagem_login", None):
+        st.error(
+            "**Login ou senha incorretos.** O Educacenso informou: "
+            f"“{resultado.mensagem_login}”. "
+            "Verifique seu login (CPF) e sua senha e execute a coleta novamente."
+        )
+        return
+    st.error(
+        "**Não foi possível concluir o login.** Verifique seu login (CPF), "
+        "sua senha e a conexão com o Educacenso e execute a coleta novamente."
+    )
+
+
 def _tela_resultado() -> None:
     """Estado 2/3: a rodada terminou (ou foi interrompida)."""
     ss = st.session_state
@@ -492,6 +519,12 @@ def _tela_resultado() -> None:
                 _relogio_resumo_conteudo_html(inicio, fim),
                 unsafe_allow_html=True,
             )
+    resultados = estado.get("resultados") or []
+    falha_login = next(
+        (r for r in resultados if getattr(r, "erro_login", False)), None
+    )
+    if falha_login is not None:
+        _aviso_login(falha_login)
 
     _tabela_etapas(
         estado.get("resultados") or [],

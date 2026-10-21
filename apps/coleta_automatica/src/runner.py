@@ -7,6 +7,9 @@ Regras da rodada:
 
 - as etapas rodam **em sequência**, na ordem do registro;
 - erro do worker ⇒ a etapa é "falhou" e a **rodada para**;
+- falha de login (`LoginFalhou`) ⇒ a etapa é "falhou" com o motivo exibido
+  pelo portal, a rodada para e a tela orienta a verificar login/senha (sem
+  oferecer "Continuar");
 - etapa que rodou sem erro mas **não coletou nenhuma escola** ⇒ a rodada
   **pausa** e pergunta ao usuário se deve continuar;
 - escola que falhou por **timeout** do Playwright ⇒ a escola é repetida **na
@@ -63,6 +66,10 @@ class ResultadoEtapa:
     caminho_artefato: str | None = None
     caminho_pendencias: str | None = None
     motivo: str | None = None
+    #: True quando a etapa parou porque o login no Educacenso falhou.
+    erro_login: bool = False
+    #: Mensagem exibida pelo portal no erro de login (quando capturada).
+    mensagem_login: str | None = None
 
 
 def _aguardar_confirmacao(
@@ -181,6 +188,8 @@ def _executar_etapa(
         "total": len(escolas),
         "done": False,
         "error": None,
+        "login_falhou": False,
+        "login_mensagem": None,
         "interrupted": False,
         "failures": [],
         "aviso": None,
@@ -222,6 +231,8 @@ def _executar_etapa(
                 situacao="falhou",
                 segundos=segundos,
                 motivo=str(erro),
+                erro_login=bool(shared.get("login_falhou")),
+                mensagem_login=shared.get("login_mensagem"),
             )
         )
         marcar_restantes(indice + 1)

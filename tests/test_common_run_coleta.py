@@ -1,10 +1,10 @@
 """Testes do motor genérico de coleta (`apps/common/coleta.py`) — Fase 4.4.
 
-Contrato: o laço canônico do Cadastros generalizado — login 2× (sleep(1)
-entre tentativas), stop_check antes/depois do scrape, `scrape_one → None` =
-escola não encontrada, retry pós-`SessaoExpirada` (na verificação de sessão e
-na ficha), motivos formatados, callback de gravação antes do append e pausa
-por escola. Tudo com hooks gravadores (DI), sem rede.
+Contrato: o laço canônico do Cadastros generalizado — login 2× em
+instabilidade (mensagem do portal aborta na hora), stop_check antes/depois do
+scrape, `scrape_one → None` = escola não encontrada, retry pós-`SessaoExpirada`
+(na verificação de sessão e na ficha), motivos formatados, callback de gravação
+antes do append e pausa por escola. Tudo com hooks gravadores (DI), sem rede.
 """
 
 from __future__ import annotations
@@ -117,7 +117,31 @@ def _nunca(context, page, codigo, nome):
 # ── login inicial ──────────────────────────────────────────────────────────
 
 
-def test_falha_de_login_marca_todas_e_faz_cleanup(caplog):
+def test_falha_de_login_com_mensagem_aborta_e_faz_cleanup(caplog):
+    """Senha recusada pelo portal: aborta na hora, loga o motivo e limpa a sessão."""
+    browser = _BrowserFalso()
+    tentativas = []
+
+    def login_and_read(page, login, senha):
+        tentativas.append(1)
+        raise coleta.LoginFalhou("Nome de usuário ou senha inválida.")
+
+    with caplog.at_level(logging.ERROR):
+        with pytest.raises(coleta.LoginFalhou) as excinfo:
+            _rodar(browser, ESCOLAS, _nunca, _hooks(login_and_read=login_and_read))
+
+    assert excinfo.value.mensagem == "Nome de usuário ou senha inválida."
+    assert excinfo.value.detalhe == "Nome de usuário ou senha inválida."
+    assert len(tentativas) == 1  # recusa do portal não é repetida
+    assert browser.contexto.limpo is True
+    assert browser.contexto.fechado is True
+    assert browser.contexto.pagina.fechada is True
+    assert "Falha no login inicial. Abortando coleta." in caplog.text
+    assert "Nome de usuário ou senha inválida." in caplog.text
+
+
+def test_falha_de_login_sem_mensagem_tenta_duas_vezes(caplog):
+    """Sem mensagem do portal (instabilidade), o login é repetido uma vez."""
     browser = _BrowserFalso()
     tentativas = []
 
@@ -126,18 +150,13 @@ def test_falha_de_login_marca_todas_e_faz_cleanup(caplog):
         raise coleta.LoginFalhou()
 
     with caplog.at_level(logging.ERROR):
-        outputs, failures = _rodar(browser, ESCOLAS, _nunca, _hooks(login_and_read=login_and_read))
+        with pytest.raises(coleta.LoginFalhou) as excinfo:
+            _rodar(browser, ESCOLAS, _nunca, _hooks(login_and_read=login_and_read))
 
-    assert outputs == []
-    assert failures == [
-        {"codigo_inep": "111", "nome_unidade": "Escola Um", "motivo": "Falha no login", "timeout": False},
-        {"codigo_inep": "222", "nome_unidade": "Escola Dois", "motivo": "Falha no login", "timeout": False},
-    ]
     assert len(tentativas) == 2
-    assert browser.contexto.limpo is True
+    assert excinfo.value.mensagem is None
+    assert "formulário de login continuou visível" in excinfo.value.detalhe
     assert browser.contexto.fechado is True
-    assert browser.contexto.pagina.fechada is True
-    assert "Falha no login inicial. Abortando coleta." in caplog.text
 
 
 def test_retry_de_login_apos_uma_falha(caplog):
@@ -525,16 +544,20 @@ def test_erro_comum_nao_e_marcado_como_timeout():
     assert failures[0]["timeout"] is False
 
 
-def test_timeout_no_login_marca_todas_as_escolas():
+def test_timeout_no_login_aborta_com_o_motivo(caplog):
     def login_and_read(page, login, senha):
         raise PlaywrightTimeoutError("Page.goto: Timeout 30000ms exceeded.")
 
-    _outputs, failures = _rodar(
-        _BrowserFalso(), ESCOLAS, _nunca, _hooks(login_and_read=login_and_read)
-    )
+    with caplog.at_level(logging.ERROR):
+        with pytest.raises(coleta.LoginFalhou) as excinfo:
+            _rodar(
+                _BrowserFalso(), ESCOLAS, _nunca, _hooks(login_and_read=login_and_read)
+            )
 
-    assert [f["motivo"] for f in failures] == ["Falha no login", "Falha no login"]
-    assert all(f["timeout"] is True for f in failures)
+    assert excinfo.value.mensagem is None
+    assert "TimeoutError" in excinfo.value.detalhe
+    assert "Page.goto: Timeout 30000ms exceeded." in excinfo.value.detalhe
+    assert "Page.goto: Timeout 30000ms exceeded." in caplog.text
 
 
 # ── nova tentativa por escola (só a rodada automática liga) ────────────────

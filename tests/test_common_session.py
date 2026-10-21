@@ -15,6 +15,15 @@ class _LocatorLoginFalso:
         self._pagina = pagina
         self._seletor = seletor
 
+    @property
+    def first(self):
+        return self
+
+    def count(self):
+        if self._seletor == "input#username":
+            return 1
+        return 1 if self._pagina.mensagem else 0
+
     def click(self, **k):
         self._pagina.chamadas.append(("click", self._seletor))
 
@@ -25,13 +34,19 @@ class _LocatorLoginFalso:
         self._pagina.chamadas.append(("press", self._seletor, tecla))
 
     def is_visible(self):
-        return self._pagina.form_visivel
+        if self._seletor == "input#username":
+            return self._pagina.form_visivel
+        return bool(self._pagina.mensagem)
+
+    def inner_text(self):
+        return self._pagina.mensagem
 
 
 class _PaginaLoginFalsa:
-    def __init__(self, *, form_visivel=False, botao_timeout=False):
+    def __init__(self, *, form_visivel=False, botao_timeout=False, mensagem=""):
         self.form_visivel = form_visivel
         self.botao_timeout = botao_timeout
+        self.mensagem = mensagem
         self.chamadas: list[tuple] = []
 
     def goto(self, url, **k):
@@ -74,8 +89,29 @@ def test_login_and_read_usa_enter_como_fallback_do_botao():
 def test_login_and_read_levanta_login_falhou_se_formulario_persiste():
     pagina = _PaginaLoginFalsa(form_visivel=True)
 
-    with pytest.raises(session.LoginFalhou):
+    with pytest.raises(session.LoginFalhou) as excinfo:
         session.login_and_read(pagina, "123", "senha")
+
+    assert excinfo.value.mensagem is None
+    assert excinfo.value.detalhe is None
+    assert str(excinfo.value) == ""
+
+
+def test_login_and_read_captura_a_mensagem_de_senha_incorreta():
+    """O Keycloak mostra a recusa em .kc-feedback-text; ela vai na exceção."""
+    pagina = _PaginaLoginFalsa(
+        form_visivel=True, mensagem="Nome de usuário ou senha inválida."
+    )
+
+    with pytest.raises(session.LoginFalhou) as excinfo:
+        session.login_and_read(pagina, "123", "senha")
+
+    assert excinfo.value.mensagem == "Nome de usuário ou senha inválida."
+    assert str(excinfo.value) == "Nome de usuário ou senha inválida."
+
+
+def test_mensagem_erro_login_sem_alerta_devolve_none():
+    assert session.mensagem_erro_login(_PaginaLoginFalsa()) is None
 
 
 # ──────────────────────────── raise_if_expired ─────────────────────────

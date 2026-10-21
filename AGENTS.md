@@ -40,6 +40,13 @@ uv add <pacote>                                     # adicionar dependência
 - **`READ_ONLY = True`** em todo `auth.py` — jamais escrever dados no Educacenso
 - **Fluxo de login**: Keycloak em `acesso.inep.gov.br`, CPF + senha
 - **Hierarquia de exceções**: `SessaoExpirada`, `LoginFalhou`, `ReciboIndisponivel`, `PreenchimentoNaoIniciado`
+- **Senha incorreta**: `login_and_read` captura a mensagem exibida pelo
+  Keycloak (`.kc-feedback-text`, `#input-error`, `.alert-error`) e levanta
+  `LoginFalhou(mensagem)`; `run_coleta` loga o motivo e **aborta a etapa** (não
+  devolve as escolas como "Falha no login"). A rodada marca a etapa como
+  `falhou`, não pausa e a tela orienta "Login ou senha incorretos" (sem botão
+  Continuar). O login só é repetido quando o portal não exibiu mensagem
+  (instabilidade).
 - **Logs personalizados em português** (`logger = logging.getLogger("coleta_*")`)
 - **Nova tentativa em timeout (só na rodada)**: escola que falha por timeout do
   Playwright (`wait_for_selector`, `goto`, `click`, `expect_download`) é repetida
@@ -80,7 +87,7 @@ uv add <pacote>                                     # adicionar dependência
 
 ## Testes
 
-- `tests/` cobre a suíte offline (fakes, sem rede): `uv run python -m pytest` → 698 passed / 19 skipped; lint com `uv run ruff check .`
+- `tests/` cobre a suíte offline (fakes, sem rede): `uv run python -m pytest` → 705 passed / 19 skipped; lint com `uv run ruff check .`
 - `tests/security/` é ao vivo; **os 19 testes HTTP de segurança são pulados por padrão** — exigem `SECURITY_LIVE=1`
 - Alvo via `SECURITY_TARGET` (**obrigatório** — sem padrão; ex.: `http://localhost:8501/`); não há TLS/HSTS/Caddy nesta modalidade
 - Não intrusivos: poucas requisições, sem fuzzing/brute-force
@@ -107,3 +114,4 @@ HUB com 7 apps em `apps/` — Tela Inicial + Coleta de Dados (1), Adequação (3
 9. **Coleta do Gestor corrigida**: o vínculo é aberto por `list` → **`editing`** no modal (o código anterior exigia `visibility`, que o modal não tem); após extrair o vínculo, todos os diálogos são fechados e a Fase B espera as abas `Identificação`/`Dados pessoais` antes de extrair. Corrige a planilha que saía sem dados; regressão em `tests/test_coleta_gestor_fluxo.py` (merge `151e189`).
 10. **Operação local**: HUB sobe com `uv sync` + `uv run streamlit run app.py` (sem Docker, Caddy ou TLS) e sem tela de senha; a porta é escolhida na hora e o reinício é feito pelo script externo do operador. A antiga stack de intranet (compose/OIDC/Caddy/HSTS) foi removida; a auditoria de segurança ficou restrita a métodos HTTP e exposição de arquivos.
 11. **Tela da Coleta de Dados**: o relógio é um `st.container(border=True)` com o botão de interromper (ou de continuar/encerrar, na pausa) **dentro** do card, à direita; a linha "Escola atual: …" também fica nele — e, durante um retry por timeout, ele mostra `Nome (código): nova tentativa N de 5 (timeout)…` (aviso publicado em `shared["aviso"]`, limpo quando a coleta recomeça). O redesenho é por **`st.fragment(run_every=0.5)`** (não `sleep` + `st.rerun()`) — abortar o script no meio deixava na árvore do frontend os restos da tela anterior (Orientações e "Aplicações a coletar" reapareciam junto com a rodada). A tabela de resultados segue o desenho aprovado: `st.subheader` + cabeçalho em `st.caption` + um `st.divider()` por linha, status com bolinha colorida (🟢🟡🔴) e downloads rotulados "Baixar" (verde fosco nos dados, vermelho fosco nas pendências).
+12. **Senha incorreta na rodada**: `login_and_read` lê a mensagem do Keycloak (`.kc-feedback-text`; o portal usa RH-SSO 7.3, tema padrão) e levanta `LoginFalhou(mensagem)`; `run_coleta` registra no log `Falha no login inicial. Abortando coleta. Motivo: <mensagem do portal>` e **levanta** a exceção (não devolve as escolas como "Falha no login"). O worker publica `shared["login_falhou"]`/`shared["login_mensagem"]`; a etapa vira `falhou` com `erro_login`, a rodada **não pausa** e a tela mostra "Login ou senha incorretos" + a mensagem do portal, com "Nova rodada" (sem "Continuar"). Login só é repetido quando o portal não exibiu mensagem (instabilidade). Testes: `test_common_session.py`, `test_common_run_coleta.py`, `test_common_ui.py`, `test_coleta_automatica_runner.py`, `test_coleta_automatica_rodada.py`.

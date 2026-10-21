@@ -177,3 +177,62 @@ def test_chromium_already_installed_dry_run_falha(monkeypatch):
     falso = _SubprocessFalso(erro=RuntimeError("playwright ausente"))
     monkeypatch.setattr(ui.subprocess, "run", falso.run)
     assert ui.chromium_already_installed() is False
+
+
+# ── worker_base: falha de login ─────────────────────────────────────────────
+
+
+class _BrowserWorkerFalso:
+    def __init__(self):
+        self.fechado = False
+
+    def close(self):
+        self.fechado = True
+
+
+class _ChromiumWorkerFalso:
+    def __init__(self):
+        self.browser = _BrowserWorkerFalso()
+
+    def launch(self, **kwargs):
+        return self.browser
+
+
+class _PlaywrightWorkerFalso:
+    def __init__(self):
+        self.chromium = _ChromiumWorkerFalso()
+
+    def __enter__(self):
+        return self
+
+    def __exit__(self, *exc):
+        return False
+
+
+def test_worker_base_registra_falha_de_login(monkeypatch):
+    """O worker precisa publicar o motivo e a marca de login para a rodada."""
+    from apps.common.session import LoginFalhou
+
+    def chamar_coleta(*a, **k):
+        raise LoginFalhou("Nome de usuário ou senha inválida.")
+
+    falso = _PlaywrightWorkerFalso()
+    monkeypatch.setattr("playwright.sync_api.sync_playwright", lambda: falso)
+
+    shared = {"error": None, "login_falhou": False, "login_mensagem": None}
+    ui.worker_base(
+        "123",
+        "senha",
+        [{"codigo_inep": "1", "nome_unidade": "Escola"}],
+        threading.Event(),
+        threading.Lock(),
+        shared,
+        chamar_coleta=chamar_coleta,
+        gravar=lambda *a: None,
+    )
+
+    assert shared["error"] == "Nome de usuário ou senha inválida."
+    assert shared["login_falhou"] is True
+    assert shared["login_mensagem"] == "Nome de usuário ou senha inválida."
+    assert shared["done"] is True
+    assert falso.chromium.browser.fechado is True

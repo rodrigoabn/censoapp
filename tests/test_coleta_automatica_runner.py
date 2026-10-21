@@ -26,7 +26,15 @@ class _ZipperFalso:
         return b"artefato-falso"
 
 
-def _etapa(chave, *, erro=None, coletadas=2, arquivos=("dados.csv",)):
+def _etapa(
+    chave,
+    *,
+    erro=None,
+    coletadas=2,
+    arquivos=("dados.csv",),
+    login_falhou=False,
+    mensagem_login=None,
+):
     """Etapa falsa: o worker grava arquivos e preenche o shared como o real."""
 
     def worker(config, login, senha, escolas, stop_event, lock, shared, tmp_dir):
@@ -35,6 +43,8 @@ def _etapa(chave, *, erro=None, coletadas=2, arquivos=("dados.csv",)):
             (Path(tmp_dir) / nome).write_text("x", encoding="utf-8")
         if erro:
             shared["error"] = erro
+        shared["login_falhou"] = login_falhou
+        shared["login_mensagem"] = mensagem_login
         shared["count"] = coletadas
         shared["failures"] = (
             []
@@ -104,6 +114,32 @@ def test_etapa_com_erro_do_worker_derruba_a_rodada(tmp_path):
     assert estado["resultados"][0].motivo == "browser morreu"
     assert estado["resultados"][1].situacao == "nao_executada"
     assert estado["interrompida"] is True
+
+
+def test_etapa_com_login_invalido_nao_pausa_e_orienta_a_verificar_credenciais(tmp_path):
+    """Senha incorreta não é "etapa sem dados": falha e para, sem oferecer Continuar."""
+    estado = _rodar(
+        [
+            _etapa(
+                "a",
+                erro="Nome de usuário ou senha inválida.",
+                coletadas=0,
+                login_falhou=True,
+                mensagem_login="Nome de usuário ou senha inválida.",
+            ),
+            _etapa("b"),
+        ],
+        tmp_path=tmp_path,
+    )
+
+    resultado = estado["resultados"][0]
+    assert resultado.situacao == "falhou"
+    assert resultado.erro_login is True
+    assert resultado.mensagem_login == "Nome de usuário ou senha inválida."
+    assert estado.get("aguardando") is None
+    assert estado["interrompida"] is True
+    assert estado["resultados"][1].situacao == "nao_executada"
+    assert estado.get("pacote") is None
 
 
 def test_etapa_sem_coleta_pausa_a_rodada_e_espera_confirmacao(tmp_path):

@@ -458,11 +458,15 @@ def build_documentacao_pdf() -> bytes:
          "o acompanhamento mostra o relógio digital e o tempo de cada etapa, permite baixar o "
          "artefato de cada uma e, ao final, entrega um ZIP único com todos os resultados. "
          "Se uma etapa rodar sem coletar nenhuma escola, a rodada pergunta se deve continuar; "
-         "se uma etapa falhar, a rodada para.")
+         "se uma etapa falhar, a rodada para. Em falha de login (por exemplo, senha incorreta), "
+         "a tela mostra a mensagem exibida pelo Educacenso e orienta a verificar o login e a "
+         "senha, sem oferecer a opção de continuar.")
     _bullets(story, estilos["item"], [
         "Ordem da rodada: Cadastrais das escolas, Cadastro do gestor, Relatórios de Turmas, "
         "Relatórios de Alunos, Relatórios de Profissionais Escolares e Recibos de Fechamento;",
-        "Cada etapa faz o próprio login no Educacenso e reaproveita a sessão durante a coleta;",
+        "Cada etapa faz o próprio login no Educacenso e reaproveita a sessão durante a coleta; "
+        "se o portal recusar as credenciais, a mensagem dele é registrada no log e mostrada na "
+        "tela, e a rodada para;",
         "Escola que falhar por timeout do portal é repetida na hora — até 5 tentativas no total, "
         "5 s entre elas — e a rodada só segue para a próxima escola quando estas tentativas "
         "terminarem; a tentativa que deu certo é a única que entra no artefato;",

@@ -83,32 +83,28 @@ def _sem_espera(monkeypatch):
     monkeypatch.setattr(receipt_scraper, "_wait_loader", lambda *a, **k: None)
 
 
-def test_login_falho_vira_falhas_em_relatorios(monkeypatch):
+def test_login_falho_aborta_a_coleta_em_relatorios(monkeypatch):
     def _falha(*a, **k):
-        raise report_scraper.LoginFalhou()
+        raise report_scraper.LoginFalhou("Nome de usuário ou senha inválida.")
 
     monkeypatch.setattr(report_scraper, "_login_and_read", _falha)
-    outputs, failures = report_scraper.run_report_scraping(
-        _BrowserFalso(), "l", "s", ESCOLAS, "https://exemplo/relatorio"
-    )
-    assert outputs == []
-    assert failures == [
-        {"codigo_inep": "111", "nome_unidade": "Escola Um", "motivo": "Falha no login", "timeout": False}
-    ]
+    with pytest.raises(report_scraper.LoginFalhou) as excinfo:
+        report_scraper.run_report_scraping(
+            _BrowserFalso(), "l", "s", ESCOLAS, "https://exemplo/relatorio"
+        )
+    assert excinfo.value.mensagem == "Nome de usuário ou senha inválida."
 
 
-def test_login_falho_vira_falhas_em_recibos(monkeypatch):
+def test_login_falho_aborta_a_coleta_em_recibos(monkeypatch):
     def _falha(*a, **k):
-        raise receipt_scraper.LoginFalhou()
+        raise receipt_scraper.LoginFalhou("Nome de usuário ou senha inválida.")
 
     monkeypatch.setattr(receipt_scraper, "_login_and_read", _falha)
-    outputs, failures = receipt_scraper.run_receipt_scraping(
-        _BrowserFalso(), "l", "s", ESCOLAS, "https://exemplo/fechamento"
-    )
-    assert outputs == []
-    assert failures == [
-        {"codigo_inep": "111", "nome_unidade": "Escola Um", "motivo": "Falha no login", "timeout": False}
-    ]
+    with pytest.raises(receipt_scraper.LoginFalhou) as excinfo:
+        receipt_scraper.run_receipt_scraping(
+            _BrowserFalso(), "l", "s", ESCOLAS, "https://exemplo/fechamento"
+        )
+    assert excinfo.value.mensagem == "Nome de usuário ou senha inválida."
 
 
 def test_download_de_relatorio_com_sessao_expirada_levanta_sessao_expirada(monkeypatch):
