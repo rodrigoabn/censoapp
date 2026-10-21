@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import inspect
 from pathlib import Path
 
 from streamlit.testing.v1 import AppTest
@@ -30,6 +31,26 @@ def test_formulario_tem_credenciais_lista_e_selecao():
     assert len(at.checkbox) == 6
     assert any(b.label == "Executar" for b in at.button)
     assert all(c.value for c in at.checkbox)  # todas marcadas por padrão
+
+
+def test_formulario_poe_orientacoes_na_coluna_lateral():
+    """As Orientações ficam na coluna direita, como nas demais telas do HUB.
+
+    Em largura total o card de Orientações ocupava a linha inteira e o
+    texto encostado à esquerda deixava metade dela vazia.
+    """
+    from apps.coleta_automatica.src import frontend
+    from apps.common.orientacoes import COLS_ORIENTACOES
+
+    at = _app()
+    assert not at.exception
+
+    # O formulário abre as colunas com a proporção padrão do HUB.
+    assert COLS_ORIENTACOES == [1.4, 1]
+    fonte = inspect.getsource(frontend._tela_formulario)
+    assert "st.columns(COLS_ORIENTACOES)" in fonte
+    # E o card de Orientações é desenhado na coluna lateral (col_help).
+    assert fonte.index("with col_help:") < fonte.index("card_orientacoes(")
 
 
 def test_executar_sem_aplicacao_mostra_erro():

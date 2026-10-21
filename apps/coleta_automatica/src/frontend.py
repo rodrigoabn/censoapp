@@ -26,7 +26,7 @@ from pathlib import Path
 import streamlit as st
 
 from apps.common.banner import banner_titulo
-from apps.common.orientacoes import card_orientacoes
+from apps.common.orientacoes import COLS_ORIENTACOES, card_orientacoes
 from apps.common.school_list import read_school_list
 from apps.common.ui import (
     RELOGIO_CSS,
@@ -628,42 +628,53 @@ def _tela_resultado() -> None:
 
 
 def _tela_formulario() -> None:
-    """Estado 0: credenciais, lista de escolas e seleção das aplicações."""
+    """Estado 0: credenciais, lista de escolas e seleção das aplicações.
+
+    O formulário fica na coluna principal e as Orientações na lateral
+    (``COLS_ORIENTACOES``), como nas demais telas do HUB — com o card de
+    Orientações em largura total sobrava metade da linha vazia.
+    """
     # Garante o navegador do Playwright (o mesmo das outras coletas).
     ensure_chromium()
 
-    with st.container(border=True):
-        card_orientacoes(st, corpo=_ORIENTACOES)
+    col_form, col_help = st.columns(COLS_ORIENTACOES)
 
-    with st.container(border=True):
-        col_login, col_senha, col_arquivo = st.columns(3)
-        with col_login:
-            login = st.text_input("Login (CPF)", key="ca_login")
-        with col_senha:
-            senha = st.text_input("Senha", type="password", key="ca_senha")
-        with col_arquivo:
+    with col_form:
+        with st.container(border=True):
+            col_login, col_senha = st.columns(2)
+            with col_login:
+                login = st.text_input("Login (CPF)", key="ca_login")
+            with col_senha:
+                senha = st.text_input("Senha", type="password", key="ca_senha")
+            # A lista de escolas fica em largura integral: na coluna estreita
+            # o aviso de tamanho do arquivo era cortado.
             arquivo = st.file_uploader(
                 "Lista de escolas (.xlsx / .xls)",
                 type=["xlsx", "xls"],
                 key="ca_lista",
             )
 
-    clicado = False
-    with st.container(border=True):
-        st.markdown("**SELECIONE O QUE DESEJA COLETAR**")
-        col_esq, col_dir = st.columns(2)
-        for coluna, grupo in zip((col_esq, col_dir), (ETAPAS[:3], ETAPAS[3:])):
-            with coluna:
-                for etapa in grupo:
-                    st.checkbox(
-                        etapa.titulo, key=f"ca_sel_{etapa.chave}", value=True
-                    )
+        clicado = False
+        with st.container(border=True):
+            st.markdown("**SELECIONE O QUE DESEJA COLETAR**")
+            col_esq, col_dir = st.columns(2)
+            for coluna, grupo in zip((col_esq, col_dir), (ETAPAS[:3], ETAPAS[3:])):
+                with coluna:
+                    for etapa in grupo:
+                        st.checkbox(
+                            etapa.titulo, key=f"ca_sel_{etapa.chave}", value=True
+                        )
 
-        selecionadas = _selecionadas()
-        st.caption(f"{len(selecionadas)} de {len(ETAPAS)} aplicações selecionadas.")
-        clicado = st.button(
-            "Executar", type="primary", key="ca_executar", use_container_width=True
-        )
+            selecionadas = _selecionadas()
+            st.caption(
+                f"{len(selecionadas)} de {len(ETAPAS)} aplicações selecionadas."
+            )
+            clicado = st.button(
+                "Executar", type="primary", key="ca_executar", use_container_width=True
+            )
+
+    with col_help:
+        card_orientacoes(st, corpo=_ORIENTACOES)
 
     # O rerun da rodada sai **fora** do card: um `st.rerun()` de dentro de
     # um container deixa o card aberto e o frontend passa a exibir o resto

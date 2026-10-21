@@ -30,7 +30,7 @@ uv add <pacote>                                     # adicionar dependência
 - **As coletas seguem o mesmo padrão**: `auth.py` + scraper + `collector.py` (`CONFIG` + worker headless) + exporter/zipper + `modelo.py`; a lista de escolas vem de `apps/common/school_list.py`. Não há telas isoladas de coleta: a única tela é a da Coleta de Dados.
 - **Relógio da coleta**: a tela da rodada lê o horário inicial/término de `apps/common/ui.py` e desenha o relógio digital (`RELOGIO_CSS`, `_relogio_*_conteudo_html`) a cada 0,5s via `st.fragment`; ao final, o resumo dos tempos aparece junto do download.
 - **Coleta de Dados** (`apps/coleta_automatica/`): roda as 6 coletas em sequência numa thread (`src/runner.py`), reaproveitando o worker de cada coletor headless (`src/etapas.py` importa `collector.py`); a tela (`src/frontend.py`) mostra o relógio, o tempo por etapa e o download de cada artefato, e entrega o ZIP único. Etapa sem coleta → a rodada **pausa e pergunta**; etapa com erro → a rodada **para**.
-- **Layout comum das telas**: cabeçalho padrão (logo + título + subtítulo, sobre o cartão `.title-container`) renderizado por `apps/common/banner.py` (`banner_titulo`) + conteúdo principal em `st.columns([1.4, 1])`; o card "Orientações de uso" fica sempre na coluna direita e é renderizado por `apps/common/orientacoes.py` (`card_orientacoes`)
+- **Layout comum das telas**: cabeçalho padrão (logo + título + subtítulo, sobre o cartão `.title-container`) renderizado por `apps/common/banner.py` (`banner_titulo`) + conteúdo principal em `st.columns([1.4, 1])`; o card "Orientações de uso" fica sempre na coluna direita e é renderizado por `apps/common/orientacoes.py` (`card_orientacoes`). **Nenhuma tela pode pôr o card de Orientações em largura total** — o texto encosta à esquerda e deixa metade da linha vazia (foi o caso da Coleta de Dados, corrigido em `apps/coleta_automatica/src/frontend.py`: `_tela_formulario` abre `st.columns(COLS_ORIENTACOES)` e desenha o `card_orientacoes` em `col_help`; o upload da lista de escolas fica em largura integral para o aviso de tamanho não ser cortado)
 - **Botões**: o botão de ação de toda tela chama-se **Executar** (inclusive nas 3 apps de adequação, nas 5 telas de verificação e no unificador) e todos os botões da área de conteúdo (`stButton`, `stDownloadButton` e submit de formulário) são azuis (`--status-info`); o menu lateral mantém o estilo de item de menu (transparente, item ativo em azul)
 - **Templates de modelo**: `apps/coleta_cadastros_escolas/docs/modelo_coleta.xlsx` (6 abas) e `apps/coleta_gestor/docs/modelo_coleta_gestor.xlsx` (3 abas); referências de estrutura (só cabeçalho) em `apps/verificacao_inconsistencias/docs/`
 
@@ -87,7 +87,7 @@ uv add <pacote>                                     # adicionar dependência
 
 ## Testes
 
-- `tests/` cobre a suíte offline (fakes, sem rede): `uv run python -m pytest` → 710 passed / 19 skipped; lint com `uv run ruff check .`
+- `tests/` cobre a suíte offline (fakes, sem rede): `uv run python -m pytest` → 711 passed / 19 skipped; lint com `uv run ruff check .`
 - `tests/security/` é ao vivo; **os 19 testes HTTP de segurança são pulados por padrão** — exigem `SECURITY_LIVE=1`
 - Alvo via `SECURITY_TARGET` (**obrigatório** — sem padrão; ex.: `http://localhost:8501/`); não há TLS/HSTS/Caddy nesta modalidade
 - Não intrusivos: poucas requisições, sem fuzzing/brute-force
