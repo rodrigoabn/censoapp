@@ -308,6 +308,31 @@ def init_state(p: str, *, st: Any = st) -> None:
     ss.setdefault(f"{p}fim", None)
 
 
+def registrar_progresso(
+    shared: dict, lock, i: int, total: int, codigo: str, nome: str, estado: str
+) -> None:
+    """Atualiza o `shared` da coleta a partir de um evento de progresso.
+
+    "Coletando dados ..." marca a escola atual; o aviso de nova tentativa por
+    timeout fica em ``shared["aviso"]`` até a coleta recomeçar; os demais
+    estados vão para ``shared["last"]`` (e "concluído" soma no contador).
+    """
+    with lock:
+        shared["total"] = total
+        if estado == "Coletando dados ...":
+            shared["current"] = (i, total, nome, codigo)
+            shared["aviso"] = None
+        elif estado.startswith("nova tentativa"):
+            shared["aviso"] = (codigo, nome, estado)
+            shared["current"] = None
+        else:
+            shared["last"] = (i, total, nome, codigo, estado)
+            shared["current"] = None
+            shared["aviso"] = None
+            if estado == "concluído":
+                shared["count"] = shared.get("count", 0) + 1
+
+
 def worker_base(
     login: str,
     senha: str,
@@ -329,15 +354,7 @@ def worker_base(
     from playwright.sync_api import sync_playwright
 
     def hook(i, total, codigo, nome, estado):
-        with lock:
-            shared["total"] = total
-            if estado == "Coletando dados ...":
-                shared["current"] = (i, total, nome, codigo)
-            else:
-                shared["last"] = (i, total, nome, codigo, estado)
-                shared["current"] = None
-                if estado == "concluído":
-                    shared["count"] = shared.get("count", 0) + 1
+        registrar_progresso(shared, lock, i, total, codigo, nome, estado)
 
     try:
         with sync_playwright() as pw:
@@ -376,7 +393,7 @@ def start_base(config: dict, login: str, senha: str, escolas: list[dict], *, ctx
     shared: dict = {
         "current": None, "last": None, "count": 0,
         "total": len(escolas), "done": False, "error": None,
-        "interrupted": False, "failures": [],
+        "interrupted": False, "failures": [], "aviso": None,
     }
 
     thread = threading.Thread(

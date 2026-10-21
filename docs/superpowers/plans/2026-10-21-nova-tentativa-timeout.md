@@ -1,5 +1,16 @@
 # Nova tentativa em timeout na Coleta Automática — Plano de Implementação
 
+> **Atualização (2026-10-21, depois do commit `3539030`):** o desenho de retry
+> **por passadas** descrito abaixo foi **superado** por decisão do usuário: a
+> escola com timeout agora é repetida **na hora**, dentro do laço por escola
+> (`coleta.com_tentativas_timeout`), e a fila **não avança** até as 5 tentativas
+> terminarem. Só a tentativa bem-sucedida grava (nada da tentativa que errou
+> sobra no artefato). O `runner.py` apenas liga o retry via `ContextVar`
+> (`TENTATIVAS_TIMEOUT` = 5, `ESPERA_TENTATIVAS` = 5.0) e mantém
+> `TENTATIVAS_NAVEGACAO` = 1. O restante do plano (marca `"timeout"`,
+> reconhecimento dos timeouts do Playwright, interrupção na espera, textos e
+> testes) continua válido; a parte de "passadas" não.
+
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
 **Goal:** Quando uma escola falha por timeout do Playwright, a rodada da 1ª Etapa tenta de novo aquela escola — até 5 tentativas no total, 5 s entre elas — sem perder as escolas já coletadas e seguindo o algoritmo normalmente.

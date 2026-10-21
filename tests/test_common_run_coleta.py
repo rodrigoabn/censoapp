@@ -537,6 +537,173 @@ def test_timeout_no_login_marca_todas_as_escolas():
     assert all(f["timeout"] is True for f in failures)
 
 
+# ── nova tentativa por escola (só a rodada automática liga) ────────────────
+
+PRAZO_TIMEOUT = "Page.wait_for_selector: Timeout 30000ms exceeded."
+
+
+@pytest.fixture
+def retry_da_rodada():
+    """Liga o retry da rodada (5 tentativas) sem esperar de verdade."""
+    tokens = (
+        coleta.TENTATIVAS_TIMEOUT.set(coleta.MAX_TENTATIVAS_TIMEOUT),
+        coleta.ESPERA_TENTATIVAS.set(0.0),
+    )
+    yield
+    for var, token in zip((coleta.TENTATIVAS_TIMEOUT, coleta.ESPERA_TENTATIVAS), tokens):
+        var.reset(token)
+
+
+def test_sem_a_rodada_timeout_nao_repete_a_escola():
+    """Fora da rodada (default 1 tentativa) o comportamento é o de sempre."""
+    assert coleta.TENTATIVAS_TIMEOUT.get() == 1
+    chamadas = []
+
+    def scrape_one(context, page, codigo, nome):
+        chamadas.append(codigo)
+        raise PlaywrightTimeoutError(PRAZO_TIMEOUT)
+
+    _outputs, failures = _rodar(_BrowserFalso(), ESCOLAS[:1], scrape_one, _hooks())
+
+    assert chamadas == ["111"]
+    assert failures[0]["timeout"] is True
+
+
+def test_timeout_repete_a_mesma_escola_antes_de_seguir(retry_da_rodada):
+    """A fila NÃO avança: a escola com timeout é repetida na hora."""
+    chamadas = []
+    falhou = {"uma": False}
+
+    def scrape_one(context, page, codigo, nome):
+        chamadas.append(codigo)
+        if codigo == "111" and not falhou["uma"]:
+            falhou["uma"] = True
+            raise PlaywrightTimeoutError(PRAZO_TIMEOUT)
+        return f"dados-{codigo}"
+
+    progresso = _Progresso()
+    outputs, failures = _rodar(
+        _BrowserFalso(), ESCOLAS, scrape_one, _hooks(), on_progress=progresso
+    )
+
+    assert chamadas == ["111", "111", "222"]
+    assert outputs == [(ESCOLAS[0], "dados-111"), (ESCOLAS[1], "dados-222")]
+    assert failures == []
+    assert (1, 2, "111", "Escola Um", "nova tentativa 2 de 5 (timeout)") in progresso.eventos
+    assert [e[4] for e in progresso.eventos if e[2] == "111"] == [
+        "Coletando dados ...",
+        "nova tentativa 2 de 5 (timeout)",
+        "Coletando dados ...",
+        "concluído",
+    ]
+
+
+def test_timeout_esgota_as_cinco_tentativas_e_vira_pendencia(retry_da_rodada):
+    """1 tentativa original + 4 repetições; depois a fila segue."""
+    chamadas = []
+
+    def scrape_one(context, page, codigo, nome):
+        chamadas.append(codigo)
+        if codigo == "111":
+            raise PlaywrightTimeoutError(PRAZO_TIMEOUT)
+        return "ok"
+
+    outputs, failures = _rodar(_BrowserFalso(), ESCOLAS, scrape_one, _hooks())
+
+    assert chamadas == ["111"] * 5 + ["222"]
+    assert [e["codigo_inep"] for e, _ in outputs] == ["222"]
+    assert failures == [
+        {
+            "codigo_inep": "111",
+            "nome_unidade": "Escola Um",
+            "motivo": f"Erro: {PRAZO_TIMEOUT}",
+            "timeout": True,
+        }
+    ]
+
+
+def test_erro_comum_nao_ganha_nova_tentativa(retry_da_rodada):
+    chamadas = []
+
+    def scrape_one(context, page, codigo, nome):
+        chamadas.append(codigo)
+        raise RuntimeError("portal fora do ar")
+
+    _outputs, failures = _rodar(_BrowserFalso(), ESCOLAS, scrape_one, _hooks())
+
+    assert chamadas == ["111", "222"]
+    assert failures[0]["timeout"] is False
+
+
+def test_interrupcao_vence_a_espera_da_nova_tentativa(retry_da_rodada):
+    """Interromper durante a espera não dispara outra tentativa."""
+    chamadas = []
+    interromper = {"flag": False}
+
+    def scrape_one(context, page, codigo, nome):
+        chamadas.append(codigo)
+        interromper["flag"] = True  # usuário interrompeu durante a coleta
+        raise PlaywrightTimeoutError(PRAZO_TIMEOUT)
+
+    outputs, failures = _rodar(
+        _BrowserFalso(),
+        ESCOLAS,
+        scrape_one,
+        _hooks(),
+        stop_check=lambda: interromper["flag"],
+    )
+
+    assert chamadas == ["111"]
+    assert outputs == []
+    assert failures[0]["codigo_inep"] == "111"
+    assert failures[0]["timeout"] is True
+    assert failures[1]["motivo"] == "Coleta interrompida (não processada)"
+
+
+def test_sucesso_na_nova_tentativa_grava_uma_vez_so(retry_da_rodada):
+    """A tentativa que errou não deixa dados: só a coleta correta permanece."""
+    chamadas = {"n": 0}
+    gravadas = []
+
+    def scrape_one(context, page, codigo, nome):
+        chamadas["n"] += 1
+        if chamadas["n"] == 1:
+            raise PlaywrightTimeoutError(PRAZO_TIMEOUT)
+        return "unica"
+
+    def on_school_done(escola, dados):
+        gravadas.append((escola["codigo_inep"], dados))
+
+    outputs, failures = _rodar(
+        _BrowserFalso(),
+        ESCOLAS[:1],
+        scrape_one,
+        _hooks(),
+        on_school_done=on_school_done,
+    )
+
+    assert chamadas["n"] == 2
+    assert gravadas == [("111", "unica")]
+    assert outputs == [(ESCOLAS[0], "unica")]
+    assert failures == []
+
+
+def test_espera_interrompivel_dorme_em_fatias(monkeypatch):
+    dormidas = []
+    monkeypatch.setattr(coleta.time, "sleep", lambda segundos: dormidas.append(segundos))
+
+    assert coleta.esperar_interrompivel(0.6) is False
+    assert dormidas == [0.25, 0.25, 0.1]
+
+
+def test_espera_interrompivel_para_na_hora(monkeypatch):
+    dormidas = []
+    monkeypatch.setattr(coleta.time, "sleep", lambda segundos: dormidas.append(segundos))
+
+    assert coleta.esperar_interrompivel(5.0, lambda: len(dormidas) >= 2) is True
+    assert len(dormidas) == 2
+
+
 def test_falha_rotineira_mapeada_nao_e_timeout():
     class _Rotineira(Exception):
         pass

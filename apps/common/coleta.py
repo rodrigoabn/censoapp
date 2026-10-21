@@ -15,6 +15,7 @@ from __future__ import annotations
 import logging
 import os
 import time
+from contextvars import ContextVar
 from dataclasses import dataclass
 from typing import Any, Callable
 
@@ -62,6 +63,98 @@ def e_timeout(exc: BaseException) -> bool:
         return True
     texto = str(exc).lower()
     return "timeout" in texto and "exceeded" in texto
+
+
+#: Teto de tentativas por escola quando o portal estoura timeout (a rodada usa).
+MAX_TENTATIVAS_TIMEOUT = 5
+#: Espera entre as tentativas de timeout (segundos).
+ESPERA_ENTRE_TENTATIVAS = 5.0
+
+#: Tentativas por escola em timeout. Default 1 (sem retry — telas isoladas);
+#: a rodada da 1ª Etapa eleva para :data:`MAX_TENTATIVAS_TIMEOUT`.
+TENTATIVAS_TIMEOUT: ContextVar[int] = ContextVar("tentativas_timeout", default=1)
+#: Espera entre as tentativas de timeout (segundos).
+ESPERA_TENTATIVAS: ContextVar[float] = ContextVar(
+    "espera_tentativas_timeout", default=ESPERA_ENTRE_TENTATIVAS
+)
+
+
+def tentativas_timeout() -> int:
+    """Quantas tentativas a escola ganha quando o Playwright estoura timeout."""
+    return max(1, TENTATIVAS_TIMEOUT.get())
+
+
+def espera_tentativas() -> float:
+    """Segundos de espera entre as tentativas de timeout (nunca negativo)."""
+    return max(0.0, ESPERA_TENTATIVAS.get())
+
+
+def esperar_interrompivel(segundos: float, stop_check=None) -> bool:
+    """Dorme em fatias curtas checando a interrupção do usuário.
+
+    Devolve ``True`` quando a coleta foi interrompida — a espera para no ato e
+    a nova tentativa não acontece.
+    """
+    restante = max(0.0, segundos)
+    while restante > 0:
+        if stop_check and stop_check():
+            return True
+        fatia = min(0.25, restante)
+        time.sleep(fatia)
+        restante = round(restante - fatia, 6)
+    return bool(stop_check and stop_check())
+
+
+def com_tentativas_timeout(
+    scrape_one,
+    context,
+    page,
+    codigo: str,
+    nome: str,
+    *,
+    i: int,
+    total: int,
+    logger: logging.Logger,
+    on_progress=None,
+    stop_check=None,
+):
+    """Coleta uma escola repetindo-a **na hora** quando estoura timeout.
+
+    A fila não avança enquanto as tentativas da escola atual não terminam: na
+    rodada (:data:`TENTATIVAS_TIMEOUT` = 5) a escola é repetida até coletar ou
+    esgotar as tentativas, com :data:`ESPERA_TENTATIVAS` segundos entre elas (a
+    interrupção do usuário vence a espera). Fora da rodada (default 1) o
+    comportamento é o de sempre.
+
+    A tentativa que falhou não deixa dados: ``scrape_one`` só devolve quando
+    termina e a gravação (:func:`registrar_sucesso`) acontece uma única vez,
+    com a tentativa que deu certo.
+    """
+    limite = tentativas_timeout()
+    for tentativa in range(1, limite + 1):
+        try:
+            return scrape_one(context, page, codigo, nome)
+        except Exception as exc:  # noqa: BLE001
+            if not e_timeout(exc) or tentativa >= limite:
+                raise
+            espera = espera_tentativas()
+            logger.warning(
+                f"[{codigo}] timeout — nova tentativa {tentativa + 1} de {limite} "
+                f"em {espera:.0f}s (a fila aguarda esta escola)"
+            )
+            if on_progress:
+                on_progress(
+                    i,
+                    total,
+                    codigo,
+                    nome,
+                    f"nova tentativa {tentativa + 1} de {limite} (timeout)",
+                )
+            if esperar_interrompivel(espera, stop_check):
+                raise
+            # A tentativa recomeça: a tela volta a mostrar a escola atual.
+            if on_progress:
+                on_progress(i, total, codigo, nome, "Coletando dados ...")
 
 
 def pausa_entre_escolas() -> float:
@@ -185,7 +278,18 @@ def run_coleta(
                 continue
 
         try:
-            dados = scrape_one(context, page, codigo, nome)
+            dados = com_tentativas_timeout(
+                scrape_one,
+                context,
+                page,
+                codigo,
+                nome,
+                i=i,
+                total=len(escolas),
+                logger=logger,
+                on_progress=on_progress,
+                stop_check=stop_check,
+            )
 
             if stop_check and stop_check():
                 if on_progress:
@@ -228,7 +332,18 @@ def run_coleta(
                 continue
 
             try:
-                dados = scrape_one(context, page, codigo, nome)
+                dados = com_tentativas_timeout(
+                    scrape_one,
+                    context,
+                    page,
+                    codigo,
+                    nome,
+                    i=i,
+                    total=len(escolas),
+                    logger=logger,
+                    on_progress=on_progress,
+                    stop_check=stop_check,
+                )
                 if dados is None:
                     if textos.formatar_log_nao_encontrada_pos_relogin:
                         logger.warning(textos.formatar_log_nao_encontrada_pos_relogin(codigo))

@@ -39,7 +39,6 @@ from apps.common.ui import (
 
 from .etapas import ETAPAS
 from .runner import (
-    MAX_TENTATIVAS_TIMEOUT,
     SITUACOES,
     executar_rodada,
     limpar_temporarios_antigos,
@@ -412,15 +411,15 @@ def _cartao_relogio(estado: dict, inicio) -> None:
                 unsafe_allow_html=True,
             )
 
-        # Nova tentativa: o portal estourou timeout e a rodada repete só as
-        # escolas que falharam (as já coletadas ficam preservadas).
-        tentativa = estado.get("tentativa") or 0
-        if tentativa > 1:
-            restantes = estado.get("tentativa_escolas") or 0
+        # Nova tentativa: o portal estourou timeout e a MESMA escola está sendo
+        # repetida na hora — a fila só segue quando as tentativas terminarem
+        # (as escolas já coletadas ficam preservadas).
+        aviso = (estado.get("shared_etapa") or {}).get("aviso")
+        if aviso:
+            codigo, nome, texto = aviso
             st.markdown(
                 linha_monitor(
-                    f"Nova tentativa {tentativa} de {MAX_TENTATIVAS_TIMEOUT} "
-                    f"({restantes} escola(s) com timeout)…",
+                    f"{nome} ({codigo}): {texto}…",
                     status_color("Nova tentativa"),
                 ),
                 unsafe_allow_html=True,

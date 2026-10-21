@@ -244,32 +244,37 @@ def test_linha_da_escola_atual_entra_no_cartao_do_relogio(monkeypatch):
     assert any("Escola atual: CEM ALDEIA" in str(m) for m in st_falso.markdowns)
 
 
-def test_cartao_avisa_a_nova_tentativa_depois_de_timeout(monkeypatch):
-    """O usuário precisa ver que a rodada está repetindo uma escola."""
+def test_cartao_avisa_a_nova_tentativa_da_escola(monkeypatch):
+    """O usuário precisa ver que a MESMA escola está sendo repetida."""
     estado = _rodada()
-    estado["ca_estado"]["tentativa"] = 2
-    estado["ca_estado"]["tentativa_escolas"] = 1
+    estado["ca_estado"]["shared_etapa"] = {
+        "current": None,
+        "aviso": ("33099510", "CEM ALDEIA", "nova tentativa 2 de 5 (timeout)"),
+        "count": 0,
+    }
     st_falso = _StFalso(estado)
     monkeypatch.setattr(frontend, "st", st_falso)
 
     frontend._tela_rodada(estado["ca_estado"])
 
     html = " ".join(str(m) for m in st_falso.markdowns)
-    assert "Nova tentativa 2 de 5" in html
-    assert "1 escola(s) com timeout" in html
+    assert "CEM ALDEIA (33099510): nova tentativa 2 de 5 (timeout)" in html
 
 
-def test_cartao_nao_avisa_tentativa_na_primeira_passada(monkeypatch):
+def test_cartao_sem_aviso_nao_mostra_nova_tentativa(monkeypatch):
     estado = _rodada()
-    estado["ca_estado"]["tentativa"] = 1
-    estado["ca_estado"]["tentativa_escolas"] = 3
+    estado["ca_estado"]["shared_etapa"] = {
+        "current": None,
+        "aviso": None,
+        "count": 0,
+    }
     st_falso = _StFalso(estado)
     monkeypatch.setattr(frontend, "st", st_falso)
 
     frontend._tela_rodada(estado["ca_estado"])
 
     html = " ".join(str(m) for m in st_falso.markdowns)
-    assert "Nova tentativa" not in html
+    assert "nova tentativa" not in html
 
 
 def test_relogio_alinha_os_blocos_pela_base(monkeypatch):

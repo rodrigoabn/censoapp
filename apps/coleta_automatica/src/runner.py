@@ -9,9 +9,10 @@ Regras da rodada:
 - erro do worker ⇒ a etapa é "falhou" e a **rodada para**;
 - etapa que rodou sem erro mas **não coletou nenhuma escola** ⇒ a rodada
   **pausa** e pergunta ao usuário se deve continuar;
-- escola que falhou por **timeout** do Playwright ⇒ nova tentativa só com as
-  escolas que falharam (no máximo 5 tentativas no total, 5 s entre elas),
-  preservando o que já foi coletado;
+- escola que falhou por **timeout** do Playwright ⇒ a escola é repetida **na
+  hora** (no máximo 5 tentativas no total, 5 s entre elas) e a fila só avança
+  quando as tentativas dela terminarem; a tentativa que deu certo é a única que
+  fica no artefato;
 - o usuário pode interromper a rodada a qualquer momento (o `stop_check` do
   coletor encerra a etapa em andamento com segurança).
 """
@@ -28,6 +29,12 @@ from datetime import datetime
 from pathlib import Path
 from typing import Any, Sequence
 
+from apps.common.coleta import (
+    ESPERA_ENTRE_TENTATIVAS,
+    ESPERA_TENTATIVAS,
+    MAX_TENTATIVAS_TIMEOUT,
+    TENTATIVAS_TIMEOUT,
+)
 from apps.common.export import build_pending_xlsx, output_filename, remover_temp
 from apps.common.session import TENTATIVAS_NAVEGACAO
 
@@ -43,24 +50,6 @@ SITUACOES = (
     "interrompida",
     "nao_executada",
 )
-
-#: Tentativas totais por escola quando o portal estoura timeout.
-MAX_TENTATIVAS_TIMEOUT = 5
-#: Espera entre uma passada e a próxima (segundos).
-ESPERA_ENTRE_TENTATIVAS = 5.0
-
-
-def e_falha_timeout(falha: dict) -> bool:
-    """True quando a falha da escola foi um timeout (vale nova tentativa).
-
-    O laço compartilhado marca ``"timeout": True`` quando a exceção é do
-    Playwright (``wait_for_selector``, ``goto``, ``click``, download). A
-    mensagem é aceita como alternativa para falhas sem a marca.
-    """
-    if falha.get("timeout"):
-        return True
-    motivo = str(falha.get("motivo", "")).lower()
-    return "timeout" in motivo and "exceeded" in motivo
 
 
 @dataclass
@@ -170,9 +159,10 @@ def _executar_etapa(
     """Executa UMA etapa e classifica o resultado (ver o laço de
     :func:`executar_rodada`).
 
-    A etapa roda em passadas: a primeira com todas as escolas; as seguintes
-    só com as que falharam por timeout (até :data:`MAX_TENTATIVAS_TIMEOUT`
-    no total, :data:`ESPERA_ENTRE_TENTATIVAS` segundos entre elas).
+    A etapa roda em uma única chamada do worker: a escola que estoura timeout
+    é repetida **na hora** pelo laço compartilhado (até
+    :data:`MAX_TENTATIVAS_TIMEOUT` tentativas, :data:`ESPERA_ENTRE_TENTATIVAS`
+    segundos entre elas), sem a fila avançar.
     """
     # Interrupção pedida antes de começar esta etapa.
     if stop_event.is_set():
@@ -193,6 +183,7 @@ def _executar_etapa(
         "error": None,
         "interrupted": False,
         "failures": [],
+        "aviso": None,
     }
     publicar(
         etapa_atual=etapa.chave,
@@ -202,60 +193,22 @@ def _executar_etapa(
     )
 
     t0 = time.monotonic()
-    #: Toda escola que ainda não coletou (código → última falha), somando as
-    #: passadas; ``retentaveis`` são só as que falharam por timeout.
-    pendentes: dict[str, dict] = {}
-    retentaveis: set[str] = set()
-    tentativa = 0
-    while True:
-        tentativa += 1
-        # A primeira passada roda todas as escolas; as seguintes, só as que
-        # falharam por timeout — as já coletadas ficam no disco (pasta_etapa).
-        alvo = (
-            escolas
-            if tentativa == 1
-            else [e for e in escolas if e["codigo_inep"] in retentaveis]
+
+    # Na rodada: a escola com timeout é repetida na hora (5 tentativas, 5 s) e
+    # a navegação interna tenta uma vez só. As telas individuais rodam em outra
+    # thread (contexto próprio) e mantêm os defaults (1 tentativa / 3).
+    tokens = (
+        (TENTATIVAS_TIMEOUT, TENTATIVAS_TIMEOUT.set(MAX_TENTATIVAS_TIMEOUT)),
+        (ESPERA_TENTATIVAS, ESPERA_TENTATIVAS.set(ESPERA_ENTRE_TENTATIVAS)),
+        (TENTATIVAS_NAVEGACAO, TENTATIVAS_NAVEGACAO.set(1)),
+    )
+    try:
+        etapa.worker(
+            etapa.config, login, senha, escolas, stop_event, lock, shared, pasta_etapa
         )
-        with lock:
-            shared.update(
-                current=None,
-                last=None,
-                error=None,
-                done=False,
-                failures=[],
-                tentativa=tentativa,
-            )
-        publicar(tentativa=tentativa, tentativa_escolas=len(alvo))
-
-        # Na rodada o retry é por escola: a navegação interna tenta uma vez só
-        # (as telas individuais mantêm as 3 tentativas do default).
-        token = TENTATIVAS_NAVEGACAO.set(1)
-        try:
-            etapa.worker(
-                etapa.config, login, senha, alvo, stop_event, lock, shared, pasta_etapa
-            )
-        finally:
-            TENTATIVAS_NAVEGACAO.reset(token)
-
-        # Consolida as pendências de todas as passadas: a escola que rodou e
-        # não falhou saiu; a falha comum não pode sumir do XLSX de pendências
-        # só porque outra escola foi repetida.
-        falhas_da_passada = shared.get("failures") or []
-        com_falha = {f["codigo_inep"] for f in falhas_da_passada}
-        for codigo in {e["codigo_inep"] for e in alvo} - com_falha:
-            pendentes.pop(codigo, None)
-        for falha in falhas_da_passada:
-            pendentes[falha["codigo_inep"]] = falha
-        with lock:
-            shared["failures"] = list(pendentes.values())
-
-        if shared.get("error") or stop_event.is_set():
-            break
-        retentaveis = {c for c, f in pendentes.items() if e_falha_timeout(f)}
-        if not retentaveis or tentativa >= MAX_TENTATIVAS_TIMEOUT:
-            break
-        if stop_event.wait(ESPERA_ENTRE_TENTATIVAS):
-            break
+    finally:
+        for variavel, token in reversed(tokens):
+            variavel.reset(token)
 
     segundos = time.monotonic() - t0
 
@@ -276,8 +229,6 @@ def _executar_etapa(
             interrompida=True,
             etapa_atual=None,
             shared_etapa=None,
-            tentativa=None,
-            tentativa_escolas=None,
         )
         return
 
@@ -303,8 +254,6 @@ def _executar_etapa(
                 interrompida=True,
                 etapa_atual=None,
                 shared_etapa=None,
-                tentativa=None,
-                tentativa_escolas=None,
             )
             return
         publicar(aguardando=None)
@@ -352,8 +301,6 @@ def _executar_etapa(
             interrompida=True,
             etapa_atual=None,
             shared_etapa=None,
-            tentativa=None,
-            tentativa_escolas=None,
         )
 
 

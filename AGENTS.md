@@ -43,11 +43,16 @@ uv add <pacote>                                     # adicionar dependência
 - **Logs personalizados em português** (`logger = logging.getLogger("coleta_*")`)
 - **Nova tentativa em timeout (só na rodada)**: escola que falha por timeout do
   Playwright (`wait_for_selector`, `goto`, `click`, `expect_download`) é repetida
-  até **5 tentativas no total**, com **5 s** entre elas; a passada de retry roda o
-  worker **só com as escolas que falharam** (as já coletadas ficam na pasta de
-  trabalho e entram no artefato), e a falha carrega `"timeout": bool` (marca do
-  laço compartilhado). Na rodada a navegação interna usa **1** tentativa
-  (`session.TENTATIVAS_NAVEGACAO`); as telas isoladas continuam com **3**.
+  **na hora**, até **5 tentativas no total** (1 original + 4 repetições), com
+  **5 s** entre elas; a fila **não avança** enquanto as tentativas da escola atual
+  não terminarem (a espera é interrompível: a parada do usuário vence). Só a
+  tentativa bem-sucedida grava — `scrape_one`/`registrar_sucesso` escrevem uma
+  única vez, então nada da tentativa que errou sobra no artefato. O retry mora no
+  laço compartilhado (`coleta.com_tentativas_timeout`) e é ligado pela rodada via
+  `ContextVar` (`TENTATIVAS_TIMEOUT` = 5, `ESPERA_TENTATIVAS` = 5.0; default 1 nas
+  telas isoladas); a falha carrega `"timeout": bool`. Na rodada a navegação
+  interna usa **1** tentativa (`session.TENTATIVAS_NAVEGACAO`); as telas isoladas
+  continuam com **3**.
 - **Reuso de sessão com retry**: `run_scraping()` mantém um browser context, refaz login se expirar
 - **Arquivos temporários**: cada execução cria uma pasta exclusiva (`nova_pasta_temporaria()`, prefixos `educacenso_*_tmp_`) em `/tmp` para os CSVs/PDFs da coleta; a consolidação (`build_xlsx`/`build_zip`) remove a pasta no final
 
@@ -101,4 +106,4 @@ HUB com 10 apps em `apps/` — Tela Inicial + Coleta (4), Adequação (3), Verif
 8. **Fase 6 — régua fina**: fim da "piscada" na troca de apps (animação `fadeIn` do banner removida); **referências de estrutura versionadas** em `apps/verificacao_inconsistencias/docs/` — a checagem de estrutura deixou de ser silenciosamente inerte; `.gitignore` ignora planilhas por padrão (exceções: modelos e referências); relatórios de inconsistências com PII são memoizados **por sessão** (sem cache global; só o agregado cor/raça mantém `st.cache_data` com `ttl=300`).
 9. **Coleta do Gestor corrigida**: o vínculo é aberto por `list` → **`editing`** no modal (o código anterior exigia `visibility`, que o modal não tem); após extrair o vínculo, todos os diálogos são fechados e a Fase B espera as abas `Identificação`/`Dados pessoais` antes de extrair. Corrige a planilha que saía sem dados; regressão em `tests/test_coleta_gestor_fluxo.py` (merge `151e189`).
 10. **Operação local**: HUB sobe com `uv sync` + `uv run streamlit run app.py` (sem Docker, Caddy ou TLS) e sem tela de senha; a porta é escolhida na hora e o reinício é feito pelo script externo do operador. A antiga stack de intranet (compose/OIDC/Caddy/HSTS) foi removida; a auditoria de segurança ficou restrita a métodos HTTP e exposição de arquivos.
-11. **Tela da rodada da 1ª Etapa**: o relógio é um `st.container(border=True)` com o botão de interromper (ou de continuar/encerrar, na pausa) **dentro** do card, à direita; a linha "Escola atual: …" também fica nele. O redesenho é por **`st.fragment(run_every=0.5)`** (não `sleep` + `st.rerun()`) — abortar o script no meio deixava na árvore do frontend os restos da tela anterior (Orientações e "Aplicações a coletar" reapareciam junto com a rodada). A tabela de resultados segue o desenho aprovado: `st.subheader` + cabeçalho em `st.caption` + um `st.divider()` por linha, status com bolinha colorida (🟢🟡🔴) e downloads rotulados "Baixar" (verde fosco nos dados, vermelho fosco nas pendências).
+11. **Tela da rodada da 1ª Etapa**: o relógio é um `st.container(border=True)` com o botão de interromper (ou de continuar/encerrar, na pausa) **dentro** do card, à direita; a linha "Escola atual: …" também fica nele — e, durante um retry por timeout, ele mostra `Nome (código): nova tentativa N de 5 (timeout)…` (aviso publicado em `shared["aviso"]`, limpo quando a coleta recomeça). O redesenho é por **`st.fragment(run_every=0.5)`** (não `sleep` + `st.rerun()`) — abortar o script no meio deixava na árvore do frontend os restos da tela anterior (Orientações e "Aplicações a coletar" reapareciam junto com a rodada). A tabela de resultados segue o desenho aprovado: `st.subheader` + cabeçalho em `st.caption` + um `st.divider()` por linha, status com bolinha colorida (🟢🟡🔴) e downloads rotulados "Baixar" (verde fosco nos dados, vermelho fosco nas pendências).

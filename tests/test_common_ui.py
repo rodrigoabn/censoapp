@@ -12,6 +12,7 @@ históricos dos frontends de Relatórios, Recibos, Cadastros e Gestor
 
 from __future__ import annotations
 
+import threading
 import types
 
 from apps.common import ui
@@ -105,6 +106,45 @@ def test_init_state_nao_sobrescreve_valores_existentes():
     assert st_falso.session_state["p_running"] is True
     assert st_falso.session_state["p_zip"] == ("bytes", "arquivo.zip")
     assert len(st_falso.session_state) == 10
+
+
+# ── progresso compartilhado com a thread de coleta ───────────────────────────
+
+
+def test_registrar_progresso_marca_a_escola_atual():
+    shared: dict = {}
+    ui.registrar_progresso(
+        shared, threading.Lock(), 1, 2, "111", "Escola Um", "Coletando dados ..."
+    )
+    assert shared["current"] == (1, 2, "Escola Um", "111")
+    assert shared["total"] == 2
+    assert shared["aviso"] is None
+
+
+def test_registrar_progresso_avisa_a_nova_tentativa_e_limpa_a_escola_atual():
+    shared = {"current": (1, 2, "Escola Um", "111")}
+    ui.registrar_progresso(
+        shared, threading.Lock(), 1, 2, "111", "Escola Um", "nova tentativa 2 de 5 (timeout)"
+    )
+    assert shared["aviso"] == ("111", "Escola Um", "nova tentativa 2 de 5 (timeout)")
+    assert shared["current"] is None
+
+
+def test_registrar_progresso_coleta_limpa_o_aviso():
+    shared = {"aviso": ("111", "Escola Um", "nova tentativa 2 de 5 (timeout)")}
+    ui.registrar_progresso(
+        shared, threading.Lock(), 1, 2, "111", "Escola Um", "Coletando dados ..."
+    )
+    assert shared["aviso"] is None
+
+
+def test_registrar_progresso_concluido_conta_e_vai_para_o_ultimo():
+    shared = {"count": 1, "aviso": ("111", "Escola Um", "nova tentativa 2 de 5 (timeout)")}
+    ui.registrar_progresso(shared, threading.Lock(), 1, 2, "111", "Escola Um", "concluído")
+    assert shared["count"] == 2
+    assert shared["last"] == (1, 2, "Escola Um", "111", "concluído")
+    assert shared["current"] is None
+    assert shared["aviso"] is None
 
 
 # ── relógio da coleta ────────────────────────────────────────────────────────
