@@ -30,8 +30,8 @@ from apps.common.school_list import read_school_list
 from apps.common.ui import (
     RELOGIO_CSS,
     _duracao,
-    _relogio_andamento_html,
-    _relogio_resumo_html,
+    _relogio_andamento_conteudo_html,
+    _relogio_resumo_conteudo_html,
     ensure_chromium,
     escapar,
     linha_monitor,
@@ -68,6 +68,12 @@ _ORIENTACOES = (
 #: Estilo da tabela de resultados e dos botões de download.
 TABELA_CSS = """
 <style>
+/* Cartão do relógio: o botão fica à direita, no meio da altura. */
+[data-testid="stMain"] [class*="st-key-ca_relogio"] [data-testid="stColumn"]:last-child {
+    display: flex !important;
+    align-items: center !important;
+    justify-content: flex-end !important;
+}
 /* Tempo e nome do arquivo em fonte monoespaçada. */
 [data-testid="stMain"] .relogio-mono {
     font-family: Consolas, 'Courier New', monospace !important;
@@ -343,63 +349,78 @@ def _tabela_etapas(
             st.divider()
 
 
+def _cartao_relogio(estado: dict, inicio) -> None:
+    """Cartão do relógio da rodada: tempo, início da coleta e os botões.
+
+    O botão de interromper (ou de continuar/parar, quando a rodada está
+    pausada) fica **dentro** do cartão do relógio, à direita.
+    """
+    ss = st.session_state
+    aguardando = estado.get("aguardando")
+
+    with st.container(border=True, key="ca_relogio"):
+        col_relogio, col_botao = st.columns([5, 1.7], vertical_alignment="center")
+        with col_relogio:
+            if inicio is not None:
+                st.markdown(
+                    _relogio_andamento_conteudo_html(
+                        (datetime.now() - inicio).total_seconds(), inicio
+                    ),
+                    unsafe_allow_html=True,
+                )
+        with col_botao:
+            if aguardando:
+                if st.button("Continuar", key="ca_continuar", width="stretch"):
+                    ss["ca_continuar_event"].set()
+                if st.button(
+                    "Encerrar a rodada", key="ca_encerrar", width="stretch"
+                ):
+                    ss["ca_stop"].set()
+            elif st.button(
+                "⛔ Interromper rodada", key="ca_interromper", width="content"
+            ):
+                ss["ca_stop"].set()
+
+        # Escola que está sendo coletada no momento.
+        atual = (estado.get("shared_etapa") or {}).get("current")
+        if atual:
+            _i, _total, nome, codigo = atual
+            st.markdown(
+                linha_monitor(
+                    f"Escola atual: {nome} ({codigo}): coletando…",
+                    status_color("Coletando dados ..."),
+                ),
+                unsafe_allow_html=True,
+            )
+
+        # Aviso de pausa: a etapa rodou sem coletar nada.
+        if aguardando:
+            titulo = _titulo_da_etapa(aguardando)
+            st.warning(
+                f"A etapa **{titulo}** não coletou nenhuma escola. "
+                "Deseja continuar com as próximas?"
+            )
+
+
 def _tela_rodada() -> None:
     """Estado 1/1b: a rodada em andamento (ou pausada aguardando o usuário)."""
     ss = st.session_state
     estado = _ler_estado(ss)
     inicio = ss.get("ca_inicio")
-
-    if inicio is not None:
-        st.markdown(
-            _relogio_andamento_html(
-                (datetime.now() - inicio).total_seconds(), inicio
-            ),
-            unsafe_allow_html=True,
-        )
-
-    selecionadas = _etapas_selecionadas(estado)
-    etapa_atual = estado.get("etapa_atual")
     comecou = estado.get("etapa_inicio")
     segundos_atual = (
         (datetime.now() - comecou).total_seconds() if comecou else 0.0
     )
+
+    # Cartão do relógio (com os botões da rodada dentro).
+    _cartao_relogio(estado, inicio)
+
     _tabela_etapas(
         estado.get("resultados") or [],
-        selecionadas,
-        etapa_atual,
+        _etapas_selecionadas(estado),
+        estado.get("etapa_atual"),
         segundos_atual,
     )
-
-    # Linha viva: a escola que a etapa em curso está coletando.
-    atual = (estado.get("shared_etapa") or {}).get("current")
-    if atual:
-        _i, _total, nome, codigo = atual
-        st.markdown(
-            linha_monitor(
-                f"{nome} ({codigo}): coletando…", status_color("Coletando dados ...")
-            ),
-            unsafe_allow_html=True,
-        )
-
-    aguardando = estado.get("aguardando")
-    if aguardando:
-        titulo = _titulo_da_etapa(aguardando)
-        st.warning(
-            f"A etapa **{titulo}** não coletou nenhuma escola. "
-            "Deseja continuar com as próximas?"
-        )
-        col_continuar, col_encerrar = st.columns(2)
-        with col_continuar:
-            if st.button("Continuar", key="ca_continuar", use_container_width=True):
-                ss["ca_continuar_event"].set()
-        with col_encerrar:
-            if st.button(
-                "Encerrar a rodada", key="ca_encerrar", use_container_width=True
-            ):
-                ss["ca_stop"].set()
-    else:
-        if st.button("⛔ Interromper rodada", key="ca_interromper"):
-            ss["ca_stop"].set()
 
     time.sleep(0.5)
     st.rerun()
@@ -413,7 +434,11 @@ def _tela_resultado() -> None:
     fim = ss.get("ca_fim")
 
     if inicio is not None and fim is not None:
-        st.markdown(_relogio_resumo_html(inicio, fim), unsafe_allow_html=True)
+        with st.container(border=True, key="ca_resumo"):
+            st.markdown(
+                _relogio_resumo_conteudo_html(inicio, fim),
+                unsafe_allow_html=True,
+            )
 
     _tabela_etapas(
         estado.get("resultados") or [],

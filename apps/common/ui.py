@@ -149,11 +149,13 @@ def _estado(ss: Any, chave: str, padrao: Any = None) -> Any:
         return padrao
 
 
-def _relogio_andamento_html(segundos: float, inicio: datetime) -> str:
-    """Bloco do relógio digital durante a coleta."""
+def _relogio_andamento_conteudo_html(segundos: float, inicio: datetime) -> str:
+    """Conteúdo do relógio digital (sem a caixa), para usar num container.
+
+    Quem usa desenha a borda com `st.container(border=True)` — assim o botão
+    de interromper fica dentro do mesmo cartão do relógio.
+    """
     return (
-        '<div class="relogio-caixa">'
-        '<div class="relogio-titulo">Acompanhamento do download</div>'
         '<div style="display:flex; align-items:center; gap:2.4rem; flex-wrap:wrap;">'
         '<div>'
         '<div class="relogio-rotulo">Tempo em andamento</div>'
@@ -164,15 +166,22 @@ def _relogio_andamento_html(segundos: float, inicio: datetime) -> str:
         f'<div class="relogio-valor">{_horario(inicio)}</div>'
         '</div>'
         '</div>'
-        '</div>'
     )
 
 
-def _relogio_resumo_html(inicio: datetime, fim: datetime) -> str:
-    """Bloco com horário inicial, horário de término e tempo de execução."""
+def _relogio_andamento_html(segundos: float, inicio: datetime) -> str:
+    """Bloco do relógio digital durante a coleta."""
     return (
         '<div class="relogio-caixa">'
         '<div class="relogio-titulo">Acompanhamento do download</div>'
+        + _relogio_andamento_conteudo_html(segundos, inicio)
+        + '</div>'
+    )
+
+
+def _relogio_resumo_conteudo_html(inicio: datetime, fim: datetime) -> str:
+    """Conteúdo do resumo de tempos (sem a caixa), para usar num container."""
+    return (
         '<div style="display:flex; gap:2.6rem; flex-wrap:wrap; align-items:flex-end;">'
         '<div>'
         '<div class="relogio-rotulo">Horário inicial</div>'
@@ -187,7 +196,16 @@ def _relogio_resumo_html(inicio: datetime, fim: datetime) -> str:
         f'<div class="relogio-valor">{_duracao((fim - inicio).total_seconds())}</div>'
         '</div>'
         '</div>'
-        '</div>'
+    )
+
+
+def _relogio_resumo_html(inicio: datetime, fim: datetime) -> str:
+    """Bloco com horário inicial, horário de término e tempo de execução."""
+    return (
+        '<div class="relogio-caixa">'
+        '<div class="relogio-titulo">Acompanhamento do download</div>'
+        + _relogio_resumo_conteudo_html(inicio, fim)
+        + '</div>'
     )
 
 

@@ -25,13 +25,19 @@ class _Rerun(Exception):
 class _ColunaFalsa:
     """Encaminha tudo para o `st` falso e funciona como gerenciador de contexto."""
 
-    def __init__(self, st):
+    def __init__(self, st, ao_entrar=None, ao_sair=None):
         self._st = st
+        self._ao_entrar = ao_entrar
+        self._ao_sair = ao_sair
 
     def __enter__(self):
+        if self._ao_entrar is not None:
+            self._ao_entrar(self._st)
         return self
 
     def __exit__(self, *exc):
+        if self._ao_sair is not None:
+            self._ao_sair(self._st)
         return False
 
     def __getattr__(self, nome):
@@ -46,6 +52,8 @@ class _StFalso:
         self.subheaders = []
         self.captions = []
         self.dividers = 0
+        self.containers = []
+        self._pilha = []
         self.botoes = []
         self.avisos = []
         self.downloads = []
@@ -80,7 +88,8 @@ class _StFalso:
         self.avisos.append(msg)
 
     def button(self, label, **kwargs):
-        self.botoes.append((label, kwargs))
+        # A profundidade diz em quantos containers o botão foi criado.
+        self.botoes.append((label, kwargs, len(self._pilha)))
         key = kwargs.get("key")
         if key is not None and key in self.session_state:
             # O Streamlit copia o valor da sessão para o widget de mesma chave
@@ -98,7 +107,12 @@ class _StFalso:
         return [_ColunaFalsa(self) for _ in range(len(n))]
 
     def container(self, **kwargs):
-        return _ColunaFalsa(self)
+        self.containers.append(kwargs)
+        return _ColunaFalsa(
+            self,
+            ao_entrar=lambda st: st._pilha.append(kwargs),
+            ao_sair=lambda st: st._pilha.pop(),
+        )
 
     def rerun(self):
         self.rerun_chamado = True
@@ -173,6 +187,52 @@ def test_botao_continuar_dispara_o_evento_e_nao_colide_com_a_chave_do_widget(mon
     assert evento.is_set(), "o botão Continuar não disparou o Event da rodada"
     # A chave do widget é diferente da chave que guarda o Event.
     assert "ca_continuar" not in estado
+
+
+def test_botao_de_interromper_fica_dentro_do_cartao_do_relogio(monkeypatch):
+    """O botão de interromper nasce dentro do cartão do relógio."""
+    estado = _rodada()
+    st_falso = _StFalso(estado)
+    monkeypatch.setattr(frontend, "st", st_falso)
+
+    with pytest.raises(_Rerun):
+        frontend._tela_rodada()
+
+    botoes = [b for b in st_falso.botoes if b[0] == "⛔ Interromper rodada"]
+    assert botoes, "o botão de interromper não foi criado"
+    assert botoes[0][2] > 0, "o botão ficou fora do cartão do relógio"
+
+
+def test_botoes_de_pausa_ficam_dentro_do_cartao_do_relogio(monkeypatch):
+    """Na pausa, Continuar e Encerrar também ficam dentro do cartão."""
+    estado = _rodada()
+    estado["ca_estado"]["aguardando"] = "cadastros_escolas"
+    st_falso = _StFalso(estado)
+    monkeypatch.setattr(frontend, "st", st_falso)
+
+    with pytest.raises(_Rerun):
+        frontend._tela_rodada()
+
+    for rotulo in ("Continuar", "Encerrar a rodada"):
+        botao = [b for b in st_falso.botoes if b[0] == rotulo]
+        assert botao, f"o botão {rotulo} não foi criado"
+        assert botao[0][2] > 0, f"o botão {rotulo} ficou fora do cartão"
+
+
+def test_linha_da_escola_atual_entra_no_cartao_do_relogio(monkeypatch):
+    """A linha da escola em coleta fica dentro do cartão do relógio."""
+    estado = _rodada()
+    estado["ca_estado"]["shared_etapa"] = {
+        "current": (1, 2, "CEM ALDEIA", "33099510"),
+        "count": 0,
+    }
+    st_falso = _StFalso(estado)
+    monkeypatch.setattr(frontend, "st", st_falso)
+
+    with pytest.raises(_Rerun):
+        frontend._tela_rodada()
+
+    assert any("Escola atual: CEM ALDEIA" in str(m) for m in st_falso.markdowns)
 
 
 def test_tabela_mostra_a_etapa_em_andamento_e_as_pendentes(monkeypatch):
