@@ -79,16 +79,50 @@ _ORIENTACOES = (
 #: Estilo da tabela de resultados e dos botões de download.
 TABELA_CSS = """
 <style>
+/* Tabela de resultados: linhas e colunas contínuas (não são cards). */
+[data-testid="stMain"] [class*="st-key-relogio_tabela"] {
+    border: 1px solid var(--border-default) !important;
+    border-radius: var(--radius-md);
+    overflow: hidden;
+}
+[data-testid="stMain"] [class*="st-key-relogio_tabela"] [data-testid="stHorizontalBlock"] {
+    border-bottom: 1px solid var(--border-default);
+}
+[data-testid="stMain"] [class*="st-key-relogio_tabela"] [data-testid="stHorizontalBlock"]:last-child {
+    border-bottom: none;
+}
+[data-testid="stMain"] [class*="st-key-relogio_tabela"] [data-testid="stColumn"] {
+    border-right: 1px solid var(--border-default);
+    padding: 0.5rem 0.7rem !important;
+    /* O Streamlit centraliza a coluna verticalmente com margin auto — isso
+       impede a célula de ocupar a altura da linha. Zerando as margens (e
+       esticando) as linhas ficam contínuas, como numa tabela de verdade. */
+    margin-top: 0 !important;
+    margin-bottom: 0 !important;
+    align-self: stretch !important;
+}
+[data-testid="stMain"] [class*="st-key-relogio_tabela"] [data-testid="stColumn"] > div {
+    display: flex !important;
+    flex-direction: column !important;
+    justify-content: center !important;
+}
+[data-testid="stMain"] [class*="st-key-relogio_tabela"] [data-testid="stColumn"]:last-child {
+    border-right: none;
+}
+/* Faixa do cabeçalho. */
+[data-testid="stMain"] [class*="st-key-relogio_tabela"] [data-testid="stHorizontalBlock"]:first-child [data-testid="stColumn"] {
+    background-color: #262b38;
+}
 [data-testid="stMain"] .relogio-cabecalho {
     font-family: 'Segoe UI', Tahoma, sans-serif !important;
     text-transform: uppercase;
-    font-size: 0.55rem;
+    font-size: 0.6rem;
     font-weight: 700;
-    letter-spacing: 0.3px;
-    color: #b2b5be !important;
+    letter-spacing: 0.4px;
+    color: #c3c7d1 !important;
     /* Altura mínima igual para todos os cabeçalhos (um rótulo pode quebrar
        em 2 linhas sem desnivelar a linha do cabeçalho). */
-    min-height: 4em;
+    min-height: 2.6em;
     display: flex;
     align-items: center;
 }
@@ -284,75 +318,79 @@ def _tabela_etapas(
 
     st.markdown("**Tempo por aplicação**")
 
-    cabecalho = st.columns(
-        _COLUNAS_TABELA, border=True, vertical_alignment="center"
-    )
-    for coluna, titulo in zip(cabecalho, _CABECALHOS):
-        with coluna:
-            st.markdown(f"<span class='relogio-cabecalho'>{titulo}</span>", unsafe_allow_html=True)
-
-    for etapa in selecionadas:
-        resultado = por_chave.get(etapa.chave)
-        if resultado is not None:
-            situacao = resultado.situacao
-            segundos = resultado.segundos
-            motivo = resultado.motivo
-            artefato = resultado.caminho_artefato
-            pendencias = resultado.caminho_pendencias
-        elif etapa.chave == etapa_atual:
-            situacao = "em_andamento"
-            segundos = segundos_atual
-            motivo = None
-            artefato = None
-            pendencias = None
-        else:
-            situacao = "pendente"
-            segundos = 0.0
-            motivo = None
-            artefato = None
-            pendencias = None
-
-        colunas = st.columns(
-            _COLUNAS_TABELA, border=True, vertical_alignment="center"
-        )
-        with colunas[0]:
-            st.markdown(etapa.titulo)
-        with colunas[1]:
-            cor = _COR_SITUACAO.get(situacao, "#b2b5be")
-            st.markdown(
-                f"<span style='color:{cor}'>"
-                f"{_ROTULO_SITUACAO.get(situacao, situacao)}</span>",
-                unsafe_allow_html=True,
-            )
-        with colunas[2]:
-            st.markdown(f"<span class='relogio-mono'>{_duracao(segundos)}</span>", unsafe_allow_html=True)
-        with colunas[3]:
-            if motivo:
+    with st.container(key="relogio_tabela"):
+        cabecalho = st.columns(_COLUNAS_TABELA, vertical_alignment="center")
+        for coluna, titulo in zip(cabecalho, _CABECALHOS):
+            with coluna:
                 st.markdown(
-                    f"<span style='color:#ef4444'>{escapar(motivo)}</span>",
+                    f"<span class='relogio-cabecalho'>{titulo}</span>",
                     unsafe_allow_html=True,
                 )
-            elif artefato:
-                st.markdown(
-                    f"<span class='relogio-mono'>{escapar(Path(artefato).name)}</span>",
-                    unsafe_allow_html=True,
-                )
+
+        for etapa in selecionadas:
+            resultado = por_chave.get(etapa.chave)
+            if resultado is not None:
+                situacao = resultado.situacao
+                segundos = resultado.segundos
+                motivo = resultado.motivo
+                artefato = resultado.caminho_artefato
+                pendencias = resultado.caminho_pendencias
+            elif etapa.chave == etapa_atual:
+                situacao = "em_andamento"
+                segundos = segundos_atual
+                motivo = None
+                artefato = None
+                pendencias = None
             else:
-                st.markdown("—")
-        with colunas[4]:
-            if artefato:
-                _botao_download(
-                    artefato,
-                    "Download de Dados",
-                    f"ca_dl_dados_{etapa.chave}",
+                situacao = "pendente"
+                segundos = 0.0
+                motivo = None
+                artefato = None
+                pendencias = None
+
+            colunas = st.columns(_COLUNAS_TABELA, vertical_alignment="center")
+            with colunas[0]:
+                st.markdown(etapa.titulo)
+            with colunas[1]:
+                cor = _COR_SITUACAO.get(situacao, "#b2b5be")
+                st.markdown(
+                    f"<span style='color:{cor}'>"
+                    f"{_ROTULO_SITUACAO.get(situacao, situacao)}</span>",
+                    unsafe_allow_html=True,
                 )
-        with colunas[5]:
-            if pendencias:
-                _botao_download(
-                    pendencias,
-                    "Download das Pendências",
-                    f"ca_dl_pend_{etapa.chave}",
+            with colunas[2]:
+                st.markdown(
+                    f"<span class='relogio-mono'>{_duracao(segundos)}</span>",
+                    unsafe_allow_html=True,
                 )
+            with colunas[3]:
+                if motivo:
+                    st.markdown(
+                        f"<span style='color:#ef4444'>{escapar(motivo)}</span>",
+                        unsafe_allow_html=True,
+                    )
+                elif artefato:
+                    st.markdown(
+                        f"<span class='relogio-mono'>"
+                        f"{escapar(Path(artefato).name)}</span>",
+                        unsafe_allow_html=True,
+                    )
+                else:
+                    st.markdown("—")
+            with colunas[4]:
+                if artefato:
+                    _botao_download(
+                        artefato,
+                        "Download de Dados",
+                        f"ca_dl_dados_{etapa.chave}",
+                    )
+            with colunas[5]:
+                if pendencias:
+                    _botao_download(
+                        pendencias,
+                        "Download das Pendências",
+                        f"ca_dl_pend_{etapa.chave}",
+                    )
 
 
 def _tela_rodada() -> None:
