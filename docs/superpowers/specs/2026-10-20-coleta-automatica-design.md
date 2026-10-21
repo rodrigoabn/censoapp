@@ -2,7 +2,7 @@
 
 - **Data:** 20/10/2026
 - **Branch:** `automacao-coleta` (worktree `/home/rodrigo/.local/share/opencode/worktree/1803e6/automacao-coleta`)
-- **Status:** aguardando aprovação do usuário (1 pergunta em aberto, §7)
+- **Status:** aguardando aprovação do usuário (design fechado; §7 resolvido)
 
 ---
 
@@ -92,6 +92,10 @@ Estas foram tomadas na conversa e **não** são sugestões do implementador:
    os campos lado a lado; abaixo dele, o card "Aplicações a coletar" com as 6
    opções em duas colunas e o botão **Executar** no fim delas.
 10. **Nome do item de menu:** "Coleta Automática".
+11. **Etapa que roda sem erro mas não coleta nenhuma escola:** a rodada **para**,
+    mostra a informação de que a etapa não coletou nenhuma escola e **pergunta ao
+    usuário se deseja continuar**. Respondendo "continuar", a rodada pula para a
+    próxima etapa; respondendo "encerrar", a rodada termina.
 
 Rascunhos visuais aprovados (arquivos `.superpowers/brainstorm/…/content/`):
 `tela-coleta-automatica-v3.html` (download por etapa + pacote completo),
@@ -194,8 +198,13 @@ Para cada etapa selecionada, em ordem:
    — o worker **do próprio app**, que abre o navegador, faz o login e grava os
    arquivos da etapa na pasta temporária. É o mesmo código que roda hoje na tela
    daquela etapa.
-5. Classificação da etapa (ver §7): falha ⇒ a rodada para e a etapa recebe o
-   motivo; sucesso ⇒ o artefato é montado.
+5. Classificação da etapa:
+   - **erro do worker** (`shared["error"]`) ⇒ a etapa é marcada "Falhou", com o
+     motivo, e a **rodada para**;
+   - **etapa concluída sem coletar nenhuma escola** ⇒ a etapa é marcada
+     "Concluída (sem dados)", a **rodada pausa** e pergunta ao usuário se deseja
+     continuar (§5.3, passo 5a);
+   - **etapa concluída com coleta** ⇒ o artefato é montado (passo 6).
 6. O artefato é montado com o mesmo par usado em `finalize_base`:
    `getattr(etapa.zipper, config.get("construtor_arquivo", "build_zip"))(tmp_dir=pasta)`
    e nomeado com `etapa.zipper.output_filename(config["zip_prefix"])`. O arquivo é
@@ -205,6 +214,15 @@ Para cada etapa selecionada, em ordem:
    falhas, e vai junto do artefato da etapa.
 8. O estado da etapa (situação, tempo em segundos, caminho do artefato, caminho da
    planilha, motivo da falha) é publicado no dicionário da rodada, sob o lock.
+
+**5a — Pausa por etapa sem coleta.** Quando a etapa termina sem coletar nenhuma
+escola, o runner publica `ca_aguardando = <índice da etapa>` e **fica esperando**
+(o `Event` `ca_continuar`), enquanto o monitor continua desenhando a tela e o
+relógio segue correndo. A tela mostra a informação *"A etapa X não coletou nenhuma
+escola"* com dois botões: **Continuar** (libera `ca_continuar` e a rodada segue
+para a próxima etapa) e **Encerrar a rodada** (marca o `Event` de parada e a
+rodada termina). A espera é feita em laço curto (0,5 s) conferindo o `Event` de
+parada, para que o "Interromper rodada" continue valendo durante a pausa.
 
 Interrupção: o botão "⛔ Interromper rodada" apenas marca o `threading.Event`; o
 `stop_check` já existente em `run_coleta` faz o coletor encerrar com segurança (a
@@ -228,6 +246,8 @@ Prefixo novo: `ca_` (Coleta Automática). Chaves:
 | `ca_etapas` | resultados por etapa (situação, tempo, caminhos, motivo) |
 | `ca_zip` | `(caminho, nome)` do pacote completo (só quando não houve interrupção) |
 | `ca_pasta` | pasta temporária da rodada (artefatos em disco) |
+| `ca_aguardando` | índice da etapa que paused a rodada aguardando confirmação (ou `None`) |
+| `ca_continuar` | `threading.Event` que o usuário dispara em "Continuar" |
 
 O `Event` `ca_stop` é desligado automaticamente ao trocar de página: o
 `hub_sessao.liberar_execucoes` marca qualquer `threading.Event` encontrado na
@@ -266,6 +286,11 @@ rodada". A tabela lista **somente as etapas selecionadas**, com as colunas:
 Aplicação | Situação | Tempo | Resultado | Download. A coluna Download traz o
 botão "Baixar" assim que a etapa conclui; enquanto isso, "—". A linha da etapa em
 andamento mostra a escola que está sendo coletada.
+
+**Estado 1b — pausada aguardando confirmação**: a etapa terminou sem coletar
+nenhuma escola. A tela mantém o relógio e a tabela, e acrescenta a informação
+*"A etapa X não coletou nenhuma escola"* com os botões **Continuar** (segue para a
+próxima etapa) e **Encerrar a rodada**.
 
 **Estado 2 — concluída sem interrupção**: o resumo (horário inicial, horário de
 término, tempo de execução total), a tabela completa com o tempo de cada etapa, o
@@ -323,7 +348,8 @@ Implementar:
 5. Testes:
    - `tests/test_coleta_automatica.py` — registro das etapas (as 6, com os
      `config` certos), sequência da rodada (com um worker falso por etapa),
-     classificação de falha (worker com `error`, etapa sem artefato),
+     classificação de falha (worker com `error` ⇒ rodada para), **pausa por etapa
+     sem coleta** (a rodada espera a confirmação e só segue após "Continuar"),
      interrupção antes de uma etapa, construção do pacote completo (com a árvore de
      pastas) e a **ausência** do pacote quando a rodada é interrompida.
    - `tests/test_hub_navegacao.py` — passar a localizar os botões do menu **por
@@ -340,16 +366,19 @@ escolher nomes legíveis) e o texto exato das mensagens de erro.
 
 ## 7. Pergunta em aberto (para o usuário)
 
-**Quando uma etapa roda sem erro mas não coleta nenhuma escola, a rodada para?**
+**Resolvida em 20/10/2026 — quando uma etapa roda sem erro mas não coleta nenhuma
+escola, a rodada para e pergunta.**
 
 O coletor considera "sucesso" uma etapa que rodou e gravou arquivos; `build_xlsx`
 e `build_zip` produzem um arquivo válido mesmo com zero escolas. Logo, "zero
-escolas coletadas" é ambíguo: pode ser **login recusado** (a etapa está quebrada —
-vale parar) ou **não havia o que coletar** (ex.: nenhuma escola tem recibo de
-fechamento — é um desfecho legítimo, e parar a rodada aqui jogaria fora as 5
-etapas bem-sucedidas).
+escolas coletadas" é ambíguo: pode ser **login recusado** (a etapa está quebrada) ou
+**não havia o que coletar** (ex.: nenhuma escola tem recibo de fechamento).
 
-O que já está decidido: erro do worker → a rodada para; sessão expirada no meio
-(só para as escolas afetadas) → a etapa termina normalmente.
+**Decisão do usuário:** a rodada **para**, mostra a informação de que a etapa não
+coletou nenhuma escola e **pergunta se deseja continuar**. Respondendo "continuar",
+a rodada pula para a próxima etapa; respondendo "encerrar", a rodada termina.
+Implementado como a pausa descrita em §5.3 (passo 5a) e na tela 1b de §5.5.
 
-Falta só o critério do "zero escolas" — ver a pergunta enviada ao usuário.
+O que continua valendo do resto: **erro do worker** ⇒ a rodada para sem perguntar
+(a etapa está quebrada); **sessão expirada no meio** ⇒ a etapa termina
+normalmente e as escolas afetadas vão para a planilha de "não coletadas".
