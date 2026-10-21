@@ -2,7 +2,7 @@
 
 O callback grava cada escola assim que ela termina, ANTES do `append` no
 retorno: se a gravação falhar, a exceção vira falha da escola ("não
-coletadas") — nada some em silêncio. Os frontends passam o callback e não
+coletadas") — nada some em silêncio. Os collectors passam o callback e não
 fazem mais o loop pós-coleta (que duplicaria a gravação).
 """
 
@@ -12,17 +12,17 @@ import threading
 
 import pytest
 
+from apps.coleta_cadastros_escolas.src import collector as cad_collector
 from apps.coleta_cadastros_escolas.src import exporter as cad_exporter
-from apps.coleta_cadastros_escolas.src import frontend as cad_frontend
 from apps.coleta_cadastros_escolas.src import modelo as cad_modelo
 from apps.coleta_cadastros_escolas.src import scraper as cad_scraper
+from apps.coleta_gestor.src import collector as ges_collector
 from apps.coleta_gestor.src import exporter as ges_exporter
-from apps.coleta_gestor.src import frontend as ges_frontend
 from apps.coleta_gestor.src import gestor_scraper
 from apps.coleta_gestor.src import modelo as ges_modelo
-from apps.coleta_recibos_fechamento.src import frontend as rec_frontend
+from apps.coleta_recibos_fechamento.src import collector as rec_collector
 from apps.coleta_recibos_fechamento.src import receipt_scraper
-from apps.coleta_relatorios.src import frontend as rel_frontend
+from apps.coleta_relatorios.src import collector as rel_collector
 from apps.coleta_relatorios.src import report_scraper
 
 ESCOLAS = [
@@ -207,7 +207,7 @@ def test_recibos_falha_do_callback_vira_nao_coletada(monkeypatch):
     assert "boom" in failures[0]["motivo"]
 
 
-# ── frontends: wiring do callback (sem loop pós-coleta duplicando) ─────────
+# ── collectors: wiring do callback (sem loop pós-coleta duplicando) ─────────
 
 
 class _ChromiumFalso:
@@ -247,8 +247,9 @@ def test_worker_cadastros_grava_uma_unica_vez(monkeypatch, tmp_path):
     monkeypatch.setattr(cad_scraper, "run_scraping", _run_falso)
 
     shared: dict = {}
-    cad_frontend._scrape_worker(
-        "l", "s", [escola], threading.Event(), threading.Lock(), shared, tmp_path
+    cad_collector.scrape_worker(
+        cad_collector.CONFIG, "l", "s", [escola],
+        threading.Event(), threading.Lock(), shared, tmp_path,
     )
 
     assert shared["done"] is True
@@ -274,8 +275,9 @@ def test_worker_gestor_grava_uma_unica_vez(monkeypatch, tmp_path):
     monkeypatch.setattr(gestor_scraper, "run_scraping", _run_falso)
 
     shared: dict = {}
-    ges_frontend._scrape_worker(
-        "l", "s", [escola], threading.Event(), threading.Lock(), shared, tmp_path
+    ges_collector.scrape_worker(
+        ges_collector.CONFIG, "l", "s", [escola],
+        threading.Event(), threading.Lock(), shared, tmp_path,
     )
 
     assert shared["done"] is True
@@ -299,7 +301,7 @@ def test_worker_relatorios_grava_uma_unica_vez(monkeypatch, tmp_path):
     monkeypatch.setattr(report_scraper, "run_report_scraping", _run_falso)
 
     shared: dict = {}
-    rel_frontend._scrape_worker(
+    rel_collector.scrape_worker(
         {"url": "https://exemplo/rel"}, "l", "s", [escola],
         threading.Event(), threading.Lock(), shared, tmp_path,
     )
@@ -324,7 +326,7 @@ def test_worker_recibos_grava_uma_unica_vez(monkeypatch, tmp_path):
     monkeypatch.setattr(receipt_scraper, "run_receipt_scraping", _run_falso)
 
     shared: dict = {}
-    rec_frontend._scrape_worker(
+    rec_collector.scrape_worker(
         {"url": "https://exemplo/rec"}, "l", "s", [escola],
         threading.Event(), threading.Lock(), shared, tmp_path,
     )

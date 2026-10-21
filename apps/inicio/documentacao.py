@@ -300,14 +300,15 @@ def build_documentacao_pdf() -> bytes:
     _par(story, estilos["h1"], "1. Visão Geral do Sistema")
     _par(story, estilos["corpo"],
          "O projeto é um HUB de aplicações em Streamlit, gerenciado pelo gerenciador de ambientes "
-         "Python <b>uv</b>. O menu lateral esquerdo dá acesso às aplicações organizadas em três grupos: "
-         "Coleta do Educacenso, Adequação de Relatórios e Gerador de Base de Dados e Inconsistências "
-         "(que reúne as cinco telas de verificação e o Unificador de Inconsistências por Unidade Escolar). "
+         "Python <b>uv</b>. O menu lateral esquerdo apresenta a Tela Inicial, a <b>Coleta de Dados</b> "
+         "(rodada única que executa as seis coletas do Educacenso) e dois grupos: Adequação de "
+         "Relatórios e Gerador de Base de Dados e Inconsistências (que reúne as cinco telas de "
+         "verificação e o Unificador de Inconsistências por Unidade Escolar). "
          "Além disso, a Tela Inicial disponibiliza esta documentação para download em PDF.")
     _par(story, estilos["corpo"],
-         "Todas as aplicações de coleta operam em <b>modo leitura</b> sobre o Educacenso "
-         "(nunca gravam ou alteram dados), utilizam Playwright em modo síncrono para automatizar o "
-         "navegador e reaproveitam uma única sessão de login durante toda a coleta.")
+         "A Coleta de Dados opera em <b>modo leitura</b> sobre o Educacenso "
+         "(nunca grava ou altera dados), utiliza Playwright em modo síncrono para automatizar o "
+         "navegador e reaproveita uma única sessão de login durante cada etapa.")
     _tabela(story, estilos,
             ["Grupo", "Aplicação", "Finalidade"],
             [
@@ -315,20 +316,8 @@ def build_documentacao_pdf() -> bytes:
                  "Hero com a marca do projeto e botão para baixar esta documentação (PDF)."],
                 ["Gerador de Base de Dados e Inconsistências", "Unificador de Inconsistências por Unidade Escolar",
                  "Gera um ZIP com um XLSX por escola ativa e um PDF analítico em A4 vertical, com o brasão municipal à esquerda, a marca do CensoApp à direita, identificação da Secretaria, Diretoria e Gerência de TI, cards com totais de Creches, Escolas e unidades gerais, gráfico de inconsistências por relatório separado por tipo de unidade e tabela detalhada por escola. A listagem classifica CEM/CMEI como Creche e as demais como Escola, ordenadas por tipo e nome."],
-                ["Coleta de Dados no Educacenso - 1ª Etapa", "Coleta de Dados no Educacenso - 1ª Etapa",
+                ["Coleta de Dados", "Coleta de Dados",
                  "Roda as 6 coletas do Educacenso em sequência, em segundo plano, com o login e a lista de escolas informados uma vez só. Acompanha cada etapa com o relógio e o tempo gasto, permite baixar o artefato de cada uma e entrega um ZIP único com todos os resultados."],
-                ["Coleta do Educacenso", "Dados Cadastrais da Unidades",
-                 "Raspa a ficha cadastral completa de cada escola do Educacenso e consolida em um XLSX de 6 abas."],
-                ["Coleta do Educacenso", "Dados dos Gestores Escolares",
-                 "Coleta o vínculo do gestor escolar (e as abas Identificação e Dados pessoais) em XLSX de 3 abas."],
-                ["Coleta do Educacenso", "Relatórios de Turmas",
-                 "Baixa o relatório CSV de relação turma-escola de cada escola e empacota em ZIP."],
-                ["Coleta do Educacenso", "Relatórios de Alunos",
-                 "Baixa o relatório CSV de relação aluno-escola de cada escola e empacota em ZIP."],
-                ["Coleta do Educacenso", "Relatórios de Profissionais Escolares",
-                 "Baixa o relatório CSV de relação profissional-escola de cada escola e empacota em ZIP."],
-                ["Coleta do Educacenso", "Recibos de Fechamento (1ª Etapa)",
-                 "Baixa o recibo de fechamento (PDF) de cada escola e empacota em ZIP."],
                 ["Adequação de Relatórios", "Adequação de Relatório de Turmas",
                  "Converte o ZIP de relatórios CSV de turmas no layout padronizado e devolve um ZIP adequado."],
                 ["Adequação de Relatórios", "Adequação de Relatórios de Alunos",
@@ -427,12 +416,12 @@ def build_documentacao_pdf() -> bytes:
     # ==================================================================
     _par(story, estilos["h1"], "5. Uso Geral do HUB")
     _par(story, estilos["corpo"],
-         "Ao abrir o HUB, o menu lateral apresenta o item Tela Inicial e os três grupos de aplicações. "
+         "Ao abrir o HUB, o menu lateral apresenta a Tela Inicial, a Coleta de Dados e dois grupos de aplicações. "
          "A seleção é única e, ao trocar de página, o estado anterior é limpo (mantendo apenas a "
          "navegação). O rodapé de todas as telas indica a autoria da aplicação.")
     _bullets(story, estilos["item"], [
         "Tela Inicial: centraliza a marca e o botão para baixar esta documentação em PDF;",
-        "Aplicações de coleta: exigem login (CPF + senha) e um arquivo com a lista de escolas;",
+        "Coleta de Dados: exige login (CPF + senha) e um arquivo com a lista de escolas;",
         "Aplicações de verificação: exigem o arquivo de dados (XLSX ou ZIP) e geram relatório de inconsistências.",
     ])
     _par(story, estilos["h2"], "5.1 Convenções de interface")
@@ -453,13 +442,13 @@ def build_documentacao_pdf() -> bytes:
     # ==================================================================
     # 6. COLETA DE DADOS
     # ==================================================================
-    _par(story, estilos["h1"], "6. Aplicações de Coleta de Dados")
+    _par(story, estilos["h1"], "6. Coleta de Dados")
     _par(story, estilos["corpo"],
-         "Todas as aplicações de coleta seguem o mesmo padrão: formulário com login e senha, upload "
-         "de um arquivo XLSX/XLS com as colunas <b>código do inep</b> e <b>nome da unidade</b> "
-         "(leitura tolerante a maiúsculas/minúsculas e a variações de nome), botão para iniciar a "
-         "extração, monitor com barra de progresso e botão de interromper, e download do resultado. "
-         "A coleta roda em uma thread separada (nunca toca a interface) e interrompe de forma segura.")
+         "A Coleta de Dados executa as seis etapas em sequência, em segundo plano, a partir de um "
+         "único formulário: login, senha, lista de escolas e seleção das aplicações. Cada etapa "
+         "reaproveita o coletor do seu domínio (cadastros, gestor, relatórios e recibos), opera em "
+         "modo leitura e roda em uma thread separada (nunca toca a interface); a rodada pode ser "
+         "interrompida com segurança.")
 
     # ------------------------------------------------------------------
     _par(story, estilos["h2"], "6.1 Coleta de Dados no Educacenso - 1ª Etapa (rodada de todas as coletas)")
@@ -473,7 +462,7 @@ def build_documentacao_pdf() -> bytes:
     _bullets(story, estilos["item"], [
         "Ordem da rodada: Cadastrais das escolas, Cadastro do gestor, Relatórios de Turmas, "
         "Relatórios de Alunos, Relatórios de Profissionais Escolares e Recibos de Fechamento;",
-        "Cada etapa faz o próprio login no Educacenso, como nas telas isoladas;",
+        "Cada etapa faz o próprio login no Educacenso e reaproveita a sessão durante a coleta;",
         "Escola que falhar por timeout do portal é repetida na hora — até 5 tentativas no total, "
         "5 s entre elas — e a rodada só segue para a próxima escola quando estas tentativas "
         "terminarem; a tentativa que deu certo é a única que entra no artefato;",
@@ -535,12 +524,12 @@ def build_documentacao_pdf() -> bytes:
     # ------------------------------------------------------------------
     _par(story, estilos["h2"], "6.4 Relatórios de Turmas, Alunos e Profissionais")
     _par(story, estilos["corpo"],
-         "Três aplicações com a mesma tela (parametrizada): baixam o relatório CSV nativo do "
+         "Três etapas da rodada com o mesmo coletor (parametrizado): baixam o relatório CSV nativo do "
          "Educacenso para cada escola (relação turma-escola, aluno-escola ou profissional-escola) e "
          "empacotam tudo em um ZIP.")
     _par(story, estilos["h3"], "Saída: ZIP de CSVs")
     _tabela(story, estilos,
-            ["Menu", "Prefixo do ZIP", "Conteúdo por escola"],
+            ["Etapa", "Prefixo do ZIP", "Conteúdo por escola"],
             [
                 ["Relatórios de Turmas", "relatorio_turmas_educacenso", "relação turma-escola (CSV)"],
                 ["Relatórios de Alunos", "relatorio_alunos_educacenso", "relação aluno-escola (CSV)"],

@@ -1,11 +1,8 @@
 """Registro das 6 etapas da Coleta Automática.
 
-Cada etapa reusa, **sem alterar**, o `config`, o worker e o
-exporter/zipper do coletor de origem — a rodada da Coleta Automática apenas
-os executa em sequência.
-
-O `_ctx()` dos apps é privado por herança da Fase 4; importá-lo aqui, em vez
-de tocar nos 6 coletores, foi escolha deliberada (o design proíbe alterá-los).
+Cada etapa reusa, **sem alterar**, o `CONFIG`, o worker e o zipper do coletor
+de origem — a rodada da Coleta Automática apenas os executa em sequência. Os
+coletores são módulos headless (`collector.py`), sem código de tela.
 """
 
 from __future__ import annotations
@@ -13,10 +10,10 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import Any, Callable
 
-from apps.coleta_cadastros_escolas.src import frontend as _cadastros
-from apps.coleta_gestor.src import frontend as _gestor
-from apps.coleta_recibos_fechamento.src import frontend as _recibos
-from apps.coleta_relatorios.src import frontend as _relatorios
+from apps.coleta_cadastros_escolas.src import collector as _cadastros
+from apps.coleta_gestor.src import collector as _gestor
+from apps.coleta_recibos_fechamento.src import collector as _recibos
+from apps.coleta_relatorios.src import collector as _relatorios
 from apps.coleta_relatorios.src.reports import REPORTS
 
 
@@ -25,9 +22,9 @@ class Etapa:
     """Uma etapa da rodada: um coletor do HUB, pronto para ser executado.
 
     ``chave`` identifica a etapa; ``pasta`` é o nome da pasta dela dentro do
-    ZIP final; ``config`` é o config do app de origem; ``zipper`` é o módulo
-    que monta o artefato; ``worker`` é a thread de coleta (assinatura
-    "config primeiro"); ``textos`` são os textos do app.
+    ZIP final; ``config`` é o config do coletor de origem; ``zipper`` é o
+    módulo que monta o artefato; ``worker`` é a thread de coleta (assinatura
+    "config primeiro").
     """
 
     chave: str
@@ -36,20 +33,17 @@ class Etapa:
     config: dict
     zipper: Any
     worker: Callable
-    textos: Any
 
 
 def _etapa(chave: str, titulo: str, pasta: str, config: dict, modulo: Any) -> Etapa:
-    """Monta uma etapa a partir do ``_ctx()`` do app de origem."""
-    ctx = modulo._ctx()
+    """Monta uma etapa a partir do coletor de origem."""
     return Etapa(
         chave=chave,
         titulo=titulo,
         pasta=pasta,
         config=config,
-        zipper=ctx.zipper,
-        worker=ctx.scrape_worker,
-        textos=ctx.textos,
+        zipper=modulo.zipper,
+        worker=modulo.scrape_worker,
     )
 
 

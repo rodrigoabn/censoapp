@@ -1,9 +1,8 @@
 """A tela da rodada (em andamento e pausada), testada com um `st` falso.
 
-O `AppTest` não serve aqui: a tela de rodada faz `time.sleep(0.5)` + `st.rerun()`
-(o mesmo padrão de `apps/common/ui.py::monitor_base`), o que estoura o timeout do
-AppTest. O teste usa um `st` falso, como `tests/test_common_ui.py` faz com o
-monitor compartilhado.
+O `AppTest` não serve aqui: a tela da rodada usa `st.fragment(run_every=0.5)`
+para redesenhar o relógio, e o fragmento não é executado pelo AppTest. O teste
+usa um `st` falso, como `tests/test_common_ui.py` faz com os helpers comuns.
 """
 
 from __future__ import annotations

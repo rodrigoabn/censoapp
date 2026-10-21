@@ -55,7 +55,6 @@ def _etapa(chave, *, erro=None, coletadas=2, arquivos=("dados.csv",)):
         config={"zip_prefix": chave},
         zipper=_ZipperFalso(),
         worker=worker,
-        textos=None,
     )
 
 
@@ -196,7 +195,6 @@ def test_etapa_interrompida_no_meio_e_marcada_interrompida(tmp_path):
         config={"zip_prefix": "a"},
         zipper=_ZipperFalso(),
         worker=worker,
-        textos=None,
     )
     estado = _rodar([etapa, _etapa("b")], stop_event=stop, tmp_path=tmp_path)
 
@@ -222,7 +220,6 @@ def test_ultima_etapa_interrompida_nao_gera_pacote(tmp_path):
         config={"zip_prefix": "a"},
         zipper=_ZipperFalso(),
         worker=worker,
-        textos=None,
     )
     estado = _rodar([etapa], stop_event=stop, tmp_path=tmp_path)
 
@@ -254,7 +251,6 @@ def test_erro_ao_montar_o_artefato_encerra_a_rodada_com_erro(tmp_path):
         config={"zip_prefix": "a"},
         zipper=_ZipperQuebrado(),
         worker=_etapa("a").worker,
-        textos=None,
     )
     estado = _rodar([etapa], tmp_path=tmp_path)
 
@@ -329,7 +325,6 @@ def test_rodada_liga_o_retry_por_escola_e_restaura_os_defaults(tmp_path):
         config={"zip_prefix": "b"},
         zipper=_ZipperFalso(),
         worker=worker,
-        textos=None,
     )
     _rodar([etapa], tmp_path=tmp_path)
 
@@ -352,7 +347,6 @@ def test_contextos_da_rodada_voltam_ao_default_mesmo_com_erro_do_worker(tmp_path
         config={"zip_prefix": "b"},
         zipper=_ZipperFalso(),
         worker=worker,
-        textos=None,
     )
     estado = _rodar([etapa], tmp_path=tmp_path)
 

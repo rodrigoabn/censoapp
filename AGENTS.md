@@ -15,21 +15,21 @@ uv add <pacote>                                     # adicionar dependência
 ## Arquitetura
 
 - **Entrypoint**: `app.py` — HUB Streamlit com navegação lateral
-- **11 apps** em `apps/`, cada uma autocontida, + código compartilhado em `apps/common/` (`auth`, `banner`, `browser`, `coleta`, `export`, `orientacoes`, `school_list`, `session`, `ui`):
+- **7 apps** em `apps/` + **4 coletores headless** (sem tela), com código compartilhado em `apps/common/` (`auth`, `banner`, `browser`, `coleta`, `export`, `orientacoes`, `school_list`, `session`, `ui`):
   - `inicio/` — página inicial + documentação completa em PDF
-  - `coleta_automatica/` — roda as 6 coletas do Educacenso em sequência, em background, e gera um ZIP único com o tempo de cada etapa
-  - `coleta_cadastros_escolas/` — raspa dados de escolas do Educacenso → XLSX (6 abas)
-  - `coleta_gestor/` — raspa dados de gestores → XLSX (3 abas)
-  - `coleta_relatorios/` — baixa relatórios CSV (turmas/alunos/profissionais) → ZIP
-  - `coleta_recibos_fechamento/` — baixa recibos PDF → ZIP
+  - `coleta_automatica/` — tela única de coleta: roda as 6 etapas do Educacenso em sequência, em background, e gera um ZIP único com o tempo de cada etapa
+  - `coleta_cadastros_escolas/` — coletor headless: raspa dados de escolas do Educacenso → XLSX (6 abas), em `src/collector.py`
+  - `coleta_gestor/` — coletor headless: raspa dados de gestores → XLSX (3 abas), em `src/collector.py`
+  - `coleta_relatorios/` — coletor headless: baixa relatórios CSV (turmas/alunos/profissionais) → ZIP, em `src/collector.py`
+  - `coleta_recibos_fechamento/` — coletor headless: baixa recibos PDF → ZIP, em `src/collector.py`
   - `adequacao_turmas/` — converte o ZIP de turmas no layout padronizado → ZIP
   - `adequacao_alunos/` — converte o ZIP de alunos no layout padronizado → ZIP
   - `adequacao_profissionais/` — converte o ZIP de profissionais no layout padronizado → ZIP
   - `verificacao_inconsistencias/` — aponta inconsistências nos ZIPs/planilhas (regras em `src/rules/`) → XLSX
   - `unificador_inconsistencias/` — unifica os relatórios de inconsistências por unidade escolar → XLSX
-- **As coletas seguem o mesmo padrão**: `auth.py` + scraper + `frontend.py` + exporter/zipper + `modelo.py`; a lista de escolas vem de `apps/common/school_list.py`
-- **Relógio da coleta**: as 4 apps de coleta registram horário inicial, horário de término e tempo de execução (`apps/common/ui.py`: `start_base` marca o início, a thread de coleta marca o fim, `finalize_base` consolida). Durante a coleta o monitor (`monitor_base`) desenha um relógio digital que atualiza a cada 0,5s; ao final, o resumo dos tempos aparece junto do download persistente.
-- **Coleta de Dados no Educacenso - 1ª Etapa** (`apps/coleta_automatica/`): roda as 6 coletas em sequência numa thread (`src/runner.py`), reaproveitando o worker de cada app (`src/etapas.py`); a tela (`src/frontend.py`) mostra o relógio, o tempo por etapa e o download de cada artefato, e entrega o ZIP único. Etapa sem coleta → a rodada **pausa e pergunta**; etapa com erro → a rodada **para**.
+- **As coletas seguem o mesmo padrão**: `auth.py` + scraper + `collector.py` (`CONFIG` + worker headless) + exporter/zipper + `modelo.py`; a lista de escolas vem de `apps/common/school_list.py`. Não há telas isoladas de coleta: a única tela é a da Coleta de Dados.
+- **Relógio da coleta**: a tela da rodada lê o horário inicial/término de `apps/common/ui.py` e desenha o relógio digital (`RELOGIO_CSS`, `_relogio_*_conteudo_html`) a cada 0,5s via `st.fragment`; ao final, o resumo dos tempos aparece junto do download.
+- **Coleta de Dados** (`apps/coleta_automatica/`): roda as 6 coletas em sequência numa thread (`src/runner.py`), reaproveitando o worker de cada coletor headless (`src/etapas.py` importa `collector.py`); a tela (`src/frontend.py`) mostra o relógio, o tempo por etapa e o download de cada artefato, e entrega o ZIP único. Etapa sem coleta → a rodada **pausa e pergunta**; etapa com erro → a rodada **para**.
 - **Layout comum das telas**: cabeçalho padrão (logo + título + subtítulo, sobre o cartão `.title-container`) renderizado por `apps/common/banner.py` (`banner_titulo`) + conteúdo principal em `st.columns([1.4, 1])`; o card "Orientações de uso" fica sempre na coluna direita e é renderizado por `apps/common/orientacoes.py` (`card_orientacoes`)
 - **Botões**: o botão de ação de toda tela chama-se **Executar** (inclusive nas 3 apps de adequação, nas 5 telas de verificação e no unificador) e todos os botões da área de conteúdo (`stButton`, `stDownloadButton` e submit de formulário) são azuis (`--status-info`); o menu lateral mantém o estilo de item de menu (transparente, item ativo em azul)
 - **Templates de modelo**: `apps/coleta_cadastros_escolas/docs/modelo_coleta.xlsx` (6 abas) e `apps/coleta_gestor/docs/modelo_coleta_gestor.xlsx` (3 abas); referências de estrutura (só cabeçalho) em `apps/verificacao_inconsistencias/docs/`
@@ -49,10 +49,10 @@ uv add <pacote>                                     # adicionar dependência
   tentativa bem-sucedida grava — `scrape_one`/`registrar_sucesso` escrevem uma
   única vez, então nada da tentativa que errou sobra no artefato. O retry mora no
   laço compartilhado (`coleta.com_tentativas_timeout`) e é ligado pela rodada via
-  `ContextVar` (`TENTATIVAS_TIMEOUT` = 5, `ESPERA_TENTATIVAS` = 5.0; default 1 nas
-  telas isoladas); a falha carrega `"timeout": bool`. Na rodada a navegação
-  interna usa **1** tentativa (`session.TENTATIVAS_NAVEGACAO`); as telas isoladas
-  continuam com **3**.
+  `ContextVar` (`TENTATIVAS_TIMEOUT` = 5, `ESPERA_TENTATIVAS` = 5.0; default 1
+  fora da rodada, em chamadas diretas e testes); a falha carrega
+  `"timeout": bool`. Na rodada a navegação interna usa **1** tentativa
+  (`session.TENTATIVAS_NAVEGACAO`); o default fora da rodada continua **3**.
 - **Reuso de sessão com retry**: `run_scraping()` mantém um browser context, refaz login se expirar
 - **Arquivos temporários**: cada execução cria uma pasta exclusiva (`nova_pasta_temporaria()`, prefixos `educacenso_*_tmp_`) em `/tmp` para os CSVs/PDFs da coleta; a consolidação (`build_xlsx`/`build_zip`) remove a pasta no final
 
@@ -68,7 +68,7 @@ uv add <pacote>                                     # adicionar dependência
 - **Credenciais**: `apps/coleta_cadastros_escolas/docs/credenciais.json` (gitignored; atualmente removido — recrie localmente quando for coletar e nunca versione).
 - **Sem autenticação própria e sem `.streamlit/secrets.toml`**: o HUB roda na rede local, em HTTP puro; o acesso é controlado pela rede (firewall/VPN) e as credenciais do Educacenso protegem as coletas. Credenciais, uploads e relatórios com PII não são criptografados em trânsito — veja `docs/deploy.md`.
 - **Dependências de sistema para Playwright** em `packages.txt` (libnss3, libnspr4, etc.) — instale com `uv run playwright install --with-deps chromium` ou pelo gerenciador de pacotes da distribuição
-- Chromium é baixado automaticamente na primeira coleta (`_ensure_chromium()`); no host, as libs de sistema precisam existir antes
+- Chromium é baixado automaticamente na primeira coleta (`ensure_chromium()`); no host, as libs de sistema precisam existir antes
 
 ## Execução local — uv (sem Docker na operação)
 
@@ -80,7 +80,7 @@ uv add <pacote>                                     # adicionar dependência
 
 ## Testes
 
-- `tests/` cobre a suíte offline (fakes, sem rede): `uv run python -m pytest` → 655 passed / 19 skipped; lint com `uv run ruff check .`
+- `tests/` cobre a suíte offline (fakes, sem rede): `uv run python -m pytest` → 698 passed / 19 skipped; lint com `uv run ruff check .`
 - `tests/security/` é ao vivo; **os 19 testes HTTP de segurança são pulados por padrão** — exigem `SECURITY_LIVE=1`
 - Alvo via `SECURITY_TARGET` (**obrigatório** — sem padrão; ex.: `http://localhost:8501/`); não há TLS/HSTS/Caddy nesta modalidade
 - Não intrusivos: poucas requisições, sem fuzzing/brute-force
@@ -94,7 +94,7 @@ uv add <pacote>                                     # adicionar dependência
 
 ## Estado atual (2026-10-20 — operação local)
 
-HUB com 10 apps em `apps/` — Tela Inicial + Coleta (4), Adequação (3), Verificação (1) e Unificador (1). O app de Verificação de Inconsistências está implementado e verificado; o histórico completo das fases está em `docs/plano_de_melhoria.md`. **Operação local (2026-10-20):** sem Docker/Caddy/TLS e sem autenticação própria do HUB; `uv sync` + `uv run streamlit run app.py --server.port <porta>`; porta escolhida a cada execução; runbook em `docs/deploy.md`. Resumo do que está no ar:
+HUB com 7 apps em `apps/` — Tela Inicial + Coleta de Dados (1), Adequação (3), Verificação (1) e Unificador (1) — e 4 coletores headless (`coleta_cadastros_escolas`, `coleta_gestor`, `coleta_relatorios`, `coleta_recibos_fechamento`), sem tela. O app de Verificação de Inconsistências está implementado e verificado; o histórico completo das fases está em `docs/plano_de_melhoria.md`. **Operação local (2026-10-20):** sem Docker/Caddy/TLS e sem autenticação própria do HUB; `uv sync` + `uv run streamlit run app.py --server.port <porta>`; porta escolhida a cada execução; runbook em `docs/deploy.md`. Resumo do que está no ar:
 
 1. **Listagem "Matrículas sem CPF informado (XLSX)"** (tela Cadastro de Aluno): `rules/aluno.py` → `extrair_alunos_sem_cpf(df)` seleciona CPF `'--'`, vazio ou `NaN` (via `_normalizar`); registrada em `validations.py` como `VALIDATIONS["aluno"]["extrair_sem_cpf"]`; botão no bloco "RELATÓRIOS DE APOIO" (aviso quando não há registros).
 2. **Seletor "Ano letivo"** (somente tela Aluno): `st.selectbox` de anos (decrescente, 2026→2000) salvo em `st.session_state[{prefix}ano_letivo]`; CSS do dropdown (width 5cm, max-height 360px) só nessa tela.
@@ -106,4 +106,4 @@ HUB com 10 apps em `apps/` — Tela Inicial + Coleta (4), Adequação (3), Verif
 8. **Fase 6 — régua fina**: fim da "piscada" na troca de apps (animação `fadeIn` do banner removida); **referências de estrutura versionadas** em `apps/verificacao_inconsistencias/docs/` — a checagem de estrutura deixou de ser silenciosamente inerte; `.gitignore` ignora planilhas por padrão (exceções: modelos e referências); relatórios de inconsistências com PII são memoizados **por sessão** (sem cache global; só o agregado cor/raça mantém `st.cache_data` com `ttl=300`).
 9. **Coleta do Gestor corrigida**: o vínculo é aberto por `list` → **`editing`** no modal (o código anterior exigia `visibility`, que o modal não tem); após extrair o vínculo, todos os diálogos são fechados e a Fase B espera as abas `Identificação`/`Dados pessoais` antes de extrair. Corrige a planilha que saía sem dados; regressão em `tests/test_coleta_gestor_fluxo.py` (merge `151e189`).
 10. **Operação local**: HUB sobe com `uv sync` + `uv run streamlit run app.py` (sem Docker, Caddy ou TLS) e sem tela de senha; a porta é escolhida na hora e o reinício é feito pelo script externo do operador. A antiga stack de intranet (compose/OIDC/Caddy/HSTS) foi removida; a auditoria de segurança ficou restrita a métodos HTTP e exposição de arquivos.
-11. **Tela da rodada da 1ª Etapa**: o relógio é um `st.container(border=True)` com o botão de interromper (ou de continuar/encerrar, na pausa) **dentro** do card, à direita; a linha "Escola atual: …" também fica nele — e, durante um retry por timeout, ele mostra `Nome (código): nova tentativa N de 5 (timeout)…` (aviso publicado em `shared["aviso"]`, limpo quando a coleta recomeça). O redesenho é por **`st.fragment(run_every=0.5)`** (não `sleep` + `st.rerun()`) — abortar o script no meio deixava na árvore do frontend os restos da tela anterior (Orientações e "Aplicações a coletar" reapareciam junto com a rodada). A tabela de resultados segue o desenho aprovado: `st.subheader` + cabeçalho em `st.caption` + um `st.divider()` por linha, status com bolinha colorida (🟢🟡🔴) e downloads rotulados "Baixar" (verde fosco nos dados, vermelho fosco nas pendências).
+11. **Tela da Coleta de Dados**: o relógio é um `st.container(border=True)` com o botão de interromper (ou de continuar/encerrar, na pausa) **dentro** do card, à direita; a linha "Escola atual: …" também fica nele — e, durante um retry por timeout, ele mostra `Nome (código): nova tentativa N de 5 (timeout)…` (aviso publicado em `shared["aviso"]`, limpo quando a coleta recomeça). O redesenho é por **`st.fragment(run_every=0.5)`** (não `sleep` + `st.rerun()`) — abortar o script no meio deixava na árvore do frontend os restos da tela anterior (Orientações e "Aplicações a coletar" reapareciam junto com a rodada). A tabela de resultados segue o desenho aprovado: `st.subheader` + cabeçalho em `st.caption` + um `st.divider()` por linha, status com bolinha colorida (🟢🟡🔴) e downloads rotulados "Baixar" (verde fosco nos dados, vermelho fosco nas pendências).

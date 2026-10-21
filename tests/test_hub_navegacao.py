@@ -13,7 +13,6 @@ from pathlib import Path
 from streamlit.testing.v1 import AppTest
 
 _RAIZ = Path(__file__).resolve().parents[1]
-_GRUPO = "Coleta do Educacenso"
 
 
 def _novo_app(monkeypatch) -> AppTest:
@@ -40,31 +39,36 @@ def test_navegacao_troca_pagina_e_limpa_estado(monkeypatch):
     at = _novo_app(monkeypatch)
     at.session_state["estado_da_pagina_anterior"] = "x"
 
-    _botao_do_menu(at, "Dados Cadastrais da Unidades").click().run()
-    assert at.session_state["nav_page"] == "Dados Cadastrais da Unidades"
-    assert at.session_state["prev_nav_page"] == "Dados Cadastrais da Unidades"
+    _botao_do_menu(at, "Cadastro de Unidades").click().run()
+    assert at.session_state["nav_page"] == "Cadastro de Unidades"
+    assert at.session_state["prev_nav_page"] == "Cadastro de Unidades"
     assert "estado_da_pagina_anterior" not in at.session_state
 
     # A segunda troca prova que a limpeza continua ativa (prev_nav_page não
     # pode ter sido apagado junto com o estado da página anterior).
     at.session_state["segundo_estado"] = "y"
-    _botao_do_menu(at, "Dados dos Gestores Escolares").click().run()
-    assert at.session_state["nav_page"] == "Dados dos Gestores Escolares"
-    assert at.session_state["prev_nav_page"] == "Dados dos Gestores Escolares"
+    _botao_do_menu(at, "Cadastro de Gestor").click().run()
+    assert at.session_state["nav_page"] == "Cadastro de Gestor"
+    assert at.session_state["prev_nav_page"] == "Cadastro de Gestor"
     assert "segundo_estado" not in at.session_state
     assert not at.exception
 
 
-def test_menu_tem_a_coleta_de_dados_no_educacenso(monkeypatch):
-    """A rodada fica no menu raiz (fora do grupo "Coleta do Educacenso")."""
+def test_menu_tem_a_coleta_de_dados_e_nao_as_telas_isoladas(monkeypatch):
+    """A rodada fica no menu raiz; as telas isoladas de coleta saíram do menu."""
     at = _novo_app(monkeypatch)
-    _botao_do_menu(at, "Coleta de Dados no Educacenso - 1ª Etapa").click().run()
+    _botao_do_menu(at, "Coleta de Dados").click().run()
     assert not at.exception
-    assert at.session_state["nav_page"] == "Coleta de Dados no Educacenso - 1ª Etapa"
+    assert at.session_state["nav_page"] == "Coleta de Dados"
 
-    # Não é mais um item do grupo "Coleta do Educacenso".
-    at = _novo_app(monkeypatch)
-    rotulos_grupo = [
-        b.label for b in at.button if (b.key or "").startswith("nav_Coleta do Educacenso_")
-    ]
-    assert "Coleta de Dados no Educacenso - 1ª Etapa" not in rotulos_grupo
+    rotulos = [b.label for b in at.button]
+    for removido in (
+        "Dados Cadastrais da Unidades",
+        "Dados dos Gestores Escolares",
+        "Relatórios de Turmas",
+        "Relatórios de Alunos",
+        "Relatórios de Profissionais Escolares",
+        "Recibos de Fechamento (1ª Etapa)",
+    ):
+        assert removido not in rotulos, removido
+    assert not any((b.key or "").startswith("nav_Coleta do Educacenso_") for b in at.button)

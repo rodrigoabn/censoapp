@@ -138,6 +138,24 @@ segundo plano, a partir de um único formulário (login, senha e lista de escola
 
 **Design e plano:** `docs/superpowers/specs/2026-10-20-coleta-automatica-design.md` e
 `docs/superpowers/plans/2026-10-20-coleta-automatica.md`; branch `automacao-coleta`.
+
+---
+
+## Fase 8 — Telas isoladas de coleta removidas ✅ (2026-10-21)
+
+As 4 telas isoladas de coleta saíram do menu: a **Coleta de Dados** (rodada) é a única
+tela de coleta. Os 4 apps viraram coletores headless, mantendo os scrapers modulares.
+
+- [x] **8.1 — `collector.py` nos 4 coletores**: `CONFIG` + worker (assinatura "config
+  primeiro"), sem Streamlit; `src/frontend.py` apagado; `etapas.py` importa `collector`.
+- [x] **8.2 — `apps/common/ui.py` enxuto**: ficaram `worker_base`, `registrar_progresso`,
+  `escapar`/`linha_monitor`/`status_color`, o relógio (`RELOGIO_CSS`) e a guarda de
+  Chromium; saíram `TextosFrontend`, `FrontendCtx`, `init_state`, `start_base`,
+  `monitor_base`, `finalize_base` e `render_coleta_frontend`.
+- [x] **8.3 — Menu**: item raiz renomeado para **Coleta de Dados**; grupo "Coleta do
+  Educacenso" removido.
+- [x] **8.4 — Testes e docs**: testes das telas removidos/migrados para os collectors;
+  PDF do manual e `AGENTS.md` atualizados (7 apps + 4 coletores headless).
 **Nenhum dos 6 coletores foi alterado** — a rodada apenas os executa.
 
 ---

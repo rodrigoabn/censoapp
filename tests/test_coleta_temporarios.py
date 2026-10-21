@@ -96,8 +96,8 @@ def test_zip_de_recibos_grava_na_pasta_da_execucao():
     assert not pasta.exists()
 
 
-def test_frontends_de_coleta_importam_sem_erro():
-    import apps.coleta_gestor.src.frontend  # noqa: F401
-    import apps.coleta_recibos_fechamento.src.frontend  # noqa: F401
-    import apps.coleta_relatorios.src.frontend  # noqa: F401
-    from apps.coleta_cadastros_escolas.src import frontend as cadastros_frontend  # noqa: F401
+def test_collectors_de_coleta_importam_sem_erro():
+    import apps.coleta_gestor.src.collector  # noqa: F401
+    import apps.coleta_recibos_fechamento.src.collector  # noqa: F401
+    import apps.coleta_relatorios.src.collector  # noqa: F401
+    from apps.coleta_cadastros_escolas.src import collector as cadastros_collector  # noqa: F401

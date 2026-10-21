@@ -9,11 +9,6 @@ from apps.adequacao_profissionais.src.frontend import render_adequacao_profissio
 # Adequação de Relatórios
 from apps.adequacao_turmas.src.frontend import render_adequacao_turmas_frontend
 from apps.coleta_automatica.src.frontend import render_coleta_automatica_frontend
-from apps.coleta_cadastros_escolas.src.frontend import render_frontend
-from apps.coleta_gestor.src.frontend import render_gestor_frontend
-from apps.coleta_recibos_fechamento.src.frontend import render_receipt_frontend
-from apps.coleta_relatorios.src.frontend import render_report_frontend
-from apps.coleta_relatorios.src.reports import REPORTS
 from apps.inicio.inicio import show_home_page
 from apps.unificador_inconsistencias.src.frontend import (
     render_unificador_inconsistencias_frontend,
@@ -615,14 +610,6 @@ st.markdown("""
 """, unsafe_allow_html=True)
 
 _MENU_GROUPS = {
-    "Coleta do Educacenso": [
-        "Dados Cadastrais da Unidades",
-        "Dados dos Gestores Escolares",
-        "Relatórios de Turmas",
-        "Relatórios de Alunos",
-        "Relatórios de Profissionais Escolares",
-        "Recibos de Fechamento (1ª Etapa)",
-    ],
     "Adequação de Relatórios": [
         "Adequação de Relatório de Turmas",
         "Adequação de Relatórios de Alunos",
@@ -654,7 +641,7 @@ def _nav_item(container, label, key):
 
 # Item raiz (sem grupo)
 _nav_item(st.sidebar, "Tela Inicial", "nav_home")
-_nav_item(st.sidebar, "Coleta de Dados no Educacenso - 1ª Etapa", "nav_coleta_dados")
+_nav_item(st.sidebar, "Coleta de Dados", "nav_coleta_dados")
 
 # Grupos colapsáveis (expande o grupo que contém a página ativa)
 for _grupo, _itens in _MENU_GROUPS.items():
@@ -684,28 +671,11 @@ if page == "Tela Inicial":
     # Home: hero centralizado com rodapé fixo (scroll via CSS global)
     show_home_page(logo_base64)
     render_license_footer()
-elif page == "Coleta de Dados no Educacenso - 1ª Etapa":
+elif page == "Coleta de Dados":
     render_coleta_automatica_frontend(logo_base64)
     render_license_footer()
 elif page == "Unificador de Inconsistências por Unidade Escolar":
     render_unificador_inconsistencias_frontend(logo_base64)
-    render_license_footer()
-elif page == "Dados Cadastrais da Unidades":
-    render_frontend(logo_base64)
-    render_license_footer()
-elif page == "Dados dos Gestores Escolares":
-    render_gestor_frontend(logo_base64)
-    render_license_footer()
-elif page in ("Relatórios de Turmas", "Relatórios de Alunos", "Relatórios de Profissionais Escolares"):
-    _report_key = {
-        "Relatórios de Turmas": "turmas",
-        "Relatórios de Alunos": "alunos",
-        "Relatórios de Profissionais Escolares": "profissionais",
-    }[page]
-    render_report_frontend(REPORTS[_report_key], logo_base64)
-    render_license_footer()
-elif page == "Recibos de Fechamento (1ª Etapa)":
-    render_receipt_frontend(logo_base64)
     render_license_footer()
 elif page in ("Adequação de Relatório de Turmas", "Adequação de Relatórios de Alunos", "Adequação de Relatórios de Profissionais"):
     _adeq_key = {
