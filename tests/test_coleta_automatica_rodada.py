@@ -503,3 +503,61 @@ def test_resultado_de_login_sem_mensagem_nao_afirma_senha_incorreta(monkeypatch)
     assert "Não foi possível concluir o login" in texto
     assert "Login ou senha incorretos" not in texto
     assert "Continuar" not in [b[0] for b in st_falso.botoes]
+
+
+def test_botao_nova_rodada_fica_dentro_do_cartao_resumo(monkeypatch):
+    """O botão Nova rodada fica no card superior, não no rodapé da tela."""
+    estado = _rodada()
+    estado["ca_running"] = False
+    estado["ca_finalized"] = True
+    estado["ca_fim"] = datetime(2026, 10, 20, 21, 16, 0)
+    st_falso = _StFalso(estado)
+    monkeypatch.setattr(frontend, "st", st_falso)
+
+    frontend._tela_resultado()
+
+    botoes = [b for b in st_falso.botoes if b[0] == "Nova rodada"]
+    assert botoes, "o botão Nova rodada não foi criado"
+    assert botoes[0][2] > 0, "o botão Nova rodada ficou fora do card superior"
+    assert any(c.get("key") == "ca_resumo" for c in st_falso.containers)
+
+
+def test_rerun_da_nova_rodada_sai_fora_do_card(monkeypatch):
+    """O rerun da Nova rodada não pode sair de dentro do card.
+
+    O botão fica dentro do card superior, mas o `st.rerun()` só é chamado
+    depois que o container foi fechado — um rerun de dentro do card deixa o
+    frontend com restos da tela anterior.
+    """
+    estado = _rodada()
+    estado["ca_running"] = False
+    estado["ca_finalized"] = True
+    estado["ca_fim"] = datetime(2026, 10, 20, 21, 16, 0)
+    st_falso = _StFalso(estado)
+    st_falso.clicar_em = "ca_nova_rodada"
+    monkeypatch.setattr(frontend, "st", st_falso)
+
+    with pytest.raises(_Rerun):
+        frontend._tela_resultado()
+
+    assert st_falso.profundidade_no_rerun == 0, (
+        "o rerun da Nova rodada saiu de dentro de um card"
+    )
+    for chave in ("ca_running", "ca_finalized", "ca_estado", "ca_fim"):
+        assert chave not in estado
+
+
+def test_tabela_usa_chave_ca_tabela_para_o_css_de_espacamento(monkeypatch):
+    """O container da tabela precisa da chave usada pelo CSS de espaçamento."""
+    st_falso = _StFalso({})
+    monkeypatch.setattr(frontend, "st", st_falso)
+
+    frontend._tabela_etapas([], [], None)
+
+    assert any(c.get("key") == "ca_tabela" for c in st_falso.containers)
+
+
+def test_css_usa_as_chaves_dos_cartoes_da_tela():
+    """O CSS do botão do resumo e da tabela aponta para as chaves certas."""
+    assert "st-key-ca_resumo" in frontend.TABELA_CSS
+    assert "st-key-ca_tabela" in frontend.TABELA_CSS

@@ -73,11 +73,16 @@ _ORIENTACOES = (
 #: Estilo da tabela de resultados e dos botões de download.
 TABELA_CSS = """
 <style>
-/* Cartão do relógio: o botão fica à direita, no meio da altura. */
-[data-testid="stMain"] [class*="st-key-ca_relogio"] [data-testid="stColumn"]:last-child {
+/* Cartões com botão à direita (relógio da rodada e resumo final). */
+[data-testid="stMain"] [class*="st-key-ca_relogio"] [data-testid="stColumn"]:last-child,
+[data-testid="stMain"] [class*="st-key-ca_resumo"] [data-testid="stColumn"]:last-child {
     display: flex !important;
     align-items: center !important;
     justify-content: flex-end !important;
+}
+[data-testid="stMain"] [class*="st-key-ca_relogio"] [data-testid="stColumn"]:last-child > [data-testid="stVerticalBlock"],
+[data-testid="stMain"] [class*="st-key-ca_resumo"] [data-testid="stColumn"]:last-child > [data-testid="stVerticalBlock"] {
+    align-items: flex-end !important;
 }
 /* Botões do cartão do relógio: a mesma linguagem do relógio digital
    (contorno fino, azul do mostrador e o brilho dele). */
@@ -119,6 +124,19 @@ TABELA_CSS = """
 }
 [data-testid="stMain"] [class*="st-key-ca_dl_pend_"] button:hover {
     background-color: rgba(156, 74, 74, 0.18) !important;
+}
+/* Tabela de resultados: linhas mais baixas, com o texto perto das bordas. */
+[data-testid="stMain"] [class*="st-key-ca_tabela"] {
+    gap: 0.35rem !important;
+}
+[data-testid="stMain"] [class*="st-key-ca_tabela"] [data-testid="stMarkdownContainer"] {
+    margin-bottom: 0 !important;
+}
+[data-testid="stMain"] [class*="st-key-ca_tabela"] [data-testid="stMarkdownContainer"] p {
+    margin-bottom: 0 !important;
+}
+[data-testid="stMain"] [class*="st-key-ca_tabela"] hr {
+    margin: 0.2rem 0 !important;
 }
 </style>
 """
@@ -293,7 +311,7 @@ def _tabela_etapas(
     """
     por_chave = {r.chave: r for r in resultados}
 
-    with st.container(border=True):
+    with st.container(border=True, key="ca_tabela"):
         st.subheader("Tempo por aplicação")
 
         # Cabeçalho: rótulo curto e discreto em cada coluna.
@@ -513,12 +531,20 @@ def _tela_resultado() -> None:
     inicio = ss.get("ca_inicio")
     fim = ss.get("ca_fim")
 
-    if inicio is not None and fim is not None:
-        with st.container(border=True, key="ca_resumo"):
-            st.markdown(
-                _relogio_resumo_conteudo_html(inicio, fim),
-                unsafe_allow_html=True,
-            )
+    nova_rodada = False
+    with st.container(border=True, key="ca_resumo"):
+        col_resumo, col_nova_rodada = st.columns(
+            [5, 1.4], vertical_alignment="center"
+        )
+        with col_resumo:
+            if inicio is not None and fim is not None:
+                st.markdown(
+                    _relogio_resumo_conteudo_html(inicio, fim),
+                    unsafe_allow_html=True,
+                )
+        with col_nova_rodada:
+            nova_rodada = st.button("Nova rodada", key="ca_nova_rodada")
+
     resultados = estado.get("resultados") or []
     falha_login = next(
         (r for r in resultados if getattr(r, "erro_login", False)), None
@@ -556,7 +582,9 @@ def _tela_resultado() -> None:
     else:
         st.caption("Nenhuma etapa produziu arquivo, então não há pacote para baixar.")
 
-    if st.button("Nova rodada", key="ca_nova_rodada"):
+    # O rerun sai **fora** do card: um `st.rerun()` de dentro de um container
+    # deixa o card aberto e o frontend passa a exibir restos da tela anterior.
+    if nova_rodada:
         for chave in (
             "ca_running",
             "ca_finalized",
