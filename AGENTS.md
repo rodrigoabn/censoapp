@@ -41,6 +41,13 @@ uv add <pacote>                                     # adicionar dependência
 - **Fluxo de login**: Keycloak em `acesso.inep.gov.br`, CPF + senha
 - **Hierarquia de exceções**: `SessaoExpirada`, `LoginFalhou`, `ReciboIndisponivel`, `PreenchimentoNaoIniciado`
 - **Logs personalizados em português** (`logger = logging.getLogger("coleta_*")`)
+- **Nova tentativa em timeout (só na rodada)**: escola que falha por timeout do
+  Playwright (`wait_for_selector`, `goto`, `click`, `expect_download`) é repetida
+  até **5 tentativas no total**, com **5 s** entre elas; a passada de retry roda o
+  worker **só com as escolas que falharam** (as já coletadas ficam na pasta de
+  trabalho e entram no artefato), e a falha carrega `"timeout": bool` (marca do
+  laço compartilhado). Na rodada a navegação interna usa **1** tentativa
+  (`session.TENTATIVAS_NAVEGACAO`); as telas isoladas continuam com **3**.
 - **Reuso de sessão com retry**: `run_scraping()` mantém um browser context, refaz login se expirar
 - **Arquivos temporários**: cada execução cria uma pasta exclusiva (`nova_pasta_temporaria()`, prefixos `educacenso_*_tmp_`) em `/tmp` para os CSVs/PDFs da coleta; a consolidação (`build_xlsx`/`build_zip`) remove a pasta no final
 

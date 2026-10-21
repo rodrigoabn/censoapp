@@ -57,8 +57,8 @@ def test_login_falho_marca_todas_as_escolas(monkeypatch):
     outputs, failures = gestor_scraper.run_scraping(_BrowserFalso(), "l", "s", ESCOLAS)
     assert outputs == []
     assert failures == [
-        {"codigo_inep": "111", "nome_unidade": "Escola Um", "motivo": "Falha no login"},
-        {"codigo_inep": "222", "nome_unidade": "Escola Dois", "motivo": "Falha no login"},
+        {"codigo_inep": "111", "nome_unidade": "Escola Um", "motivo": "Falha no login", "timeout": False},
+        {"codigo_inep": "222", "nome_unidade": "Escola Dois", "motivo": "Falha no login", "timeout": False},
     ]
 
 
@@ -86,13 +86,13 @@ def test_escola_ok_e_erro_inesperado_convivem(monkeypatch):
     outputs, failures = gestor_scraper.run_scraping(_BrowserFalso(), "l", "s", ESCOLAS)
     assert [e["codigo_inep"] for e, _ in outputs] == ["111"]
     assert failures == [
-        {"codigo_inep": "222", "nome_unidade": "Escola Dois", "motivo": "Erro: boom"}
+        {"codigo_inep": "222", "nome_unidade": "Escola Dois", "motivo": "Erro: boom", "timeout": False}
     ]
 
 
 def test_planilha_de_nao_coletadas_tem_cabecalho_e_linhas():
     data = exporter.build_pending_xlsx([
-        {"codigo_inep": "111", "nome_unidade": "Escola Um", "motivo": "Falha no login"},
+        {"codigo_inep": "111", "nome_unidade": "Escola Um", "motivo": "Falha no login", "timeout": False},
     ])
     ws = openpyxl.load_workbook(io.BytesIO(data)).active
     assert [c.value for c in ws[1]] == ["Código do Inep", "Nome da Unidade", "Motivo"]
@@ -118,7 +118,7 @@ def test_re_login_falho_apos_sessao_expirada(monkeypatch):
     outputs, failures = gestor_scraper.run_scraping(_BrowserFalso(), "l", "s", ESCOLAS[:1])
     assert outputs == []
     assert failures == [
-        {"codigo_inep": "111", "nome_unidade": "Escola Um", "motivo": "Erro (re-login): LoginFalhou"}
+        {"codigo_inep": "111", "nome_unidade": "Escola Um", "motivo": "Erro (re-login): LoginFalhou", "timeout": False}
     ]
 
 
@@ -135,13 +135,13 @@ def test_re_login_falho_na_checagem_previa(monkeypatch):
     outputs, failures = gestor_scraper.run_scraping(_BrowserFalso(), "l", "s", ESCOLAS[:1])
     assert outputs == []
     assert failures == [
-        {"codigo_inep": "111", "nome_unidade": "Escola Um", "motivo": "Erro (re-login): LoginFalhou"}
+        {"codigo_inep": "111", "nome_unidade": "Escola Um", "motivo": "Erro (re-login): LoginFalhou", "timeout": False}
     ]
 
 
 def test_planilha_de_nao_coletadas_neutraliza_formulas():
     data = exporter.build_pending_xlsx([
-        {"codigo_inep": "111", "nome_unidade": "=1+1", "motivo": "Falha no login"},
+        {"codigo_inep": "111", "nome_unidade": "=1+1", "motivo": "Falha no login", "timeout": False},
     ])
     ws = openpyxl.load_workbook(io.BytesIO(data)).active
     assert ws["B2"].value == "'=1+1"

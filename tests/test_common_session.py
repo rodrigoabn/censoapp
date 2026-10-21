@@ -249,6 +249,55 @@ def test_select_school_sem_hook_espera_o_botao_gerar():
     ) in pagina.chamadas
 
 
+class _LocatorInvisivel:
+    def is_visible(self):
+        return False
+
+
+class _PaginaSemCampo:
+    """Página em que o campo `codigoEscola` nunca renderiza (timeout de 30 s)."""
+
+    def __init__(self):
+        self.gotos = 0
+
+    def goto(self, url, **k):
+        self.gotos += 1
+
+    def wait_for_selector(self, seletor, state=None, timeout=None):
+        if seletor == "input[formcontrolname='codigoEscola']":
+            raise PlaywrightTimeoutError("campo não apareceu")
+        return _LocatorInvisivel()
+
+    def wait_for_timeout(self, ms):
+        return None
+
+    def locator(self, seletor):
+        return _LocatorInvisivel()
+
+
+def test_select_school_tenta_tres_vezes_por_padrao():
+    """As 4 telas de coleta continuam com o retry interno de navegação."""
+    pagina = _PaginaSemCampo()
+
+    with pytest.raises(PlaywrightTimeoutError):
+        session.select_school(pagina, "111")
+
+    assert pagina.gotos == 3
+
+
+def test_select_school_uma_tentativa_quando_o_contexto_da_rodada_pede():
+    """Na rodada o retry é por escola: a navegação tenta uma vez só."""
+    pagina = _PaginaSemCampo()
+    token = session.TENTATIVAS_NAVEGACAO.set(1)
+    try:
+        with pytest.raises(PlaywrightTimeoutError):
+            session.select_school(pagina, "111")
+    finally:
+        session.TENTATIVAS_NAVEGACAO.reset(token)
+
+    assert pagina.gotos == 1
+
+
 # ─────────────────────────── marcar_nao_processadas ────────────────────
 
 

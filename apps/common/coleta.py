@@ -18,6 +18,8 @@ import time
 from dataclasses import dataclass
 from typing import Any, Callable
 
+from playwright.sync_api import TimeoutError as PlaywrightTimeoutError
+
 from apps.common.auth import _assert_read_only
 from apps.common.session import LoginFalhou, SessaoExpirada
 
@@ -47,6 +49,19 @@ class TextosColeta:
     formatar_log_nao_encontrada_pos_relogin: Callable[[str], str] | None = None
     # Mapeia exceções rotineiras do app para (motivo, progresso); None = genérico.
     mapear_excecao: Callable[[BaseException], tuple[str, str] | None] | None = None
+
+
+def e_timeout(exc: BaseException) -> bool:
+    """True quando a exceção é um timeout do Playwright (qualquer operação).
+
+    O motivo visto pelo usuário é ``Page.wait_for_selector: Timeout 30000ms
+    exceeded.`` (ou ``goto``/``click``/download). A rodada da 1ª Etapa usa a
+    marca ``"timeout"`` da falha para repetir só aquela escola.
+    """
+    if isinstance(exc, PlaywrightTimeoutError):
+        return True
+    texto = str(exc).lower()
+    return "timeout" in texto and "exceeded" in texto
 
 
 def pausa_entre_escolas() -> float:
@@ -106,24 +121,29 @@ def run_coleta(
     context = browser.new_context(accept_downloads=accept_downloads)
     page = context.new_page()
     logged_in = False
+    ultimo_erro: BaseException | None = None
     for _attempt in range(2):
         try:
             hooks.login_and_read(page, login, senha)
             logged_in = True
             break
-        except LoginFalhou:
+        except LoginFalhou as exc:
+            ultimo_erro = exc
             time.sleep(1)
             continue
-        except Exception:
+        except Exception as exc:  # noqa: BLE001
+            ultimo_erro = exc
             break
 
     if not logged_in:
         logger.error(textos.log_abort)
+        falha_de_login = e_timeout(ultimo_erro) if ultimo_erro is not None else False
         failures.extend(
             {
                 "codigo_inep": e["codigo_inep"],
                 "nome_unidade": e.get("nome_unidade", ""),
                 "motivo": "Falha no login",
+                "timeout": falha_de_login,
             }
             for e in escolas
         )
@@ -156,6 +176,7 @@ def run_coleta(
                         "codigo_inep": codigo,
                         "nome_unidade": nome,
                         "motivo": f"Erro (re-login): {textos.formatar_motivo_relogin(exc)}",
+                        "timeout": e_timeout(exc),
                     }
                 )
                 if on_progress:
@@ -199,6 +220,7 @@ def run_coleta(
                         "codigo_inep": codigo,
                         "nome_unidade": nome,
                         "motivo": f"Erro (re-login): {textos.formatar_motivo_relogin(exc_re)}",
+                        "timeout": e_timeout(exc_re),
                     }
                 )
                 if on_progress:
@@ -230,6 +252,7 @@ def run_coleta(
                         "codigo_inep": codigo,
                         "nome_unidade": nome,
                         "motivo": f"Erro (após re-login): {exc2}",
+                        "timeout": e_timeout(exc2),
                     }
                 )
                 if on_progress:
@@ -241,14 +264,24 @@ def run_coleta(
                 # de erro (comportamento do baseline de Relatórios/Recibos).
                 motivo, progresso = mapeado
                 failures.append(
-                    {"codigo_inep": codigo, "nome_unidade": nome, "motivo": motivo}
+                    {
+                        "codigo_inep": codigo,
+                        "nome_unidade": nome,
+                        "motivo": motivo,
+                        "timeout": False,
+                    }
                 )
                 if on_progress:
                     on_progress(i, len(escolas), codigo, nome, progresso)
             else:
                 logger.error(textos.formatar_log_erro(codigo, exc))
                 failures.append(
-                    {"codigo_inep": codigo, "nome_unidade": nome, "motivo": f"Erro: {exc}"}
+                    {
+                        "codigo_inep": codigo,
+                        "nome_unidade": nome,
+                        "motivo": f"Erro: {exc}",
+                        "timeout": e_timeout(exc),
+                    }
                 )
                 if on_progress:
                     on_progress(i, len(escolas), codigo, nome, f"erro: {exc}")

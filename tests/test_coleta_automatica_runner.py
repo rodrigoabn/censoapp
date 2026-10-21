@@ -59,7 +59,8 @@ def _etapa(chave, *, erro=None, coletadas=2, arquivos=("dados.csv",)):
     )
 
 
-def _rodar(etapas, *, stop_event=None, continuar_event=None, tmp_path=None):
+def _rodar(etapas, *, escolas=None, stop_event=None, continuar_event=None, tmp_path=None):
+    escolas = escolas or [{"codigo_inep": "33000001", "nome_unidade": "Escola Um"}]
     estado = {
         "resultados": [],
         "etapa_atual": None,
@@ -72,7 +73,7 @@ def _rodar(etapas, *, stop_event=None, continuar_event=None, tmp_path=None):
         etapas,
         "cpf",
         "senha",
-        [{"codigo_inep": "33000001", "nome_unidade": "Escola Um"}],
+        escolas,
         stop_event=stop_event or threading.Event(),
         lock=threading.Lock(),
         estado=estado,
@@ -299,3 +300,205 @@ def test_limpar_temporarios_antigos_preserva_a_pasta_recente(tmp_path, monkeypat
 
     assert removidas == 0
     assert pasta.exists()
+
+
+# ── nova tentativa por timeout ─────────────────────────────────────────────
+
+ESCOLAS = [
+    {"codigo_inep": "111", "nome_unidade": "Escola Um"},
+    {"codigo_inep": "222", "nome_unidade": "Escola Dois"},
+]
+
+MOTIVO_TIMEOUT = "Erro: Page.wait_for_selector: Timeout 30000ms exceeded."
+
+
+class _EventoQueEspera:
+    """`threading.Event` mínimo: registra as esperas e pode encerrar a rodada."""
+
+    def __init__(self, parar_na_espera=False):
+        self.esperas = []
+        self.setado = False
+        self.parar_na_espera = parar_na_espera
+
+    def is_set(self):
+        return self.setado
+
+    def set(self):
+        self.setado = True
+
+    def wait(self, timeout=None):
+        self.esperas.append(timeout)
+        if self.parar_na_espera:
+            self.setado = True
+            return True
+        return False
+
+
+def _etapa_que_falha(chamadas, roteiro):
+    """Etapa falsa: registra as escolas de cada passada e falha conforme o roteiro.
+
+    ``roteiro[codigo]`` é a lista de resultados, um por passada: ``"timeout"``,
+    ``"erro"`` ou ``"ok"`` (sem item = ok).
+    """
+
+    def worker(config, login, senha, escolas, stop_event, lock, shared, tmp_dir):
+        chamadas.append([e["codigo_inep"] for e in escolas])
+        falhas = []
+        for escola in escolas:
+            codigo = escola["codigo_inep"]
+            fila = roteiro.get(codigo) or []
+            resultado = fila.pop(0) if fila else "ok"
+            if resultado == "timeout":
+                falhas.append(
+                    {
+                        "codigo_inep": codigo,
+                        "nome_unidade": escola.get("nome_unidade", ""),
+                        "motivo": MOTIVO_TIMEOUT,
+                        "timeout": True,
+                    }
+                )
+            elif resultado == "erro":
+                falhas.append(
+                    {
+                        "codigo_inep": codigo,
+                        "nome_unidade": escola.get("nome_unidade", ""),
+                        "motivo": "Erro: portal fora do ar",
+                        "timeout": False,
+                    }
+                )
+            else:
+                shared["count"] = shared.get("count", 0) + 1
+                (Path(tmp_dir) / f"{codigo}.csv").write_text("x", encoding="utf-8")
+        shared["failures"] = falhas
+        shared["total"] = len(escolas)
+
+    return Etapa(
+        chave="a",
+        titulo="a",
+        pasta="a",
+        config={"zip_prefix": "a"},
+        zipper=_ZipperFalso(),
+        worker=worker,
+        textos=None,
+    )
+
+
+def test_timeout_repete_so_as_escolas_que_falharam(tmp_path):
+    """A escola com timeout é repetida; a que deu certo NÃO é recoletada."""
+    chamadas = []
+    evento = _EventoQueEspera()
+    etapa = _etapa_que_falha(chamadas, {"222": ["timeout", "ok"]})
+
+    estado = _rodar([etapa], escolas=ESCOLAS, stop_event=evento, tmp_path=tmp_path)
+
+    assert chamadas == [["111", "222"], ["222"]]
+    assert evento.esperas == [5.0]
+    resultado = estado["resultados"][0]
+    assert resultado.situacao == "concluida"
+    assert resultado.caminho_pendencias is None, "a escola repetida com sucesso saiu das pendências"
+    assert resultado.caminho_artefato is not None
+
+
+def test_timeout_desiste_depois_de_cinco_tentativas(tmp_path):
+    """O limite é 5 tentativas no total (1 original + 4 repetições)."""
+    chamadas = []
+    evento = _EventoQueEspera()
+    etapa = _etapa_que_falha(chamadas, {"111": ["timeout"] * 6})
+
+    estado = _rodar([etapa], escolas=ESCOLAS, stop_event=evento, tmp_path=tmp_path)
+
+    assert len(chamadas) == 5
+    assert len(evento.esperas) == 4
+    assert all("111" in chamada for chamada in chamadas)
+    resultado = estado["resultados"][0]
+    assert resultado.caminho_pendencias is not None, "a escola que nunca coletou fica pendente"
+
+
+def test_erro_comum_nao_repete_a_escola(tmp_path):
+    """Falha que não é timeout (portal fora do ar) não ganha nova tentativa."""
+    chamadas = []
+    etapa = _etapa_que_falha(chamadas, {"111": ["erro"]})
+
+    estado = _rodar([etapa], escolas=ESCOLAS, tmp_path=tmp_path)
+
+    assert chamadas == [["111", "222"]]
+    assert estado["resultados"][0].caminho_pendencias is not None
+
+
+def test_pendencia_comum_sobrevive_as_tentativas_de_outra_escola(tmp_path):
+    """Só a escola com timeout repete; a falha comum continua nas pendências."""
+    import openpyxl
+
+    chamadas = []
+    evento = _EventoQueEspera()
+    etapa = _etapa_que_falha(chamadas, {"111": ["timeout", "ok"], "222": ["erro"]})
+
+    estado = _rodar([etapa], escolas=ESCOLAS, stop_event=evento, tmp_path=tmp_path)
+
+    assert chamadas == [["111", "222"], ["111"]]
+    caminho = estado["resultados"][0].caminho_pendencias
+    ws = openpyxl.load_workbook(caminho).active
+    codigos = [linha[0] for linha in ws.iter_rows(min_row=2, values_only=True)]
+    assert codigos == ["222"]
+
+
+def test_espera_cinco_segundos_entre_as_tentativas(tmp_path):
+    chamadas = []
+    evento = _EventoQueEspera()
+    etapa = _etapa_que_falha(chamadas, {"111": ["timeout", "timeout", "ok"]})
+
+    _rodar([etapa], escolas=ESCOLAS, stop_event=evento, tmp_path=tmp_path)
+
+    assert evento.esperas == [5.0, 5.0]
+
+
+def test_interrupcao_na_espera_encerra_a_etapa(tmp_path):
+    """A interrupção do usuário vence a espera da nova tentativa."""
+    chamadas = []
+    evento = _EventoQueEspera(parar_na_espera=True)
+    etapa = _etapa_que_falha(chamadas, {"111": ["timeout", "ok"]})
+
+    estado = _rodar([etapa], escolas=ESCOLAS, stop_event=evento, tmp_path=tmp_path)
+
+    assert chamadas == [["111", "222"]]
+    assert estado["resultados"][0].situacao == "interrompida"
+    assert estado["interrompida"] is True
+
+
+def test_falha_de_timeout_reconhece_as_mensagens_do_playwright():
+    from apps.coleta_automatica.src.runner import e_falha_timeout
+
+    assert e_falha_timeout({"motivo": "Erro: Page.wait_for_selector: Timeout 30000ms exceeded."})
+    assert e_falha_timeout({"motivo": "Erro: Page.goto: Timeout 30000ms exceeded."})
+    assert e_falha_timeout({"motivo": "Erro: locator.click: Timeout 8000ms exceeded."})
+    assert e_falha_timeout({"motivo": "Erro: Timeout 60000ms exceeded."})
+    assert not e_falha_timeout({"motivo": "Erro: portal fora do ar"})
+    assert not e_falha_timeout({"motivo": "Escola não encontrada"})
+    assert not e_falha_timeout({"motivo": "Coleta interrompida (não processada)"})
+    assert e_falha_timeout({"motivo": "qualquer", "timeout": True})
+
+
+def test_rodada_usa_uma_tentativa_de_navegacao_e_restaura_o_default(tmp_path):
+    """Na rodada a navegação tenta 1 vez; ao terminar, o default (3) volta."""
+    from apps.common import session
+
+    vistos = []
+
+    def worker(config, login, senha, escolas, stop_event, lock, shared, tmp_dir):
+        vistos.append(session.TENTATIVAS_NAVEGACAO.get())
+        shared["count"] = len(escolas)
+        shared["failures"] = []
+
+    etapa = Etapa(
+        chave="b",
+        titulo="b",
+        pasta="b",
+        config={"zip_prefix": "b"},
+        zipper=_ZipperFalso(),
+        worker=worker,
+        textos=None,
+    )
+    _rodar([etapa], tmp_path=tmp_path)
+
+    assert vistos == [1]
+    assert session.TENTATIVAS_NAVEGACAO.get() == 3

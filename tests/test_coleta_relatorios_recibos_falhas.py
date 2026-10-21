@@ -93,7 +93,7 @@ def test_login_falho_vira_falhas_em_relatorios(monkeypatch):
     )
     assert outputs == []
     assert failures == [
-        {"codigo_inep": "111", "nome_unidade": "Escola Um", "motivo": "Falha no login"}
+        {"codigo_inep": "111", "nome_unidade": "Escola Um", "motivo": "Falha no login", "timeout": False}
     ]
 
 
@@ -107,7 +107,7 @@ def test_login_falho_vira_falhas_em_recibos(monkeypatch):
     )
     assert outputs == []
     assert failures == [
-        {"codigo_inep": "111", "nome_unidade": "Escola Um", "motivo": "Falha no login"}
+        {"codigo_inep": "111", "nome_unidade": "Escola Um", "motivo": "Falha no login", "timeout": False}
     ]
 
 
@@ -141,7 +141,7 @@ def test_recibo_indisponivel_segue_quando_sessao_ok(monkeypatch):
 
 def test_planilha_de_nao_coletadas_de_relatorios_neutraliza_formulas():
     data = rel_zipper.build_pending_xlsx([
-        {"codigo_inep": "111", "nome_unidade": "=1+1", "motivo": "Falha no login"},
+        {"codigo_inep": "111", "nome_unidade": "=1+1", "motivo": "Falha no login", "timeout": False},
     ])
     ws = openpyxl.load_workbook(io.BytesIO(data)).active
     assert ws["B2"].value == "'=1+1"
@@ -149,7 +149,7 @@ def test_planilha_de_nao_coletadas_de_relatorios_neutraliza_formulas():
 
 def test_planilha_de_nao_coletadas_de_recibos_neutraliza_formulas():
     data = rec_zipper.build_pending_xlsx([
-        {"codigo_inep": "111", "nome_unidade": "=1+1", "motivo": "Falha no login"},
+        {"codigo_inep": "111", "nome_unidade": "=1+1", "motivo": "Falha no login", "timeout": False},
     ])
     ws = openpyxl.load_workbook(io.BytesIO(data)).active
     assert ws["B2"].value == "'=1+1"
@@ -274,6 +274,7 @@ def test_preenchimento_nao_iniciado_vira_motivo_proprio_em_relatorios(monkeypatc
             "codigo_inep": "111",
             "nome_unidade": "Escola Um",
             "motivo": "Preenchimento não iniciado",
+            "timeout": False,
         }
     ]
     assert eventos[-1] == (1, 1, "111", "Escola Um", "Preenchimento não iniciado.")
@@ -296,6 +297,7 @@ def test_relatorio_inexistente_vira_motivo_proprio_em_relatorios(monkeypatch):
             "codigo_inep": "111",
             "nome_unidade": "Escola Um",
             "motivo": "Relatório inexistente",
+            "timeout": False,
         }
     ]
     assert eventos[-1] == (1, 1, "111", "Escola Um", "Relatório inexistente.")
@@ -318,6 +320,7 @@ def test_recibo_indisponivel_vira_motivo_proprio_em_recibos(monkeypatch):
             "codigo_inep": "111",
             "nome_unidade": "Escola Um",
             "motivo": "Recibo de fechamento indisponível",
+            "timeout": False,
         }
     ]
     assert eventos[-1] == (1, 1, "111", "Escola Um", "Recibo de fechamento indisponível.")

@@ -12,6 +12,7 @@ from __future__ import annotations
 import logging
 
 import pytest
+from playwright.sync_api import TimeoutError as PlaywrightTimeoutError
 
 from apps.common import browser as _browser
 from apps.common import coleta, session
@@ -129,8 +130,8 @@ def test_falha_de_login_marca_todas_e_faz_cleanup(caplog):
 
     assert outputs == []
     assert failures == [
-        {"codigo_inep": "111", "nome_unidade": "Escola Um", "motivo": "Falha no login"},
-        {"codigo_inep": "222", "nome_unidade": "Escola Dois", "motivo": "Falha no login"},
+        {"codigo_inep": "111", "nome_unidade": "Escola Um", "motivo": "Falha no login", "timeout": False},
+        {"codigo_inep": "222", "nome_unidade": "Escola Dois", "motivo": "Falha no login", "timeout": False},
     ]
     assert len(tentativas) == 2
     assert browser.contexto.limpo is True
@@ -330,7 +331,7 @@ def test_sessao_expirada_com_relogin_falho_usa_motivo_formatado():
 
     assert outputs == []
     assert failures == [
-        {"codigo_inep": "111", "nome_unidade": "Escola Um", "motivo": "Erro (re-login): X::caiu"}
+        {"codigo_inep": "111", "nome_unidade": "Escola Um", "motivo": "Erro (re-login): X::caiu", "timeout": False}
     ]
     assert tempos == ["111"]
     assert progresso.eventos[1] == (1, 1, "111", "Escola Um", "erro: sessão expirada — caiu")
@@ -384,7 +385,7 @@ def test_scrape_com_sessao_expirada_e_relogin_falho(caplog):
 
     assert outputs == []
     assert failures == [
-        {"codigo_inep": "111", "nome_unidade": "Escola Um", "motivo": "Erro (re-login): morreu"}
+        {"codigo_inep": "111", "nome_unidade": "Escola Um", "motivo": "Erro (re-login): morreu", "timeout": False}
     ]
     assert "Falha no re-login: morreu" in caplog.text
 
@@ -407,7 +408,7 @@ def test_scrape_com_sessao_expirada_e_falha_apos_relogin(caplog):
 
     assert outputs == []
     assert failures == [
-        {"codigo_inep": "111", "nome_unidade": "Escola Um", "motivo": "Erro (após re-login): boom"}
+        {"codigo_inep": "111", "nome_unidade": "Escola Um", "motivo": "Erro (após re-login): boom", "timeout": False}
     ]
     assert "Falha após re-login: boom" in caplog.text
     assert progresso.eventos[-1] == (1, 1, "111", "Escola Um", "erro: boom")
@@ -458,7 +459,7 @@ def test_excecao_generica_vira_erro_com_motivo(caplog):
 
     assert outputs == []
     assert failures == [
-        {"codigo_inep": "111", "nome_unidade": "Escola Um", "motivo": "Erro: boom"}
+        {"codigo_inep": "111", "nome_unidade": "Escola Um", "motivo": "Erro: boom", "timeout": False}
     ]
     assert "[111] Erro durante coleta: boom" in caplog.text
     assert progresso.eventos[-1] == (1, 1, "111", "Escola Um", "erro: boom")
@@ -499,3 +500,51 @@ def test_pausa_uma_vez_por_escola_e_cleanup_no_fim():
     assert failures == []
     assert browser.contexto.limpo is True
     assert browser.contexto.fechado is True
+
+
+# ── marca de timeout (a rodada da 1ª Etapa usa para repetir a escola) ──────
+
+
+def test_timeout_marca_a_falha_para_nova_tentativa():
+    def scrape_one(context, page, codigo, nome):
+        raise PlaywrightTimeoutError("Page.wait_for_selector: Timeout 30000ms exceeded.")
+
+    _outputs, failures = _rodar(_BrowserFalso(), ESCOLAS[:1], scrape_one, _hooks())
+
+    assert failures[0]["motivo"] == "Erro: Page.wait_for_selector: Timeout 30000ms exceeded."
+    assert failures[0]["timeout"] is True
+
+
+def test_erro_comum_nao_e_marcado_como_timeout():
+    def scrape_one(context, page, codigo, nome):
+        raise ValueError("boom")
+
+    _outputs, failures = _rodar(_BrowserFalso(), ESCOLAS[:1], scrape_one, _hooks())
+
+    assert failures[0]["motivo"] == "Erro: boom"
+    assert failures[0]["timeout"] is False
+
+
+def test_timeout_no_login_marca_todas_as_escolas():
+    def login_and_read(page, login, senha):
+        raise PlaywrightTimeoutError("Page.goto: Timeout 30000ms exceeded.")
+
+    _outputs, failures = _rodar(
+        _BrowserFalso(), ESCOLAS, _nunca, _hooks(login_and_read=login_and_read)
+    )
+
+    assert [f["motivo"] for f in failures] == ["Falha no login", "Falha no login"]
+    assert all(f["timeout"] is True for f in failures)
+
+
+def test_falha_rotineira_mapeada_nao_e_timeout():
+    class _Rotineira(Exception):
+        pass
+
+    def scrape_one(context, page, codigo, nome):
+        raise _Rotineira("sem relatório")
+
+    textos = _textos(mapear_excecao=lambda exc: ("Relatório inexistente", "Relatório inexistente."))
+    _outputs, failures = _rodar(_BrowserFalso(), ESCOLAS[:1], scrape_one, _hooks(), textos)
+
+    assert failures[0]["timeout"] is False

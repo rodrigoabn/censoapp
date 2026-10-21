@@ -162,13 +162,16 @@ def _is_escola_fechada(page: Page) -> bool:
         return False
 
 
-def _open_school_ficha(page: Page, codigo_inep: str, tentativas: int = 3) -> bool:
+def _open_school_ficha(page: Page, codigo_inep: str, tentativas: int | None = None) -> bool:
     """Busca a escola pelo código e abre a ficha (leitura). Reutiliza o fluxo
     do coleta_cadastros_escolas para fixar o contexto da escola na sessão.
 
-    Robusto contra o loader travar (retry de navegação) e contra a sessão
+    Robusto contra o loader travar (retry de navegação — `tentativas=None` usa
+    `session.TENTATIVAS_NAVEGACAO`: 3 nas telas, 1 na rodada) e contra a sessão
     expirar no meio do caminho (levanta `SessaoExpirada`)."""
     _assert_read_only()
+    if tentativas is None:
+        tentativas = _session.tentativas_navegacao()
     last_exc: Exception | None = None
     for _ in range(max(1, tentativas)):
         try:

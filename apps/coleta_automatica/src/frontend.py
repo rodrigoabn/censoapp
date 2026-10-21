@@ -38,7 +38,12 @@ from apps.common.ui import (
 )
 
 from .etapas import ETAPAS
-from .runner import SITUACOES, executar_rodada, limpar_temporarios_antigos
+from .runner import (
+    MAX_TENTATIVAS_TIMEOUT,
+    SITUACOES,
+    executar_rodada,
+    limpar_temporarios_antigos,
+)
 
 _TITULO = "Coleta de Dados no Educacenso - 1ª Etapa"
 _SUBTITULO = "Executa em sequência as coletas do Educacenso, em segundo plano."
@@ -403,6 +408,20 @@ def _cartao_relogio(estado: dict, inicio) -> None:
                 linha_monitor(
                     f"Escola atual: {nome} ({codigo}): coletando…",
                     status_color("Coletando dados ..."),
+                ),
+                unsafe_allow_html=True,
+            )
+
+        # Nova tentativa: o portal estourou timeout e a rodada repete só as
+        # escolas que falharam (as já coletadas ficam preservadas).
+        tentativa = estado.get("tentativa") or 0
+        if tentativa > 1:
+            restantes = estado.get("tentativa_escolas") or 0
+            st.markdown(
+                linha_monitor(
+                    f"Nova tentativa {tentativa} de {MAX_TENTATIVAS_TIMEOUT} "
+                    f"({restantes} escola(s) com timeout)…",
+                    status_color("Nova tentativa"),
                 ),
                 unsafe_allow_html=True,
             )

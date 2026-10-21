@@ -177,16 +177,19 @@ _login_and_read = _session.login_and_read
 _accept_sigilo_if_present = _session.accept_sigilo_if_present
 
 
-def _open_school_ficha(page: Page, codigo_inep: str, tentativas: int = 3) -> bool:
+def _open_school_ficha(page: Page, codigo_inep: str, tentativas: int | None = None) -> bool:
     """Busca a escola pelo código e abre a ficha de dados cadastrais (leitura).
 
     É robusto contra duas falhas intermitentes do portal:
       - o overlay `ngx-ui-loader` travar e o campo `codigoEscola` não renderizar
-        a tempo (fazemos retry da navegação);
+        a tempo (fazemos retry da navegação — `tentativas=None` usa
+        `session.TENTATIVAS_NAVEGACAO`: 3 nas telas, 1 na rodada);
       - a sessão Keycloak expirar no meio do caminho e a página cair na tela de
         login (levantamos `SessaoExpirada` para o chamador refazer o login).
     """
     _assert_read_only()
+    if tentativas is None:
+        tentativas = _session.tentativas_navegacao()
     last_exc: Exception | None = None
     for _ in range(max(1, tentativas)):
         try:

@@ -9,6 +9,9 @@ Regras da rodada:
 - erro do worker ⇒ a etapa é "falhou" e a **rodada para**;
 - etapa que rodou sem erro mas **não coletou nenhuma escola** ⇒ a rodada
   **pausa** e pergunta ao usuário se deve continuar;
+- escola que falhou por **timeout** do Playwright ⇒ nova tentativa só com as
+  escolas que falharam (no máximo 5 tentativas no total, 5 s entre elas),
+  preservando o que já foi coletado;
 - o usuário pode interromper a rodada a qualquer momento (o `stop_check` do
   coletor encerra a etapa em andamento com segurança).
 """
@@ -26,6 +29,7 @@ from pathlib import Path
 from typing import Any, Sequence
 
 from apps.common.export import build_pending_xlsx, output_filename, remover_temp
+from apps.common.session import TENTATIVAS_NAVEGACAO
 
 from .etapas import Etapa
 
@@ -39,6 +43,24 @@ SITUACOES = (
     "interrompida",
     "nao_executada",
 )
+
+#: Tentativas totais por escola quando o portal estoura timeout.
+MAX_TENTATIVAS_TIMEOUT = 5
+#: Espera entre uma passada e a próxima (segundos).
+ESPERA_ENTRE_TENTATIVAS = 5.0
+
+
+def e_falha_timeout(falha: dict) -> bool:
+    """True quando a falha da escola foi um timeout (vale nova tentativa).
+
+    O laço compartilhado marca ``"timeout": True`` quando a exceção é do
+    Playwright (``wait_for_selector``, ``goto``, ``click``, download). A
+    mensagem é aceita como alternativa para falhas sem a marca.
+    """
+    if falha.get("timeout"):
+        return True
+    motivo = str(falha.get("motivo", "")).lower()
+    return "timeout" in motivo and "exceeded" in motivo
 
 
 @dataclass
@@ -146,7 +168,12 @@ def _executar_etapa(
     continuar_event: threading.Event | None,
 ) -> None:
     """Executa UMA etapa e classifica o resultado (ver o laço de
-    :func:`executar_rodada`)."""
+    :func:`executar_rodada`).
+
+    A etapa roda em passadas: a primeira com todas as escolas; as seguintes
+    só com as que falharam por timeout (até :data:`MAX_TENTATIVAS_TIMEOUT`
+    no total, :data:`ESPERA_ENTRE_TENTATIVAS` segundos entre elas).
+    """
     # Interrupção pedida antes de começar esta etapa.
     if stop_event.is_set():
         marcar_restantes(indice)
@@ -175,9 +202,61 @@ def _executar_etapa(
     )
 
     t0 = time.monotonic()
-    etapa.worker(
-        etapa.config, login, senha, escolas, stop_event, lock, shared, pasta_etapa
-    )
+    #: Toda escola que ainda não coletou (código → última falha), somando as
+    #: passadas; ``retentaveis`` são só as que falharam por timeout.
+    pendentes: dict[str, dict] = {}
+    retentaveis: set[str] = set()
+    tentativa = 0
+    while True:
+        tentativa += 1
+        # A primeira passada roda todas as escolas; as seguintes, só as que
+        # falharam por timeout — as já coletadas ficam no disco (pasta_etapa).
+        alvo = (
+            escolas
+            if tentativa == 1
+            else [e for e in escolas if e["codigo_inep"] in retentaveis]
+        )
+        with lock:
+            shared.update(
+                current=None,
+                last=None,
+                error=None,
+                done=False,
+                failures=[],
+                tentativa=tentativa,
+            )
+        publicar(tentativa=tentativa, tentativa_escolas=len(alvo))
+
+        # Na rodada o retry é por escola: a navegação interna tenta uma vez só
+        # (as telas individuais mantêm as 3 tentativas do default).
+        token = TENTATIVAS_NAVEGACAO.set(1)
+        try:
+            etapa.worker(
+                etapa.config, login, senha, alvo, stop_event, lock, shared, pasta_etapa
+            )
+        finally:
+            TENTATIVAS_NAVEGACAO.reset(token)
+
+        # Consolida as pendências de todas as passadas: a escola que rodou e
+        # não falhou saiu; a falha comum não pode sumir do XLSX de pendências
+        # só porque outra escola foi repetida.
+        falhas_da_passada = shared.get("failures") or []
+        com_falha = {f["codigo_inep"] for f in falhas_da_passada}
+        for codigo in {e["codigo_inep"] for e in alvo} - com_falha:
+            pendentes.pop(codigo, None)
+        for falha in falhas_da_passada:
+            pendentes[falha["codigo_inep"]] = falha
+        with lock:
+            shared["failures"] = list(pendentes.values())
+
+        if shared.get("error") or stop_event.is_set():
+            break
+        retentaveis = {c for c, f in pendentes.items() if e_falha_timeout(f)}
+        if not retentaveis or tentativa >= MAX_TENTATIVAS_TIMEOUT:
+            break
+        if stop_event.wait(ESPERA_ENTRE_TENTATIVAS):
+            break
+
     segundos = time.monotonic() - t0
 
     # Falha do worker: a etapa falhou e a rodada para.
@@ -193,7 +272,13 @@ def _executar_etapa(
             )
         )
         marcar_restantes(indice + 1)
-        publicar(interrompida=True, etapa_atual=None, shared_etapa=None)
+        publicar(
+            interrompida=True,
+            etapa_atual=None,
+            shared_etapa=None,
+            tentativa=None,
+            tentativa_escolas=None,
+        )
         return
 
     # Interrompida no meio da etapa: o artefato parcial é guardado, mas a
@@ -214,7 +299,13 @@ def _executar_etapa(
         publicar(aguardando=etapa.chave)
         if not _aguardar_confirmacao(continuar_event, stop_event):
             marcar_restantes(indice + 1)
-            publicar(interrompida=True, etapa_atual=None, shared_etapa=None)
+            publicar(
+                interrompida=True,
+                etapa_atual=None,
+                shared_etapa=None,
+                tentativa=None,
+                tentativa_escolas=None,
+            )
             return
         publicar(aguardando=None)
         remover_temp(pasta_etapa)
@@ -257,7 +348,13 @@ def _executar_etapa(
         # coletado fica disponível, mas as etapas seguintes não rodam e
         # o pacote completo não é gerado.
         marcar_restantes(indice + 1)
-        publicar(interrompida=True, etapa_atual=None, shared_etapa=None)
+        publicar(
+            interrompida=True,
+            etapa_atual=None,
+            shared_etapa=None,
+            tentativa=None,
+            tentativa_escolas=None,
+        )
 
 
 def executar_rodada(

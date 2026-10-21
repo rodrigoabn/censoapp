@@ -12,8 +12,10 @@ import pytest
 from playwright.sync_api import TimeoutError as PlaywrightTimeoutError
 
 from apps.coleta_cadastros_escolas.src import scraper as cad_scraper
+from apps.coleta_gestor.src import gestor_scraper
 from apps.coleta_recibos_fechamento.src import receipt_scraper
 from apps.coleta_relatorios.src import report_scraper
+from apps.common import session
 
 UNIAO = "input#username, input[formcontrolname='codigoEscola']"
 
@@ -117,3 +119,69 @@ def test_recibos_espera_unica_pelo_link():
     assert uniao[0][3] == "visible"
     esperas = [c for c in pagina.chamadas if c[0] == "wait_for_timeout" and c[1] == 1000]
     assert len(esperas) <= 1
+
+
+# ── tentativas de navegação por contexto (1 na rodada, 3 nas telas) ──
+
+
+class _PaginaSemCampo:
+    """Página em que o campo `codigoEscola` nunca renderiza (timeout do portal)."""
+
+    def __init__(self):
+        self.gotos = 0
+
+    def goto(self, url, **k):
+        self.gotos += 1
+
+    def wait_for_selector(self, seletor, state=None, timeout=None):
+        if seletor == "input[formcontrolname='codigoEscola']":
+            raise PlaywrightTimeoutError("campo não apareceu")
+        return object()
+
+    def wait_for_timeout(self, ms):
+        return None
+
+    def locator(self, seletor):
+        return _LocatorFalso()
+
+
+def test_cadastros_abre_ficha_tres_vezes_por_padrao():
+    pagina = _PaginaSemCampo()
+
+    with pytest.raises(PlaywrightTimeoutError):
+        cad_scraper._open_school_ficha(pagina, "111")
+
+    assert pagina.gotos == 3
+
+
+def test_cadastros_abre_ficha_uma_vez_no_contexto_da_rodada():
+    pagina = _PaginaSemCampo()
+    token = session.TENTATIVAS_NAVEGACAO.set(1)
+    try:
+        with pytest.raises(PlaywrightTimeoutError):
+            cad_scraper._open_school_ficha(pagina, "111")
+    finally:
+        session.TENTATIVAS_NAVEGACAO.reset(token)
+
+    assert pagina.gotos == 1
+
+
+def test_gestor_abre_ficha_tres_vezes_por_padrao():
+    pagina = _PaginaSemCampo()
+
+    with pytest.raises(PlaywrightTimeoutError):
+        gestor_scraper._open_school_ficha(pagina, "111")
+
+    assert pagina.gotos == 3
+
+
+def test_gestor_abre_ficha_uma_vez_no_contexto_da_rodada():
+    pagina = _PaginaSemCampo()
+    token = session.TENTATIVAS_NAVEGACAO.set(1)
+    try:
+        with pytest.raises(PlaywrightTimeoutError):
+            gestor_scraper._open_school_ficha(pagina, "111")
+    finally:
+        session.TENTATIVAS_NAVEGACAO.reset(token)
+
+    assert pagina.gotos == 1

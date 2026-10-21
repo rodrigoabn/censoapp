@@ -474,6 +474,8 @@ def build_documentacao_pdf() -> bytes:
         "Ordem da rodada: Cadastrais das escolas, Cadastro do gestor, Relatórios de Turmas, "
         "Relatórios de Alunos, Relatórios de Profissionais Escolares e Recibos de Fechamento;",
         "Cada etapa faz o próprio login no Educacenso, como nas telas isoladas;",
+        "Escola que falhar por timeout do portal é tentada de novo — até 5 tentativas no total, "
+        "5 s entre elas — repetindo só as escolas que falharam, sem perder as já coletadas;",
         "Saída: um ZIP por etapa (cadastro_escola, vinculo_gestor, relatorio_* e recibos_fechamento) "
         "e o pacote completo (coleta_completa_DD-MM-AAAA.zip), com uma pasta por etapa.",
     ])

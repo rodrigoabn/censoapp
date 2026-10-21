@@ -8,11 +8,24 @@ os monkeypatches dos testes continuam valendo.
 
 from __future__ import annotations
 
+from contextvars import ContextVar
+
 from playwright.sync_api import Page
 from playwright.sync_api import TimeoutError as PlaywrightTimeoutError
 
 from apps.common.auth import BASE_URL, _assert_read_only
 from apps.common.browser import session_expirada, wait_loader
+
+#: Tentativas de navegação da busca da escola (default 3).
+#:
+#: A rodada da Coleta Automática baixa para 1: lá a nova tentativa é por
+#: escola (o worker roda de novo só as que falharam por timeout).
+TENTATIVAS_NAVEGACAO: ContextVar[int] = ContextVar("tentativas_navegacao", default=3)
+
+
+def tentativas_navegacao() -> int:
+    """Tentativas de navegação em vigor neste contexto (default 3)."""
+    return TENTATIVAS_NAVEGACAO.get()
 
 
 class LoginFalhou(Exception):
@@ -101,7 +114,7 @@ def accept_sigilo_if_present(page: Page, botao: str = "button:has-text('Continua
 def select_school(
     page: Page,
     codigo_inep: str,
-    tentativas: int = 3,
+    tentativas: int | None = None,
     after_select=None,
 ) -> bool:
     """Busca a escola pelo código e a seleciona (contexto de sessão).
@@ -109,10 +122,14 @@ def select_school(
     Robusto contra o loader travar (retry de navegação) e contra a sessão
     expirar no meio do caminho (levanta `SessaoExpirada`).
 
-    `after_select(page)` executa um wait pós-clique específico do app;
-    o default espera pelo botão 'Gerar'/modal de relatórios.
+    `tentativas=None` usa :data:`TENTATIVAS_NAVEGACAO` (3 nas telas; 1 na
+    rodada da Coleta Automática). `after_select(page)` executa um wait
+    pós-clique específico do app; o default espera pelo botão
+    'Gerar'/modal de relatórios.
     """
     _assert_read_only()
+    if tentativas is None:
+        tentativas = tentativas_navegacao()
     last_exc: Exception | None = None
     for _ in range(max(1, tentativas)):
         try:
