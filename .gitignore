@@ -32,3 +32,5 @@ docs_temporarios/
 !apps/*/docs/modelo*.xlsx
 !apps/verificacao_inconsistencias/docs/*.xlsx
 logs/
+# Rascunhos do companion de brainstorming
+.superpowers/
