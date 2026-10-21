@@ -24,6 +24,38 @@ def test_build_documentacao_pdf_gera_bytes():
     assert len(pdf) > 10_000
 
 
+def _texto_do_pdf(pdf: bytes) -> str:
+    """Extrai o texto do PDF (streams ASCII85+Flate; strings com escapes octais)."""
+    import base64
+    import re
+    import zlib
+
+    partes = []
+    for bruto in re.findall(rb"stream\r?\n(.*?)endstream", pdf, re.S):
+        dados = bruto.strip()
+        if dados.endswith(b"~>"):
+            dados = dados[:-2]
+        try:
+            partes.append(zlib.decompress(base64.a85decode(dados, adobe=False)))
+        except Exception:  # noqa: BLE001 — stream que não é texto
+            continue
+    cru = b" ".join(partes)
+    textos = []
+    for trecho in re.findall(rb"\((.*?)\)\s*Tj", cru, re.S):
+        trecho = re.sub(
+            rb"\\([0-7]{1,3})", lambda m: bytes([int(m.group(1), 8)]), trecho
+        )
+        textos.append(trecho.decode("latin-1"))
+    return " ".join(textos)
+
+
+def test_documentacao_menciona_a_coleta_automatica():
+    """O manual do usuário deve descrever a nova aplicação de Coleta Automática."""
+    texto = _texto_do_pdf(build_documentacao_pdf())
+    assert "Visão Geral" in texto, texto[:200]
+    assert "Coleta Automática" in texto, texto[:200]
+
+
 def test_sumario_lista_as_secoes(monkeypatch):
     from reportlab.platypus.tableofcontents import TableOfContents
 

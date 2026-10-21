@@ -8,6 +8,7 @@ from apps.adequacao_profissionais.src.frontend import render_adequacao_profissio
 
 # Adequação de Relatórios
 from apps.adequacao_turmas.src.frontend import render_adequacao_turmas_frontend
+from apps.coleta_automatica.src.frontend import render_coleta_automatica_frontend
 from apps.coleta_cadastros_escolas.src.frontend import render_frontend
 from apps.coleta_gestor.src.frontend import render_gestor_frontend
 from apps.coleta_recibos_fechamento.src.frontend import render_receipt_frontend
@@ -615,6 +616,7 @@ st.markdown("""
 
 _MENU_GROUPS = {
     "Coleta do Educacenso": [
+        "Coleta Automática",
         "Dados Cadastrais da Unidades",
         "Dados dos Gestores Escolares",
         "Relatórios de Turmas",
@@ -681,6 +683,9 @@ if st.session_state["prev_nav_page"] != page:
 if page == "Tela Inicial":
     # Home: hero centralizado com rodapé fixo (scroll via CSS global)
     show_home_page(logo_base64)
+    render_license_footer()
+elif page == "Coleta Automática":
+    render_coleta_automatica_frontend(logo_base64)
     render_license_footer()
 elif page == "Unificador de Inconsistências por Unidade Escolar":
     render_unificador_inconsistencias_frontend(logo_base64)

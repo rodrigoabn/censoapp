@@ -275,7 +275,7 @@ def build_documentacao_pdf() -> bytes:
     _par(story, estilos["cap_titulo"], "APLICAÇÕES DE APOIO<br/>CENSO ESCOLAR")
     _par(story, estilos["cap_sub"], "Documentação Técnica e Manual do Usuário")
     story.append(_esp(10))
-    _par(story, estilos["cap_meta"], "Versão: 1.1")
+    _par(story, estilos["cap_meta"], "Versão: 1.2")
     _par(story, estilos["cap_meta"], f"Data: {datetime.now().strftime('%d/%m/%Y')}")
     _par(story, estilos["cap_meta"], "Secretaria Municipal de Educação - Campos dos Goytacazes/RJ")
     story.append(_esp(40))
@@ -315,6 +315,8 @@ def build_documentacao_pdf() -> bytes:
                  "Hero com a marca do projeto e botão para baixar esta documentação (PDF)."],
                 ["Gerador de Base de Dados e Inconsistências", "Unificador de Inconsistências por Unidade Escolar",
                  "Gera um ZIP com um XLSX por escola ativa e um PDF analítico em A4 vertical, com o brasão municipal à esquerda, a marca do CensoApp à direita, identificação da Secretaria, Diretoria e Gerência de TI, cards com totais de Creches, Escolas e unidades gerais, gráfico de inconsistências por relatório separado por tipo de unidade e tabela detalhada por escola. A listagem classifica CEM/CMEI como Creche e as demais como Escola, ordenadas por tipo e nome."],
+                ["Coleta do Educacenso", "Coleta Automática",
+                 "Roda as 6 coletas do Educacenso em sequência, em segundo plano, com o login e a lista de escolas informados uma vez só. Acompanha cada etapa com o relógio e o tempo gasto, permite baixar o artefato de cada uma e entrega um ZIP único com todos os resultados."],
                 ["Coleta do Educacenso", "Dados Cadastrais da Unidades",
                  "Raspa a ficha cadastral completa de cada escola do Educacenso e consolida em um XLSX de 6 abas."],
                 ["Coleta do Educacenso", "Dados dos Gestores Escolares",
@@ -460,7 +462,23 @@ def build_documentacao_pdf() -> bytes:
          "A coleta roda em uma thread separada (nunca toca a interface) e interrompe de forma segura.")
 
     # ------------------------------------------------------------------
-    _par(story, estilos["h2"], "6.1 Dados Cadastrais das Unidades")
+    _par(story, estilos["h2"], "6.1 Coleta Automática (rodada de todas as coletas)")
+    _par(story, estilos["corpo"],
+         "Executa as 6 coletas em sequência, em segundo plano, a partir de um único formulário "
+         "(login, senha e lista de escolas). O usuário marca quais aplicações entram na rodada; "
+         "o acompanhamento mostra o relógio digital e o tempo de cada etapa, permite baixar o "
+         "artefato de cada uma e, ao final, entrega um ZIP único com todos os resultados. "
+         "Se uma etapa rodar sem coletar nenhuma escola, a rodada pergunta se deve continuar; "
+         "se uma etapa falhar, a rodada para.")
+    _bullets(story, estilos["item"], [
+        "Ordem da rodada: Cadastrais das escolas, Cadastro do gestor, Relatórios de Turmas, "
+        "Relatórios de Alunos, Relatórios de Profissionais Escolares e Recibos de Fechamento;",
+        "Cada etapa faz o próprio login no Educacenso, como nas telas isoladas;",
+        "Saída: um ZIP por etapa (cadastro_escola, vinculo_gestor, relatorio_* e recibos_fechamento) "
+        "e o pacote completo (coleta_completa_DD-MM-AAAA.zip), com uma pasta por etapa.",
+    ])
+
+    _par(story, estilos["h2"], "6.2 Dados Cadastrais das Unidades")
     _par(story, estilos["corpo"],
          "Raspa a ficha cadastral completa de cada escola (página /escola/cadastro/dados-cadastrais) "
          "em modo leitura e gera um único arquivo XLSX com 6 abas, espelhando o modelo "
@@ -488,7 +506,7 @@ def build_documentacao_pdf() -> bytes:
     ])
 
     # ------------------------------------------------------------------
-    _par(story, estilos["h2"], "6.2 Dados dos Gestores Escolares")
+    _par(story, estilos["h2"], "6.3 Dados dos Gestores Escolares")
     _par(story, estilos["corpo"],
          "Coleta o vínculo do gestor escolar e, quando disponível, as abas Identificação e Dados "
          "pessoais do formulário do gestor, gerando um XLSX com 3 abas (espelho de "
@@ -512,7 +530,7 @@ def build_documentacao_pdf() -> bytes:
     ])
 
     # ------------------------------------------------------------------
-    _par(story, estilos["h2"], "6.3 Relatórios de Turmas, Alunos e Profissionais")
+    _par(story, estilos["h2"], "6.4 Relatórios de Turmas, Alunos e Profissionais")
     _par(story, estilos["corpo"],
          "Três aplicações com a mesma tela (parametrizada): baixam o relatório CSV nativo do "
          "Educacenso para cada escola (relação turma-escola, aluno-escola ou profissional-escola) e "
@@ -540,7 +558,7 @@ def build_documentacao_pdf() -> bytes:
     ])
 
     # ------------------------------------------------------------------
-    _par(story, estilos["h2"], "6.4 Recibos de Fechamento (1ª Etapa)")
+    _par(story, estilos["h2"], "6.5 Recibos de Fechamento (1ª Etapa)")
     _par(story, estilos["corpo"],
          "Baixa o recibo de fechamento (PDF) de cada escola, disponível na tela /fechamento do "
          "Educacenso (link \"Recibo\" / \"Clique aqui para visualizar, salvar ou imprimir o recibo\"), "

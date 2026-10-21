@@ -119,6 +119,29 @@
 
 ---
 
+## Fase 7 — Coleta Automática ✅ (2026-10-21)
+
+Nova aplicação no grupo **Coleta do Educacenso** que roda as 6 coletas em sequência, em
+segundo plano, a partir de um único formulário (login, senha e lista de escolas).
+
+- [x] **7.1 — Registro das etapas** (`apps/coleta_automatica/src/etapas.py`): as 6 etapas
+  reusam, sem alterar, o `config`, o worker e o exporter/zipper de cada coletor.
+- [x] **7.2 — A rodada** (`src/runner.py`): thread que executa as etapas em ordem, mede o
+  tempo de cada uma, monta o artefato e a planilha de pendências.
+- [x] **7.3 — Pausa e interrupção**: etapa que roda sem coletar nenhuma escola **pausa e
+  pergunta** ao usuário se deve continuar; erro do worker **derruba a rodada**; o
+  `Event` de parada é conferido entre as etapas.
+- [x] **7.4 — A tela** (`src/frontend.py`): relógio digital, tabela de tempo por etapa,
+  download do artefato de cada etapa e o **pacote completo** (ZIP único, uma pasta por
+  etapa) — o pacote só sai quando a rodada termina sem interrupção.
+- [x] **7.5 — Menu, PDF do manual e AGENTS.md**.
+
+**Design e plano:** `docs/superpowers/specs/2026-10-20-coleta-automatica-design.md` e
+`docs/superpowers/plans/2026-10-20-coleta-automatica.md`; branch `automacao-coleta`.
+**Nenhum dos 6 coletores foi alterado** — a rodada apenas os executa.
+
+---
+
 ## Extras
 
 ### Operação (fora do código)
