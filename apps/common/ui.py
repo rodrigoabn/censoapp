@@ -15,7 +15,6 @@ import html
 import subprocess
 import sys
 import threading
-import time
 from dataclasses import dataclass
 from datetime import datetime
 from pathlib import Path
@@ -403,7 +402,10 @@ def start_base(config: dict, login: str, senha: str, escolas: list[dict], *, ctx
 
 
 def monitor_base(config: dict, *, ctx: FrontendCtx) -> None:
-    """Monitor de progresso genérico (finaliza e re-renderiza quando acaba)."""
+    """Desenha o monitor de progresso (o desenho puro, sem o redesenho).
+
+    O redesenho periódico é feito pelo fragmento :func:`_fragmento_monitor`.
+    """
     st = ctx.st
     ss = st.session_state
     p = config["state_prefix"]
@@ -466,8 +468,17 @@ def monitor_base(config: dict, *, ctx: FrontendCtx) -> None:
             unsafe_allow_html=True,
         )
 
-    time.sleep(0.5)
-    st.rerun()
+
+@st.fragment(run_every=0.5)
+def _fragmento_monitor(config: dict, *, ctx: FrontendCtx) -> None:
+    """O monitor de coleta, redesenhado a cada 0,5s.
+
+    O redesenho usa um **fragmento** e não `sleep` + `st.rerun()`: abortar o
+    script no meio da execução deixava a árvore de elementos do frontend com
+    restos da tela anterior (no HUB, o card de Orientações e o formulário
+    reapareciam junto com o monitor).
+    """
+    ctx.monitor(config)
 
 
 def finalize_base(config: dict, count: int, *, ctx: FrontendCtx) -> None:
@@ -583,7 +594,7 @@ def render_coleta_frontend(config: dict, logo_base64=None, *, ctx: FrontendCtx):
 
     # Coleta em andamento: exibe monitor/progresso e botão de interrupção.
     if st.session_state[f"{p}running"]:
-        ctx.monitor(config)
+        _fragmento_monitor(config, ctx=ctx)
         return
 
     col_form, col_help = st.columns(COLS_ORIENTACOES)

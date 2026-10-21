@@ -59,6 +59,7 @@ class _StFalso:
         self.downloads = []
         self.clicar_em = None
         self.rerun_chamado = False
+        self.profundidade_no_rerun = None
 
     @property
     def texto(self) -> str:
@@ -86,6 +87,15 @@ class _StFalso:
 
     def error(self, msg, **kwargs):
         self.avisos.append(msg)
+
+    def text_input(self, label, **kwargs):
+        return "12345678900"
+
+    def file_uploader(self, label, **kwargs):
+        return "lista.xlsx"
+
+    def checkbox(self, label, **kwargs):
+        return True
 
     def button(self, label, **kwargs):
         # A profundidade diz em quantos containers o botão foi criado.
@@ -115,6 +125,10 @@ class _StFalso:
         )
 
     def rerun(self):
+        # A profundidade no momento do rerun diz de onde ele saiu: um rerun
+        # de dentro de um container deixa o card aberto e o frontend passa a
+        # exibir restos da tela anterior junto com a nova.
+        self.profundidade_no_rerun = len(self._pilha)
         self.rerun_chamado = True
         raise _Rerun()
 
@@ -146,8 +160,8 @@ def _rodada(estado_extra=None):
 
 @pytest.fixture(autouse=True)
 def _sem_sleep(monkeypatch):
-    """O `sleep` do monitor não pode atrasar a suíte."""
-    monkeypatch.setattr(frontend.time, "sleep", lambda _s: None)
+    """Nenhum `sleep` na tela da rodada (o redesenho é do fragmento)."""
+    assert not hasattr(frontend, "time"), "a tela da rodada não deve dormir"
 
 
 def test_tela_pausada_pergunta_ao_usuario_e_oferece_continuar(monkeypatch):
@@ -157,8 +171,7 @@ def test_tela_pausada_pergunta_ao_usuario_e_oferece_continuar(monkeypatch):
     st_falso = _StFalso(estado)
     monkeypatch.setattr(frontend, "st", st_falso)
 
-    with pytest.raises(_Rerun):
-        frontend._tela_rodada()
+    frontend._tela_rodada(estado["ca_estado"])
 
     rotulos = [b[0] for b in st_falso.botoes]
     assert "Continuar" in rotulos
@@ -180,8 +193,7 @@ def test_botao_continuar_dispara_o_evento_e_nao_colide_com_a_chave_do_widget(mon
     st_falso.clicar_em = "ca_continuar"
     monkeypatch.setattr(frontend, "st", st_falso)
 
-    with pytest.raises(_Rerun):
-        frontend._tela_rodada()
+    frontend._tela_rodada(estado["ca_estado"])
 
     evento = estado["ca_continuar_event"]
     assert evento.is_set(), "o botão Continuar não disparou o Event da rodada"
@@ -195,8 +207,7 @@ def test_botao_de_interromper_fica_dentro_do_cartao_do_relogio(monkeypatch):
     st_falso = _StFalso(estado)
     monkeypatch.setattr(frontend, "st", st_falso)
 
-    with pytest.raises(_Rerun):
-        frontend._tela_rodada()
+    frontend._tela_rodada(estado["ca_estado"])
 
     botoes = [b for b in st_falso.botoes if b[0] == "⛔ Interromper rodada"]
     assert botoes, "o botão de interromper não foi criado"
@@ -210,8 +221,7 @@ def test_botoes_de_pausa_ficam_dentro_do_cartao_do_relogio(monkeypatch):
     st_falso = _StFalso(estado)
     monkeypatch.setattr(frontend, "st", st_falso)
 
-    with pytest.raises(_Rerun):
-        frontend._tela_rodada()
+    frontend._tela_rodada(estado["ca_estado"])
 
     for rotulo in ("Continuar", "Encerrar a rodada"):
         botao = [b for b in st_falso.botoes if b[0] == rotulo]
@@ -229,8 +239,7 @@ def test_linha_da_escola_atual_entra_no_cartao_do_relogio(monkeypatch):
     st_falso = _StFalso(estado)
     monkeypatch.setattr(frontend, "st", st_falso)
 
-    with pytest.raises(_Rerun):
-        frontend._tela_rodada()
+    frontend._tela_rodada(estado["ca_estado"])
 
     assert any("Escola atual: CEM ALDEIA" in str(m) for m in st_falso.markdowns)
 
@@ -241,8 +250,7 @@ def test_relogio_alinha_os_blocos_pela_base(monkeypatch):
     st_falso = _StFalso(estado)
     monkeypatch.setattr(frontend, "st", st_falso)
 
-    with pytest.raises(_Rerun):
-        frontend._tela_rodada()
+    frontend._tela_rodada(estado["ca_estado"])
 
     html = " ".join(str(m) for m in st_falso.markdowns)
     assert "align-items:flex-end" in html
@@ -267,8 +275,7 @@ def test_tabela_mostra_a_etapa_em_andamento_e_as_pendentes(monkeypatch):
     st_falso = _StFalso(estado)
     monkeypatch.setattr(frontend, "st", st_falso)
 
-    with pytest.raises(_Rerun):
-        frontend._tela_rodada()
+    frontend._tela_rodada(estado["ca_estado"])
 
     texto = st_falso.texto
     assert "Cadastros das escolas" in texto
@@ -285,8 +292,7 @@ def test_tabela_tem_os_cabecalhos_pedidos(monkeypatch):
     st_falso = _StFalso(estado)
     monkeypatch.setattr(frontend, "st", st_falso)
 
-    with pytest.raises(_Rerun):
-        frontend._tela_rodada()
+    frontend._tela_rodada(estado["ca_estado"])
 
     cabecalho = " ".join(st_falso.captions)
     for titulo in ("Tipo de dados", "Status", "Tempo", "Arquivo", "Dados", "Pendências"):
@@ -299,8 +305,7 @@ def test_tabela_usa_a_estrutura_do_mockup(monkeypatch):
     st_falso = _StFalso(estado)
     monkeypatch.setattr(frontend, "st", st_falso)
 
-    with pytest.raises(_Rerun):
-        frontend._tela_rodada()
+    frontend._tela_rodada(estado["ca_estado"])
 
     assert "Tempo por aplicação" in st_falso.subheaders
     # 1 divisória do cabeçalho + 1 por etapa selecionada
@@ -326,8 +331,7 @@ def test_botoes_de_download_da_tabela_sao_cha_maos_baixar(monkeypatch, tmp_path)
     st_falso = _StFalso(estado)
     monkeypatch.setattr(frontend, "st", st_falso)
 
-    with pytest.raises(_Rerun):
-        frontend._tela_rodada()
+    frontend._tela_rodada(estado["ca_estado"])
 
     rotulos = [d[0] for d in st_falso.downloads]
     assert rotulos == ["Baixar"]
@@ -350,9 +354,62 @@ def test_motivo_da_falha_e_escapado(monkeypatch):
     st_falso = _StFalso(estado)
     monkeypatch.setattr(frontend, "st", st_falso)
 
-    with pytest.raises(_Rerun):
-        frontend._tela_rodada()
+    frontend._tela_rodada(estado["ca_estado"])
 
     texto = st_falso.texto
     assert "<b>Escola & Cia</b>" not in texto
     assert "&lt;b&gt;" in texto or "Escola &amp; Cia" in texto
+
+
+def test_a_rodada_e_redesenhada_por_fragmento(monkeypatch):
+    """A rodada NÃO pode abortar o script a cada ciclo.
+
+    O padrão antigo (`sleep` + `st.rerun()` no meio da execução) deixava a
+    árvore de elementos do frontend com restos da tela anterior: as
+    "Orientações" e o card "Aplicações a coletar" reapareciam junto com a
+    tela da rodada. O redesenho é feito por um fragmento, que limpa e
+    redesenha só os elementos dele.
+    """
+    import inspect
+
+    fonte = inspect.getsource(frontend._tela_rodada)
+    assert "st.rerun" not in fonte, "a tela da rodada não pode abortar o script"
+    assert "time.sleep" not in fonte, "a tela da rodada não pode dormir no script"
+    assert hasattr(frontend, "_fragmento_rodada")
+
+
+def test_render_chama_o_fragmento_durante_a_rodada(monkeypatch):
+    """Com a rodada em andamento, a tela é desenhada pelo fragmento."""
+    estado = _rodada()
+    st_falso = _StFalso(estado)
+    monkeypatch.setattr(frontend, "st", st_falso)
+
+    chamado = []
+    monkeypatch.setattr(frontend, "_fragmento_rodada", lambda: chamado.append(True))
+
+    frontend.render_coleta_automatica_frontend()
+
+    assert chamado, "a rodada em andamento não usou o fragmento"
+
+
+def test_rerun_da_rodada_sai_fora_do_card(monkeypatch):
+    """O rerun que inicia a rodada não pode sair de dentro de um card.
+
+    Com o card aberto, o frontend passa a exibir o resto do formulário
+    (Orientações e "Aplicações a coletar") junto com a tela da rodada.
+    """
+    estado = {"ca_running": False}
+    st_falso = _StFalso(estado)
+    st_falso.clicar_em = "ca_executar"
+    monkeypatch.setattr(frontend, "st", st_falso)
+    monkeypatch.setattr(
+        frontend, "read_school_list", lambda _arquivo: [{"codigo": "1", "nome": "E"}]
+    )
+    monkeypatch.setattr(frontend, "executar_rodada", lambda *a, **k: None)
+
+    with pytest.raises(_Rerun):
+        frontend._tela_formulario()
+
+    assert st_falso.profundidade_no_rerun == 0, (
+        "o rerun da rodada saiu de dentro de um card"
+    )

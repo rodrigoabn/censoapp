@@ -14,8 +14,6 @@ from __future__ import annotations
 
 import types
 
-import pytest
-
 from apps.common import ui
 
 
@@ -152,9 +150,6 @@ def test_monitor_desenha_o_relogio_digital_durante_a_coleta():
     import threading
     from datetime import datetime, timedelta
 
-    class _Rerun(Exception):
-        pass
-
     class _St:
         def __init__(self, ss):
             self.session_state = ss
@@ -173,7 +168,7 @@ def test_monitor_desenha_o_relogio_digital_durante_a_coleta():
             pass
 
         def rerun(self):
-            raise _Rerun()
+            raise AssertionError("o monitor não pode abortar o script")
 
     ss = {
         "p_lock": threading.Lock(),
@@ -187,12 +182,23 @@ def test_monitor_desenha_o_relogio_digital_durante_a_coleta():
         scrape_worker=None, monitor=None, finalize=None, start=None,
     )
 
-    with pytest.raises(_Rerun):
-        ui.monitor_base({"state_prefix": "p_"}, ctx=ctx)
+    ui.monitor_base({"state_prefix": "p_"}, ctx=ctx)
 
     html = "\n".join(st_falso.markdowns)
     assert "relogio-digital" in html
     assert re.search(r"00:01:2\d|00:01:3\d", html), html
+
+
+def test_monitor_nao_aborta_o_script():
+    """O monitor redesenha por fragmento; abortar o script deixa restos da
+    tela anterior na árvore de elementos do frontend."""
+    import inspect
+
+    fonte = inspect.getsource(ui.monitor_base)
+    # só o "rerun" de conclusão (a coleta acabou) é permitido
+    assert fonte.count("st.rerun()") == 1
+    assert "time.sleep" not in fonte
+    assert hasattr(ui, "_fragmento_monitor")
 
 
 # ── guarda do Chromium ──────────────────────────────────────────────────────

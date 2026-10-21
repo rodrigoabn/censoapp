@@ -18,7 +18,6 @@ from __future__ import annotations
 import shutil
 import tempfile
 import threading
-import time
 from datetime import datetime
 from pathlib import Path
 
@@ -417,11 +416,12 @@ def _cartao_relogio(estado: dict, inicio) -> None:
             )
 
 
-def _tela_rodada() -> None:
-    """Estado 1/1b: a rodada em andamento (ou pausada aguardando o usuário)."""
-    ss = st.session_state
-    estado = _ler_estado(ss)
-    inicio = ss.get("ca_inicio")
+def _tela_rodada(estado: dict) -> None:
+    """Desenha a rodada em andamento: o cartão do relógio e a tabela.
+
+    O redesenho periódico é feito pelo fragmento :func:`_fragmento_rodada`.
+    """
+    inicio = st.session_state.get("ca_inicio")
     comecou = estado.get("etapa_inicio")
     segundos_atual = (
         (datetime.now() - comecou).total_seconds() if comecou else 0.0
@@ -437,8 +437,28 @@ def _tela_rodada() -> None:
         segundos_atual,
     )
 
-    time.sleep(0.5)
-    st.rerun()
+
+@st.fragment(run_every=0.5)
+def _fragmento_rodada() -> None:
+    """A tela da rodada, redesenhada a cada 0,5s.
+
+    O redesenho usa um **fragmento** e não `sleep` + `st.rerun()`: abortar o
+    script no meio da execução deixava a árvore de elementos do frontend com
+    restos da tela anterior (as "Orientações" e o card "Aplicações a coletar"
+    reapareciam junto com a rodada). O fragmento limpa e redesenha apenas os
+    elementos dele, a cada ciclo.
+    """
+    ss = st.session_state
+    estado = _ler_estado(ss)
+
+    if estado.get("terminada") and ss.get("ca_running"):
+        # A thread da rodada acabou: fecha o estado e redesenha a página.
+        ss["ca_running"] = False
+        ss["ca_finalized"] = True
+        ss["ca_fim"] = datetime.now()
+        st.rerun()
+
+    _tela_rodada(estado)
 
 
 def _tela_resultado() -> None:
@@ -519,6 +539,7 @@ def _tela_formulario() -> None:
                 key="ca_lista",
             )
 
+    clicado = False
     with st.container(border=True):
         st.markdown("**Aplicações a coletar**")
         st.caption("Desmarque o que não deve entrar nesta rodada.")
@@ -532,10 +553,16 @@ def _tela_formulario() -> None:
 
         selecionadas = _selecionadas()
         st.caption(f"{len(selecionadas)} de {len(ETAPAS)} aplicações selecionadas.")
-        if st.button(
+        clicado = st.button(
             "Executar", type="primary", key="ca_executar", use_container_width=True
-        ):
-            _iniciar_rodada(selecionadas, login, senha, arquivo)
+        )
+
+    # O rerun da rodada sai **fora** do card: um `st.rerun()` de dentro de
+    # um container deixa o card aberto e o frontend passa a exibir o resto
+    # do formulário (Orientações e "Aplicações a coletar") junto com a
+    # tela da rodada.
+    if clicado:
+        _iniciar_rodada(selecionadas, login, senha, arquivo)
 
 
 def render_coleta_automatica_frontend(logo_base64: str | None = None) -> None:
@@ -554,7 +581,7 @@ def render_coleta_automatica_frontend(logo_base64: str | None = None) -> None:
         st.rerun()
 
     if ss.get("ca_running"):
-        _tela_rodada()
+        _fragmento_rodada()
         return
     if ss.get("ca_finalized"):
         _tela_resultado()
