@@ -37,11 +37,6 @@ _safe_name = _export._safe_name
 build_pending_xlsx = _export.build_pending_xlsx
 
 
-def csv_filename(codigo: str, nome: str) -> str:
-    """Wrapper de `apps.common.export` (histórico)."""
-    return _export.arquivo_filename(codigo, nome, ".csv")
-
-
 def append_csv(codigo: str, nome: str, data: bytes, tmp_dir: Path) -> None:
     """Wrapper de `apps.common.export` (histórico)."""
     return _export.append_arquivo(codigo, nome, data, tmp_dir, ".csv")

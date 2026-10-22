@@ -29,22 +29,6 @@ RELOGIO_CSS = """
     --relogio-brilho: 0 0 12px rgba(110, 168, 254, 0.25);
 }
 /* Relógio da coleta: digital (andamento) e resumo de tempos (conclusão) */
-.stMarkdown div.relogio-caixa {
-    background-color: var(--bg-card) !important;
-    border: 1px solid var(--border-default) !important;
-    border-radius: var(--radius-md) !important;
-    padding: 14px 18px !important;
-    margin-bottom: 1rem !important;
-}
-.stMarkdown div.relogio-titulo {
-    font-family: 'Segoe UI', Tahoma, sans-serif !important;
-    text-transform: uppercase;
-    font-size: 0.72rem;
-    font-weight: 700;
-    letter-spacing: 1.2px;
-    color: var(--text-secondary) !important;
-    margin-bottom: 0.6rem !important;
-}
 .stMarkdown div.relogio-rotulo {
     font-family: 'Segoe UI', Tahoma, sans-serif !important;
     text-transform: uppercase;
@@ -93,17 +77,6 @@ RELOGIO_CSS = """
 .stMarkdown div.relogio-escola-codigo,
 .stMarkdown div.relogio-escola-status {
     color: #b2b5be !important;
-}
-/* Botão de interromper a coleta: ação lateral discreta. */
-[data-testid="stMain"] [class*="stop_btn"] button {
-    background-color: transparent !important;
-    border: 1px solid #4b5563 !important;
-    color: #e5e7eb !important;
-    font-weight: 500 !important;
-}
-[data-testid="stMain"] [class*="stop_btn"] button:hover {
-    background-color: rgba(148, 163, 184, 0.1) !important;
-    border-color: #6b7280 !important;
 }
 </style>
 """
