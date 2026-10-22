@@ -19,9 +19,8 @@ SENSITIVE_PATHS = [
     "apps/coleta_cadastros_escolas/docs/credenciais.json",
     ".streamlit/secrets.toml",
     "app.py",
-    "requirements.txt",
-    "requirements-dev.txt",
     "pyproject.toml",
+    "uv.lock",
     ".env",
     "docs_temporarios/arquivo%20professor.csv",
     "logs/censoapp.log",
@@ -33,7 +32,7 @@ def test_sensitive_paths_not_served(session, base_url, root_response, path):
     resp = session.get(base_url + path, timeout=TIMEOUT, allow_redirects=False)
     # Streamlit SPA devolve o index (200) para rotas desconhecidas. Exigir que o
     # corpo seja o MESMO index garante que nenhum arquivo real foi servido —
-    # inclusive pyproject/requirements, que não têm marcadores óbvios.
+    # inclusive pyproject/uv.lock, que não têm marcadores óbvios.
     if resp.status_code == 200:
         assert resp.content == root_response.content, (
             f"Possível vazamento: /{path} retornou 200 com conteúdo diferente do index."

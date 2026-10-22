@@ -87,8 +87,8 @@ uv add <pacote>                                     # adicionar dependência
 
 ## Testes
 
-- `tests/` cobre a suíte offline (fakes, sem rede): `uv run python -m pytest` → 720 passed / 19 skipped; lint com `uv run ruff check .`
-- `tests/security/` é ao vivo; **os 19 testes HTTP de segurança são pulados por padrão** — exigem `SECURITY_LIVE=1`
+- `tests/` cobre a suíte offline (fakes, sem rede): `uv run python -m pytest` → 720 passed / 18 skipped; lint com `uv run ruff check .`
+- `tests/security/` é ao vivo; **os 18 testes HTTP de segurança são pulados por padrão** — exigem `SECURITY_LIVE=1`
 - Alvo via `SECURITY_TARGET` (**obrigatório** — sem padrão; ex.: `http://localhost:8501/`); não há TLS/HSTS/Caddy nesta modalidade
 - Não intrusivos: poucas requisições, sem fuzzing/brute-force
 - Escopo: métodos HTTP e exposição de caminhos/arquivos sensíveis
