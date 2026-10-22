@@ -838,7 +838,7 @@ def build_documentacao_pdf() -> bytes:
                 ["Matrículas em Duplicidade (XLSX)", "Mesmo CPF e/ou mesma Identificação única em mais de um registro."],
                 ["Matrículas sem CPF informado (XLSX)", "Coluna CPF vazia, com \"--\" ou NaN."],
                 ["Quantitativo de Cor/Raça por Unidade Escolar", "Contagem por escola dos valores de Cor/Raça (preta, parda, branca, amarela, indígena, não declarado, sem informação)."],
-                ["Quantitativo de Matrículas por Unidade Escolar", "Contagem por escola das matrículas segundo os parâmetros da coluna \"Localização diferenciada de residência\" (Sim, Não, demais valores e sem informação), com o total de matrículas no fim."],
+                ["Quantitativo de Matrículas por Localização Diferenciada", "Contagem das matrículas de cada escola segundo os parâmetros da coluna \"Localização diferenciada de residência\" (Sim, Não, demais valores e sem informação), com o total de matrículas no fim."],
             ],
             col_widths=[8.0, 9.0])
 

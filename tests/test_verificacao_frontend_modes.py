@@ -217,12 +217,12 @@ def _registros_quantitativo():
     ]
 
 
-def test_quantitativo_matriculas_xlsx_cabecalho_e_linhas():
+def test_quantitativo_localizacao_diferenciada_xlsx_cabecalho_e_linhas():
     wb = openpyxl.load_workbook(
-        io.BytesIO(frontend._quantitativo_matriculas_xlsx(_registros_quantitativo()))
+        io.BytesIO(frontend._quantitativo_localizacao_diferenciada_xlsx(_registros_quantitativo()))
     )
     ws = wb.active
-    assert ws.title == "Quantitativo_Matriculas"
+    assert ws.title == "Quantitativo_Loc_Diferenciada"
     linhas = list(ws.iter_rows(values_only=True))
     assert linhas[0] == (
         "Código do Inep", "Nome da Unidade",
@@ -232,9 +232,9 @@ def test_quantitativo_matriculas_xlsx_cabecalho_e_linhas():
     assert linhas[2] == ("33000002", "Escola Dois", 1, 1, 0, 2)
 
 
-def test_quantitativo_matriculas_xlsx_sem_registros_so_cabecalho():
+def test_quantitativo_localizacao_diferenciada_xlsx_sem_registros_so_cabecalho():
     wb = openpyxl.load_workbook(
-        io.BytesIO(frontend._quantitativo_matriculas_xlsx([]))
+        io.BytesIO(frontend._quantitativo_localizacao_diferenciada_xlsx([]))
     )
     ws = wb.active
     linhas = list(ws.iter_rows(values_only=True))
@@ -242,7 +242,7 @@ def test_quantitativo_matriculas_xlsx_sem_registros_so_cabecalho():
     assert linhas[0][-1] == "Total de matrículas"
 
 
-def test_quantitativo_matriculas_xlsx_colunas_pelo_primeiro_registro():
+def test_quantitativo_localizacao_diferenciada_xlsx_colunas_pelo_primeiro_registro():
     """Os parâmetros viram colunas na ordem em que aparecem no registro."""
     registros = [{
         "codigo_inep": "1",
@@ -251,7 +251,7 @@ def test_quantitativo_matriculas_xlsx_colunas_pelo_primeiro_registro():
         "contagens": {"Não": 1, "Sim": 1},
     }]
     wb = openpyxl.load_workbook(
-        io.BytesIO(frontend._quantitativo_matriculas_xlsx(registros))
+        io.BytesIO(frontend._quantitativo_localizacao_diferenciada_xlsx(registros))
     )
     linhas = list(wb.active.iter_rows(values_only=True))
     assert linhas[0] == (

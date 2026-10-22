@@ -261,10 +261,10 @@ def _levantamento_cor_raca_xlsx(registros: list[dict]) -> bytes:
     return buffer.getvalue()
 
 
-def _quantitativo_matriculas_xlsx(registros: list[dict]) -> bytes:
+def _quantitativo_localizacao_diferenciada_xlsx(registros: list[dict]) -> bytes:
     wb = openpyxl.Workbook()
     ws = wb.active
-    ws.title = "Quantitativo_Matriculas"
+    ws.title = "Quantitativo_Loc_Diferenciada"
     parametros: list[str] = []
     for r in registros:
         for p in r.get("contagens", {}):
@@ -655,15 +655,15 @@ def render_validation_frontend(config: dict, logo_base64: str | None = None) -> 
                                 key=f"{prefix}btn_cor_raca_xlsx",
                             )
 
-                        quantitativo_matriculas = config.get("quantitativo_matriculas")
-                        if quantitativo_matriculas is not None and df_aluno_cur is not None:
-                            quantitativo = quantitativo_matriculas(df_aluno_cur)
+                        quantitativo_loc_dif = config.get("quantitativo_loc_diferenciada")
+                        if quantitativo_loc_dif is not None and df_aluno_cur is not None:
+                            quantitativo = quantitativo_loc_dif(df_aluno_cur)
                             st.download_button(
-                                "Quantitativo de Matrículas por Unidade Escolar",
-                                data=_quantitativo_matriculas_xlsx(quantitativo),
-                                file_name=_output_filename(config, suffix="quantitativo_matriculas", ext="xlsx"),
+                                "Quantitativo de Matrículas por Localização Diferenciada",
+                                data=_quantitativo_localizacao_diferenciada_xlsx(quantitativo),
+                                file_name=_output_filename(config, suffix="quantitativo_localizacao_diferenciada", ext="xlsx"),
                                 mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-                                key=f"{prefix}btn_quantitativo_matriculas_xlsx",
+                                key=f"{prefix}btn_quantitativo_loc_dif_xlsx",
                             )
 
                     if resultados is None:

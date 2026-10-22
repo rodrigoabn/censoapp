@@ -248,7 +248,7 @@ def test_cor_raca_agrega_por_unidade_e_preserva_ordem(df):
     ]
 
 
-def test_quantitativo_matriculas_conta_por_parametro(df):
+def test_quantitativo_localizacao_diferenciada_conta_por_parametro(df):
     valores = ["Sim", "Não", "Sim", "Sim", "--", "", None]
     resultados = levantamento_matriculas_localizacao_diferenciada(
         df([_aluno_loc_dif(valor) for valor in valores])
@@ -288,7 +288,7 @@ def test_quantativo_matriculas_agrega_por_unidade_e_preserva_ordem(df):
     ]
 
 
-def test_quantitativo_matriculas_ordena_parametros_desconhecidos_por_alfabeta(df):
+def test_quantitativo_localizacao_diferenciada_ordena_parametros_por_alfabeta(df):
     """Parâmetros fora de Sim/Não vão em ordem alfabética, sem informação por último."""
     resultados = levantamento_matriculas_localizacao_diferenciada(df([
         _aluno_loc_dif("Zona urbana"),
@@ -302,5 +302,5 @@ def test_quantitativo_matriculas_ordena_parametros_desconhecidos_por_alfabeta(df
     ]
 
 
-def test_quantitativo_matriculas_sem_alunos_retorna_vazio(df):
+def test_quantitativo_localizacao_diferenciada_sem_alunos_retorna_vazio(df):
     assert levantamento_matriculas_localizacao_diferenciada(df([])) == []

@@ -75,7 +75,7 @@ VALIDATIONS: dict[str, dict] = {
         "validate": validate_aluno,
         "find_duplicadas": find_matriculas_duplicadas,
         "levantamento_cor_raca": levantamento_cor_raca,
-        "quantitativo_matriculas": levantamento_matriculas_localizacao_diferenciada,
+        "quantitativo_loc_diferenciada": levantamento_matriculas_localizacao_diferenciada,
         "extrair_sem_cpf": extrair_alunos_sem_cpf,
         "expected_columns": [
             "Ordem",
