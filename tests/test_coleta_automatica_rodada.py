@@ -385,6 +385,39 @@ def test_linha_da_escola_em_coleta_escapa_nome_e_codigo(monkeypatch):
     assert "<script>" not in html
 
 
+def test_cartao_mostra_a_barra_de_progresso_das_escolas(monkeypatch):
+    """O cartão mostra coletadas/total e o percentual concluído da aplicação."""
+    estado = _rodada()
+    estado["ca_estado"]["shared_etapa"] = {
+        "current": (23, 220, "CEM ALDEIA", "33099510"),
+        "last": (22, 220, "CEM ANTERIOR", "33099509", "concluído"),
+        "count": 22,
+        "total": 220,
+    }
+    st_falso = _StFalso(estado)
+    monkeypatch.setattr(frontend, "st", st_falso)
+
+    frontend._tela_rodada(estado["ca_estado"])
+
+    html = " ".join(str(m) for m in st_falso.markdowns)
+    assert "22/220" in html
+    assert "10% concluído" in html
+    assert "role='progressbar'" in html
+
+
+def test_cartao_sem_etapa_em_curso_nao_mostra_a_barra(monkeypatch):
+    """Sem `shared_etapa` (entre etapas) não há o que medir."""
+    estado = _rodada()
+    estado["ca_estado"]["shared_etapa"] = None
+    st_falso = _StFalso(estado)
+    monkeypatch.setattr(frontend, "st", st_falso)
+
+    frontend._tela_rodada(estado["ca_estado"])
+
+    html = " ".join(str(m) for m in st_falso.markdowns)
+    assert "role='progressbar'" not in html
+
+
 def test_cartao_avisa_a_nova_tentativa_da_escola(monkeypatch):
     """O usuário precisa ver que a MESMA escola está sendo repetida."""
     estado = _rodada()

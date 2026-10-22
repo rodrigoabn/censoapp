@@ -78,6 +78,43 @@ RELOGIO_CSS = """
 .stMarkdown div.relogio-escola-status {
     color: #b2b5be !important;
 }
+/* Barra de progresso das escolas da aplicação em curso. */
+.stMarkdown div.relogio-progresso {
+    display: flex !important;
+    flex-direction: column !important;
+    gap: 0.35rem !important;
+}
+.stMarkdown div.relogio-progresso-topo {
+    display: flex !important;
+    justify-content: space-between !important;
+    align-items: baseline !important;
+    gap: 1rem !important;
+    font-family: 'Segoe UI', Tahoma, sans-serif !important;
+    text-transform: uppercase;
+    font-size: 0.68rem;
+    font-weight: 700;
+    letter-spacing: 1px;
+    color: var(--text-secondary) !important;
+}
+.stMarkdown span.relogio-progresso-conta {
+    font-family: Consolas, 'Courier New', monospace !important;
+    text-transform: none;
+    letter-spacing: 0.5px;
+    font-size: 0.8rem;
+    font-weight: 700;
+    color: var(--relogio-azul) !important;
+}
+.stMarkdown div.relogio-progresso-trilha {
+    height: 6px;
+    background: #2a2f3a;
+    border-radius: 999px;
+    overflow: hidden;
+}
+.stMarkdown div.relogio-progresso-barra {
+    height: 100%;
+    background: var(--relogio-azul);
+    border-radius: 999px;
+}
 </style>
 """
 
@@ -148,6 +185,44 @@ def _relogio_resumo_conteudo_html(inicio: datetime, fim: datetime) -> str:
         '</div>'
         '</div>'
         '</div>'
+    )
+
+
+def _progresso_escolas_html(
+    coletadas: int, processadas: int, total: int
+) -> str:
+    """Barra de progresso das escolas da aplicação em curso.
+
+    A barra mede o **trabalho processado** (chega a 100% mesmo quando alguma
+    escola falha), para não parecer travada; o rótulo mostra as **coletadas
+    com sucesso** e, quando há diferença, quantas não foram coletadas.
+    """
+    total = max(0, int(total))
+    if not total:
+        processadas = coletadas = 0
+    else:
+        processadas = min(max(0, int(processadas)), total)
+        coletadas = min(max(0, int(coletadas)), total)
+    nao_coletadas = max(0, processadas - coletadas)
+    pct = 0 if not total else min(100, int(100 * processadas / total))
+
+    conta = f"{coletadas}/{total} · {pct}% concluído"
+    if nao_coletadas:
+        plural = "s" if nao_coletadas > 1 else ""
+        conta += f" · {nao_coletadas} não coletada{plural}"
+
+    return (
+        "<div class='relogio-progresso'>"
+        "<div class='relogio-progresso-topo'>"
+        "<span>Escolas coletadas</span>"
+        f"<span class='relogio-progresso-conta'>{escapar(conta)}</span>"
+        "</div>"
+        "<div class='relogio-progresso-trilha' role='progressbar' "
+        "aria-valuemin='0' aria-valuemax='100' "
+        f"aria-valuenow='{pct}' aria-label='{escapar(conta)}'>"
+        f"<div class='relogio-progresso-barra' style='width:{pct}%'></div>"
+        "</div>"
+        "</div>"
     )
 
 

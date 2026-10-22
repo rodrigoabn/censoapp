@@ -146,6 +146,62 @@ def test_relogio_digital_mostra_tempo_em_andamento():
     assert "19:57:03" in html
 
 
+# ── barra de progresso das escolas ──────────────────────────────────────────
+
+
+def test_progresso_escolas_mostra_conta_e_percentual():
+    html = ui._progresso_escolas_html(coletadas=22, processadas=22, total=220)
+
+    assert "22/220" in html
+    assert "10% concluído" in html
+    assert "aria-valuenow='10'" in html
+    assert "width:10%" in html
+    assert "relogio-progresso-barra" in html
+
+
+def test_progresso_escolas_com_falhas_avanca_por_processadas():
+    """A barra segue o trabalho processado; o rótulo diz o que foi coletado."""
+    html = ui._progresso_escolas_html(coletadas=22, processadas=25, total=220)
+
+    assert "22/220" in html
+    assert "11% concluído" in html
+    assert "3 não coletadas" in html
+    assert "aria-valuenow='11'" in html
+
+
+def test_progresso_escolas_uma_nao_coletada_no_singular():
+    html = ui._progresso_escolas_html(coletadas=21, processadas=22, total=220)
+
+    assert "1 não coletada" in html
+    assert "não coletadas" not in html
+
+
+def test_progresso_escolas_total_zero_nao_divide_por_zero():
+    html = ui._progresso_escolas_html(coletadas=0, processadas=0, total=0)
+
+    assert "0/0" in html
+    assert "0% concluído" in html
+    assert "aria-valuenow='0'" in html
+    assert "width:0%" in html
+
+
+def test_progresso_escolas_nao_passa_de_cem_por_cento():
+    """Contagem acima do total (não deveria acontecer) é presa ao total."""
+    html = ui._progresso_escolas_html(coletadas=230, processadas=230, total=220)
+
+    assert "220/220" in html
+    assert "100% concluído" in html
+    assert "aria-valuenow='100'" in html
+
+
+def test_progresso_escolas_nao_mostra_cem_antes_da_ultima():
+    """219/220 = 99,5% vira 99: a barra só fecha com a última escola."""
+    html = ui._progresso_escolas_html(coletadas=219, processadas=219, total=220)
+
+    assert "99% concluído" in html
+    assert "aria-valuenow='99'" in html
+
+
 # ── guarda do Chromium ──────────────────────────────────────────────────────
 
 

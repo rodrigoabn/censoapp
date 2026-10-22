@@ -31,6 +31,7 @@ from apps.common.school_list import read_school_list
 from apps.common.ui import (
     RELOGIO_CSS,
     _duracao,
+    _progresso_escolas_html,
     _relogio_andamento_conteudo_html,
     _relogio_resumo_conteudo_html,
     ensure_chromium,
@@ -461,6 +462,22 @@ def _cartao_relogio(estado: dict, inicio) -> None:
                     linha_monitor(
                         f"{nome} ({codigo}): {texto}…",
                         status_color("Nova tentativa"),
+                    ),
+                    unsafe_allow_html=True,
+                )
+
+            # Barra de progresso das escolas da aplicação em curso. A barra
+            # usa as processadas (chega a 100% mesmo com falhas); o rótulo
+            # usa as coletadas com sucesso — `current` não serve para isso:
+            # vem 0-based no fluxo normal e 1-based depois de um retry.
+            shared = estado.get("shared_etapa")
+            if shared:
+                ultimo = shared.get("last")
+                st.markdown(
+                    _progresso_escolas_html(
+                        coletadas=shared.get("count", 0),
+                        processadas=ultimo[0] if ultimo else 0,
+                        total=shared.get("total", 0),
                     ),
                     unsafe_allow_html=True,
                 )
