@@ -95,10 +95,11 @@ limite padrão do Linux (`fs.inotify.max_user_instances = 128`) é baixo para um
 estação com IDE e navegadores abertos. Sem watcher, também não há risco de uma
 gravação em pasta monitorada rerodar o app no meio de uma coleta.
 
-O HUB funciona igual; a única diferença é que alterações no código **não** são
-recarregadas sozinhas — a atualização já exige reiniciar o servidor (seção 5).
-O `.streamlit/config.toml` fica no padrão (`auto`), então quem subir o servidor
-**sem** a flag mantém a recarga automática do ambiente de desenvolvimento.
+O HUB funciona igual; a única diferença é que o Streamlit **não fica de olho** nos
+arquivos, então alterações no código só entram reiniciando o servidor (seção 5) —
+o que a operação já exige. O `.streamlit/config.toml` fica no padrão (`auto`),
+então quem subir o servidor **sem** a flag mantém o watcher ligado e continua
+desenvolvendo com o aviso de "arquivo alterado" que o navegador exibe.
 
 Se o erro de inotify aparecer no host de desenvolvimento (IDE + navegador +
 Streamlit disputando o limite), aumente o limite uma vez, com `sudo`:
@@ -110,6 +111,19 @@ sudo sysctl --system
 ```
 
 Confira com `cat /proc/sys/fs/inotify/max_user_instances` (deve mostrar 1024).
+
+### 3.2 Recarga automática no desenvolvimento
+
+O Streamlit **não** reroda o app sozinho por padrão: `server.runOnSave` é
+`false` (Streamlit 1.58). Ao salvar um arquivo, o navegador exibe um aviso de
+"source file changed" e basta clicar em **Rerun** (ou apertar `r` no terminal) —
+é o fluxo padrão do framework e é o recomendado aqui.
+
+Forçar a recarga automática (`--server.runOnSave true`) funciona, mas neste
+projeto dispara vários reruns por salvamento: cada escrita de
+`apps/**/__pycache__/*.pyc` cai dentro de uma pasta monitorada e conta como
+mudança (mediu-se 5 execuções do script para um único arquivo editado). Prefira
+o aviso + **Rerun** manual.
 
 ## 4. Acesso e porta
 
