@@ -1,0 +1,113 @@
+<style>
+  .hub { background:#131722; border-radius:10px; padding:16px; font-family:'Segoe UI',Tahoma,sans-serif; color:#fff; }
+  .hub .cartao { background:#1e222d; border:1px solid #2a2e39; border-radius:8px; padding:14px 18px; margin-bottom:14px; }
+  .hub .banner { display:flex; align-items:center; gap:16px; background:#1e222d; border:1px solid #2a2e39; border-radius:12px; padding:22px; margin-bottom:16px; }
+  .hub .logo { width:46px; height:46px; border-radius:10px; background:#fff; color:#2f6f3e; display:flex; align-items:center; justify-content:center; font-weight:700; font-size:10px; text-align:center; line-height:1.1; }
+  .hub h4 { margin:0 0 2px; font-size:15px; font-weight:600; }
+  .hub .sub { color:#b2b5be; font-size:12px; }
+  .hub .rotulo { font-size:10px; letter-spacing:1px; text-transform:uppercase; color:#b2b5be; font-weight:700; margin-bottom:2px; }
+  .hub .relogio { font-family:Consolas,'Courier New',monospace; font-size:34px; font-weight:700; letter-spacing:3px; color:#93c5fd; line-height:1.1; }
+  .hub .valor { font-family:Consolas,'Courier New',monospace; font-size:13px; font-weight:700; color:#fff; }
+  .hub table { width:100%; border-collapse:collapse; font-size:12.5px; }
+  .hub th { text-align:left; font-size:10px; letter-spacing:.8px; text-transform:uppercase; color:#b2b5be; padding:7px 8px; border-bottom:1px solid #2a2e39; }
+  .hub td { padding:8px; border-bottom:1px solid #242833; }
+  .hub .mono { font-family:Consolas,'Courier New',monospace; }
+  .hub .ok { color:#22c55e; font-weight:600; }
+  .hub .andando { color:#93c5fd; font-weight:600; }
+  .hub .pend { color:#8b8f99; }
+  .hub .falha { color:#ef4444; font-weight:600; }
+  .hub .btn { display:inline-block; background:#1e4482; border:1px solid #1e4482; border-radius:6px; color:#fff; padding:9px 18px; font-size:13px; font-weight:600; }
+  .hub .btn2 { display:inline-block; background:transparent; border:1px solid #454955; border-radius:6px; color:#fff; padding:9px 18px; font-size:13px; font-weight:600; }
+  .hub .nota { color:#b2b5be; font-size:11.5px; margin-top:8px; }
+</style>
+
+<h2>Coleta Automática — rascunho da tela</h2>
+<p class="subtitle">O relógio digital no topo e, embaixo, o tempo de cada aplicação da rodada. São dois estados: em andamento e concluída.</p>
+
+<div class="mockup">
+  <div class="mockup-header">Estado 1 — rodada em andamento (etapa 3 de 6)</div>
+  <div class="mockup-body">
+    <div class="hub">
+      <div class="banner">
+        <div class="logo">CENSO<br>ESCOLAR</div>
+        <div>
+          <h4>Coleta Automática</h4>
+          <div class="sub">Executa em sequência as coletas do Educacenso, em segundo plano.</div>
+        </div>
+      </div>
+
+      <div class="cartao">
+        <div class="rotulo">Acompanhamento da coleta</div>
+        <div style="display:flex; align-items:center; gap:38px; flex-wrap:wrap;">
+          <div>
+            <div class="rotulo">Tempo em andamento</div>
+            <div class="relogio">00:07:42</div>
+          </div>
+          <div>
+            <div class="rotulo">Início da coleta</div>
+            <div class="valor">20/10/2026 21:15:03</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="cartao" style="padding-bottom:6px;">
+        <div class="rotulo" style="margin-bottom:10px;">Tempo por aplicação</div>
+        <table>
+          <tr><th style="width:34%;">Aplicação</th><th style="width:22%;">Situação</th><th style="width:16%;">Tempo</th><th>Resultado</th></tr>
+          <tr><td>1. Cadastros das escolas</td><td class="ok">Concluída</td><td class="mono">00:03:12</td><td class="mono" style="color:#b2b5be;">cadastro_escola_educacenso.xlsx</td></tr>
+          <tr><td>2. Cadastro do gestor</td><td class="ok">Concluída</td><td class="mono">00:00:48</td><td class="mono" style="color:#b2b5be;">vinculo_gestor_educacenso.xlsx</td></tr>
+          <tr><td>3. Relatórios de Turmas</td><td class="andando">Em andamento</td><td class="mono">00:01:05</td><td style="color:#b2b5be;">Escola Alfa (33000001) coletando…</td></tr>
+          <tr><td>4. Relatórios de Alunos</td><td class="pend">Pendente</td><td class="mono">—</td><td style="color:#8b8f99;">—</td></tr>
+          <tr><td>5. Relatórios de Profissionais</td><td class="pend">Pendente</td><td class="mono">—</td><td style="color:#8b8f99;">—</td></tr>
+          <tr><td>6. Recibos de Fechamento</td><td class="pend">Pendente</td><td class="mono">—</td><td style="color:#8b8f99;">—</td></tr>
+        </table>
+        <div style="padding:12px 0 6px;"><span class="btn2">⛔ Interromper rodada</span></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="mockup">
+  <div class="mockup-header">Estado 2 — rodada concluída</div>
+  <div class="mockup-body">
+    <div class="hub">
+      <div class="cartao">
+        <div class="rotulo">Acompanhamento da coleta</div>
+        <div style="display:flex; gap:42px; flex-wrap:wrap; align-items:flex-end;">
+          <div>
+            <div class="rotulo">Horário inicial</div>
+            <div class="valor">20/10/2026 21:15:03</div>
+          </div>
+          <div>
+            <div class="rotulo">Horário de término</div>
+            <div class="valor">20/10/2026 21:34:50</div>
+          </div>
+          <div>
+            <div class="rotulo">Tempo de execução</div>
+            <div class="valor" style="color:#93c5fd;">00:19:47</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="cartao" style="padding-bottom:6px;">
+        <div class="rotulo" style="margin-bottom:10px;">Tempo por aplicação</div>
+        <table>
+          <tr><th style="width:34%;">Aplicação</th><th style="width:22%;">Situação</th><th style="width:16%;">Tempo</th><th>Resultado</th></tr>
+          <tr><td>1. Cadastros das escolas</td><td class="ok">Concluída</td><td class="mono">00:03:12</td><td class="mono" style="color:#b2b5be;">cadastro_escola_educacenso.xlsx</td></tr>
+          <tr><td>2. Cadastro do gestor</td><td class="ok">Concluída</td><td class="mono">00:00:48</td><td class="mono" style="color:#b2b5be;">vinculo_gestor_educacenso.xlsx</td></tr>
+          <tr><td>3. Relatórios de Turmas</td><td class="ok">Concluída</td><td class="mono">00:04:11</td><td class="mono" style="color:#b2b5be;">relatorio_turmas.zip</td></tr>
+          <tr><td>4. Relatórios de Alunos</td><td class="ok">Concluída</td><td class="mono">00:04:36</td><td class="mono" style="color:#b2b5be;">relatorio_alunos.zip</td></tr>
+          <tr><td>5. Relatórios de Profissionais</td><td class="ok">Concluída</td><td class="mono">00:03:58</td><td class="mono" style="color:#b2b5be;">relatorio_profissionais.zip</td></tr>
+          <tr><td>6. Recibos de Fechamento</td><td class="ok">Concluída</td><td class="mono">00:02:42</td><td class="mono" style="color:#b2b5be;">recibos_fechamento.zip</td></tr>
+        </table>
+        <div class="nota">Cada etapa também gera a planilha de “escolas não coletadas”, quando houver falhas — elas vão junto no ZIP.</div>
+      </div>
+
+      <div class="cartao">
+        <div class="rotulo" style="margin-bottom:10px;">Resultado da rodada</div>
+        <span class="btn">Baixar ZIP com todas as coletas</span>
+        <div class="nota mono">coleta_completa_20-10-2026.zip — 6 artefatos + 6 planilhas de pendências</div>
+      </div>
+    </div>
+  </div>
+</div>

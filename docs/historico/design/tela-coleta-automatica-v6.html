@@ -1,0 +1,134 @@
+<style>
+  .hub { background:#131722; border-radius:10px; padding:16px; font-family:'Segoe UI',Tahoma,sans-serif; color:#fff; }
+  .hub .cartao { background:#1e222d; border:1px solid #2a2e39; border-radius:8px; padding:14px 18px; margin-bottom:14px; }
+  .hub .banner { display:flex; align-items:center; gap:16px; background:#1e222d; border:1px solid #2a2e39; border-radius:12px; padding:22px; margin-bottom:16px; }
+  .hub .logo { width:46px; height:46px; border-radius:10px; background:#fff; color:#2f6f3e; display:flex; align-items:center; justify-content:center; font-weight:700; font-size:10px; text-align:center; line-height:1.1; }
+  .hub h4 { margin:0 0 2px; font-size:15px; font-weight:600; }
+  .hub .sub { color:#b2b5be; font-size:12px; }
+  .hub .rotulo { font-size:10px; letter-spacing:1px; text-transform:uppercase; color:#b2b5be; font-weight:700; margin-bottom:2px; }
+  .hub .relogio { font-family:Consolas,'Courier New',monospace; font-size:34px; font-weight:700; letter-spacing:3px; color:#93c5fd; line-height:1.1; }
+  .hub .valor { font-family:Consolas,'Courier New',monospace; font-size:13px; font-weight:700; color:#fff; }
+  .hub table { width:100%; border-collapse:collapse; font-size:12.5px; }
+  .hub th { text-align:left; font-size:10px; letter-spacing:.8px; text-transform:uppercase; color:#b2b5be; padding:7px 8px; border-bottom:1px solid #2a2e39; }
+  .hub td { padding:8px; border-bottom:1px solid #242833; vertical-align:middle; }
+  .hub .mono { font-family:Consolas,'Courier New',monospace; }
+  .hub .ok { color:#22c55e; font-weight:600; }
+  .hub .andando { color:#93c5fd; font-weight:600; }
+  .hub .pend { color:#8b8f99; }
+  .hub .falha { color:#ef4444; font-weight:600; }
+  .hub .btn { display:inline-block; background:#1e4482; border:1px solid #1e4482; border-radius:6px; color:#fff; padding:9px 18px; font-size:13px; font-weight:600; }
+  .hub .btn-mini { display:inline-block; background:#1e4482; border:1px solid #1e4482; border-radius:5px; color:#fff; padding:4px 12px; font-size:11.5px; font-weight:600; }
+  .hub .btn2 { display:inline-block; background:transparent; border:1px solid #454955; border-radius:6px; color:#fff; padding:9px 18px; font-size:13px; font-weight:600; }
+  .hub .nota { color:#b2b5be; font-size:11.5px; margin-top:8px; }
+  .hub .aviso { color:#ef4444; font-size:12px; font-weight:600; }
+  .hub .check { display:inline-block; width:14px; height:14px; border-radius:3px; border:1px solid #6b7280; vertical-align:middle; }
+  .hub .check.on { background:#1e4482; border-color:#1e4482; position:relative; }
+  .hub .check.on:after { content:"\2713"; color:#fff; font-size:11px; position:absolute; top:-3px; left:2px; }
+  .hub .campo { background:#1e222d; border:1px solid #2a2e39; border-radius:6px; padding:8px 12px; color:#8b8f99; font-size:12.5px; }
+  .hub .rot-campo { font-size:9.5px; letter-spacing:.9px; text-transform:uppercase; color:#b2b5be; font-weight:700; margin-bottom:3px; }
+  .hub .tres { display:flex; gap:14px; }
+  .hub .tres > div { flex:1; }
+  .hub .check-linha { display:flex; align-items:center; gap:10px; padding:7px 0; font-size:13px; }
+  .hub .check-linha.off { color:#8b8f99; }
+</style>
+
+<h2>Coleta Automática — rascunho v5 (tudo em pilha, largura total)</h2>
+<p class="subtitle">Orientações no topo; credenciais; e o card "Aplicações a coletar" logo abaixo, com o botão Executar no fim das opções.</p>
+
+<div class="mockup">
+  <div class="mockup-header">Estado 0 — tela inicial (pilha em largura total)</div>
+  <div class="mockup-body">
+    <div class="hub">
+      <div class="banner">
+        <div class="logo">CENSO<br>ESCOLAR</div>
+        <div>
+          <h4>Coleta Automática</h4>
+          <div class="sub">Executa em sequência as coletas do Educacenso, em segundo plano.</div>
+        </div>
+      </div>
+
+      <div class="cartao">
+        <div class="rotulo" style="margin-bottom:10px;">Orientações de uso</div>
+        <div style="font-size:12.5px; line-height:1.75; color:#d0d3db;">
+          1. Informe seu <b>Login (CPF)</b> e <b>Senha</b> de acesso ao Educacenso.<br>
+          2. Envie a <b>lista de escolas</b> (.xlsx / .xls) com as colunas <i>código do inep</i> e <i>nome da unidade</i>.<br>
+          3. Marque as <b>aplicações</b> que entram na rodada.<br>
+          4. Clique em <b>Executar</b>: as coletas rodam em sequência, em segundo plano.<br>
+          5. Ao final, baixe cada arquivo ou o <b>pacote completo</b>.
+        </div>
+      </div>
+
+      <div class="cartao">
+        <div class="rotulo" style="margin-bottom:12px;">Acesso ao Educacenso</div>
+        <div class="tres">
+          <div>
+            <div class="rot-campo">Login (CPF)</div>
+            <div class="campo">000.000.000-00</div>
+          </div>
+          <div>
+            <div class="rot-campo">Senha</div>
+            <div class="campo">••••••••</div>
+          </div>
+          <div>
+            <div class="rot-campo">Lista de escolas (.xlsx / .xls)</div>
+            <div class="campo">escolas_ativas.xlsx</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="cartao" style="padding-bottom:16px;">
+        <div class="rotulo" style="margin-bottom:4px;">Aplicações a coletar</div>
+        <div class="nota" style="margin:0 0 12px;">Desmarque o que não deve entrar nesta rodada.</div>
+        <div class="tres">
+          <div>
+            <div class="check-linha"><span class="check on"></span>1. Cadastros das escolas</div>
+            <div class="check-linha"><span class="check on"></span>2. Cadastro do gestor</div>
+            <div class="check-linha"><span class="check on"></span>3. Relatórios de Turmas</div>
+          </div>
+          <div>
+            <div class="check-linha off"><span class="check"></span>4. Relatórios de Alunos</div>
+            <div class="check-linha"><span class="check on"></span>5. Relatórios de Profissionais</div>
+            <div class="check-linha off"><span class="check"></span>6. Recibos de Fechamento</div>
+          </div>
+          <div style="flex:0.9;">
+            <div class="nota" style="margin:7px 0 0;">4 de 6 aplicações selecionadas.</div>
+          </div>
+        </div>
+        <div style="padding-top:14px;"><span class="btn">Executar</span></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="mockup">
+  <div class="mockup-header">Estados 1 a 3 — inalterados (aprovados na v3)</div>
+  <div class="mockup-body">
+    <div class="hub">
+      <div class="cartao">
+        <div class="rotulo">Acompanhamento da coleta</div>
+        <div style="display:flex; align-items:center; gap:38px; flex-wrap:wrap;">
+          <div>
+            <div class="rotulo">Tempo em andamento</div>
+            <div class="relogio">00:04:18</div>
+          </div>
+          <div>
+            <div class="rotulo">Início da coleta</div>
+            <div class="valor">20/10/2026 21:15:03</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="cartao" style="padding-bottom:6px;">
+        <div class="rotulo" style="margin-bottom:10px;">Tempo por aplicação</div>
+        <table>
+          <tr><th style="width:32%;">Aplicação</th><th style="width:16%;">Situação</th><th style="width:12%;">Tempo</th><th style="width:26%;">Resultado</th><th>Download</th></tr>
+          <tr><td>1. Cadastros das escolas</td><td class="ok">Concluída</td><td class="mono">00:03:12</td><td class="mono" style="color:#b2b5be;">cadastro_escola_educacenso.xlsx</td><td><span class="btn-mini">Baixar</span></td></tr>
+          <tr><td>2. Relatórios de Turmas</td><td class="andando">Em andamento</td><td class="mono">00:01:06</td><td style="color:#b2b5be;">Escola Alfa (33000001) coletando…</td><td style="color:#8b8f99;">—</td></tr>
+          <tr><td>3. Relatórios de Profissionais</td><td class="pend">Pendente</td><td class="mono">—</td><td style="color:#8b8f99;">—</td><td style="color:#8b8f99;">—</td></tr>
+          <tr><td>4. Recibos de Fechamento</td><td class="pend">Pendente</td><td class="mono">—</td><td style="color:#8b8f99;">—</td><td style="color:#8b8f99;">—</td></tr>
+        </table>
+        <div style="padding:12px 0 6px;"><span class="btn2">⛔ Interromper rodada</span></div>
+      </div>
+    </div>
+  </div>
+</div>

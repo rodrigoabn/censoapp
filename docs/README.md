@@ -27,3 +27,5 @@ e no `deploy.md`.
 - [`historico/superpowers/plans/`](historico/superpowers/plans/) — planos de
   execução das duas últimas entregas (Coleta Automática e nova tentativa em
   timeout).
+- [`historico/design/`](historico/design/) — rascunhos em HTML do brainstorm
+  que precedeu a tela Coleta Automática, com o README explicando cada versão.
