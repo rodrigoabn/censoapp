@@ -87,7 +87,7 @@ uv add <pacote>                                     # adicionar dependência
 
 ## Testes
 
-- `tests/` cobre a suíte offline (fakes, sem rede): `uv run python -m pytest` → 713 passed / 19 skipped; lint com `uv run ruff check .`
+- `tests/` cobre a suíte offline (fakes, sem rede): `uv run python -m pytest` → 720 passed / 19 skipped; lint com `uv run ruff check .`
 - `tests/security/` é ao vivo; **os 19 testes HTTP de segurança são pulados por padrão** — exigem `SECURITY_LIVE=1`
 - Alvo via `SECURITY_TARGET` (**obrigatório** — sem padrão; ex.: `http://localhost:8501/`); não há TLS/HSTS/Caddy nesta modalidade
 - Não intrusivos: poucas requisições, sem fuzzing/brute-force
@@ -105,7 +105,8 @@ HUB com 7 apps em `apps/` — Tela Inicial + Coleta de Dados (1), Adequação (3
 
 1. **Listagem "Matrículas sem CPF informado (XLSX)"** (tela Cadastro de Aluno): `rules/aluno.py` → `extrair_alunos_sem_cpf(df)` seleciona CPF `'--'`, vazio ou `NaN` (via `_normalizar`); registrada em `validations.py` como `VALIDATIONS["aluno"]["extrair_sem_cpf"]`; botão no bloco "RELATÓRIOS DE APOIO" (aviso quando não há registros).
 2. **Seletor "Ano letivo"** (somente tela Aluno): `st.selectbox` de anos (decrescente, 2026→2000) salvo em `st.session_state[{prefix}ano_letivo]`; CSS do dropdown (width 5cm, max-height 360px) só nessa tela.
-3. **Rótulos de botões sem prefixo "Baixar"**: "Matrículas em Duplicidade (XLSX)", "Matrículas sem CPF informado (XLSX)" e "Quantitativo de Cor/Raça por Unidade Escolar".
+3. **Rótulos de botões sem prefixo "Baixar"**: "Matrículas em Duplicidade (XLSX)", "Matrículas sem CPF informado (XLSX)", "Quantitativo de Cor/Raça por Unidade Escolar" e "Quantitativo de Matrículas por Unidade Escolar".
+3.1. **Quantitativo de Matrículas por Unidade Escolar** (tela Aluno, bloco "RELATÓRIOS DE APOIO"): `rules/aluno.py` → `levantamento_matriculas_localizacao_diferenciada(df)` conta as matrículas de cada escola pelos **parâmetros da coluna "Localização diferenciada de residência"** — "Sim" e "Não" em ordem fixa, demais valores em ordem alfabética (ignorando acentos) e "Sem informação" (vazio/`--`/`-`/NaN) por último. O XLSX (`_quantitativo_matriculas_xlsx`, aba `Quantitativo_Matriculas`) traz uma linha por escola com uma coluna por parâmetro e o total de matrículas no fim; as mesmas colunas aparecem em todas as escolas. Registrado em `validations.py` como `VALIDATIONS["aluno"]["quantitativo_matriculas"]`.
 4. **Validação de Alunos** (`validate_aluno`, tabela `aluno_curricular`): regras simples (zona de residência vazia; `Transporte escolar == Sim` com poder público ≠ `Municipal`) e regras de idade completas em 31/03/{ano_letivo} por período/turma (G1–G3, P1/P2, MI; creche/pré-escola/EJA/EF 9 anos) → mensagens `Sem Zona Residencial informada`, `Transporte Escolar não informado como Municipal` e `Idade incompatível com turma`; roda automaticamente após o upload; relatório modo `"aluno"` com data de nascimento, idade e INCONSISTENCIA 1..N (constantes `COL_*` em `rules/aluno.py`).
 5. **Spinners de carregamento** (listagem, "RELATÓRIOS DE APOIO" e validações/relatório, com as mensagens "Carregando ..." correspondentes); totalizador ("Total de Inconsistencias"/"Total de Unidades") exibido só fora da tela Aluno.
 6. **Validação de Turmas — tabela Escolarização** (`rules/turmas.py`): `read_turmas_zip` adiciona `periodo_turma`/`verifica_integral` (só escolarização); regras sigla↔etapa (`Divergência entre Sigla e Etapa`), carga `M`/`T` fora de [20h,35h] (`Carga Horária menor que 20h ou maior do que 35h.`) e integral `I` < 35h (`Integral não pode ser inferior a 35h`); relatório modo `"turma"` com colunas de contexto (etapa, carga semanal, periodo_turma, verifica_integral).

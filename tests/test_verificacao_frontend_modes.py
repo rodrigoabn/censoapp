@@ -197,6 +197,68 @@ def test_build_xlsx_titulo_da_aba():
     assert wb.active.title == "Inconsistencias"
 
 
+# ─────────── quantitativo de matrículas (localização diferenciada) ──────────
+
+
+def _registros_quantitativo():
+    return [
+        {
+            "codigo_inep": "33000001",
+            "nome_unidade": "Escola Um",
+            "total": 4,
+            "contagens": {"Sim": 2, "Não": 1, "Sem informação": 1},
+        },
+        {
+            "codigo_inep": "33000002",
+            "nome_unidade": "Escola Dois",
+            "total": 2,
+            "contagens": {"Sim": 1, "Não": 1, "Sem informação": 0},
+        },
+    ]
+
+
+def test_quantitativo_matriculas_xlsx_cabecalho_e_linhas():
+    wb = openpyxl.load_workbook(
+        io.BytesIO(frontend._quantitativo_matriculas_xlsx(_registros_quantitativo()))
+    )
+    ws = wb.active
+    assert ws.title == "Quantitativo_Matriculas"
+    linhas = list(ws.iter_rows(values_only=True))
+    assert linhas[0] == (
+        "Código do Inep", "Nome da Unidade",
+        "Sim", "Não", "Sem informação", "Total de matrículas",
+    )
+    assert linhas[1] == ("33000001", "Escola Um", 2, 1, 1, 4)
+    assert linhas[2] == ("33000002", "Escola Dois", 1, 1, 0, 2)
+
+
+def test_quantitativo_matriculas_xlsx_sem_registros_so_cabecalho():
+    wb = openpyxl.load_workbook(
+        io.BytesIO(frontend._quantitativo_matriculas_xlsx([]))
+    )
+    ws = wb.active
+    linhas = list(ws.iter_rows(values_only=True))
+    assert len(linhas) == 1
+    assert linhas[0][-1] == "Total de matrículas"
+
+
+def test_quantitativo_matriculas_xlsx_colunas_pelo_primeiro_registro():
+    """Os parâmetros viram colunas na ordem em que aparecem no registro."""
+    registros = [{
+        "codigo_inep": "1",
+        "nome_unidade": "Escola",
+        "total": 1,
+        "contagens": {"Não": 1, "Sim": 1},
+    }]
+    wb = openpyxl.load_workbook(
+        io.BytesIO(frontend._quantitativo_matriculas_xlsx(registros))
+    )
+    linhas = list(wb.active.iter_rows(values_only=True))
+    assert linhas[0] == (
+        "Código do Inep", "Nome da Unidade", "Não", "Sim", "Total de matrículas",
+    )
+
+
 # ────────────────────────── utilidades ───────────────────────
 
 

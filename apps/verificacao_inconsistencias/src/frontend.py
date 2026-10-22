@@ -261,6 +261,34 @@ def _levantamento_cor_raca_xlsx(registros: list[dict]) -> bytes:
     return buffer.getvalue()
 
 
+def _quantitativo_matriculas_xlsx(registros: list[dict]) -> bytes:
+    wb = openpyxl.Workbook()
+    ws = wb.active
+    ws.title = "Quantitativo_Matriculas"
+    parametros: list[str] = []
+    for r in registros:
+        for p in r.get("contagens", {}):
+            if p not in parametros:
+                parametros.append(p)
+    ws.append([
+        "Código do Inep", "Nome da Unidade", *parametros, "Total de matrículas",
+    ])
+    for r in registros:
+        contagens = r.get("contagens", {})
+        ws.append([
+            r.get("codigo_inep", ""),
+            r.get("nome_unidade", ""),
+            *[contagens.get(p, 0) for p in parametros],
+            r.get("total", 0),
+        ])
+    _neutralizar_formulas(ws)
+    _ajustar_larguras(ws)
+    buffer = io.BytesIO()
+    wb.save(buffer)
+    buffer.seek(0)
+    return buffer.getvalue()
+
+
 def _sem_cpf_xlsx(registros: list[dict]) -> bytes:
     wb = openpyxl.Workbook()
     ws = wb.active
@@ -625,6 +653,17 @@ def render_validation_frontend(config: dict, logo_base64: str | None = None) -> 
                                 file_name=_output_filename(config, suffix="levantamento_cor_raca", ext="xlsx"),
                                 mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
                                 key=f"{prefix}btn_cor_raca_xlsx",
+                            )
+
+                        quantitativo_matriculas = config.get("quantitativo_matriculas")
+                        if quantitativo_matriculas is not None and df_aluno_cur is not None:
+                            quantitativo = quantitativo_matriculas(df_aluno_cur)
+                            st.download_button(
+                                "Quantitativo de Matrículas por Unidade Escolar",
+                                data=_quantitativo_matriculas_xlsx(quantitativo),
+                                file_name=_output_filename(config, suffix="quantitativo_matriculas", ext="xlsx"),
+                                mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                                key=f"{prefix}btn_quantitativo_matriculas_xlsx",
                             )
 
                     if resultados is None:

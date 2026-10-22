@@ -2,6 +2,7 @@ from .aluno import (
     extrair_alunos_sem_cpf,
     find_matriculas_duplicadas,
     levantamento_cor_raca,
+    levantamento_matriculas_localizacao_diferenciada,
     validate_aluno,
 )
 from .gestor import validate_gestor
@@ -17,6 +18,7 @@ __all__ = [
     "validate_aluno",
     "find_matriculas_duplicadas",
     "levantamento_cor_raca",
+    "levantamento_matriculas_localizacao_diferenciada",
     "extrair_alunos_sem_cpf",
     "validate_profissionais",
 ]

@@ -23,13 +23,16 @@ from apps.verificacao_inconsistencias.src.rules.aluno import (
     COL_COR_RACA,
     COL_CPF,
     COL_IDENTIFICACAO,
+    COL_LOCALIZACAO_DIFERENCIADA,
     COL_MATRICULA,
     COL_NOME,
     COL_NOME_TURMA,
     COL_TURMA,
+    PARAMETRO_SEM_INFORMACAO,
     extrair_alunos_sem_cpf,
     find_matriculas_duplicadas,
     levantamento_cor_raca,
+    levantamento_matriculas_localizacao_diferenciada,
 )
 
 CODIGO = "33012345"
@@ -62,6 +65,12 @@ def _aluno(
 def _aluno_cor(valor, *, inep: str = CODIGO, nome_unidade: str = NOME) -> dict:
     linha = _aluno(inep=inep, nome_unidade=nome_unidade)
     linha[COL_COR_RACA] = valor
+    return linha
+
+
+def _aluno_loc_dif(valor, *, inep: str = CODIGO, nome_unidade: str = NOME) -> dict:
+    linha = _aluno(inep=inep, nome_unidade=nome_unidade)
+    linha[COL_LOCALIZACAO_DIFERENCIADA] = valor
     return linha
 
 
@@ -237,3 +246,61 @@ def test_cor_raca_agrega_por_unidade_e_preserva_ordem(df):
             "sem_informacao": 0,
         },
     ]
+
+
+def test_quantitativo_matriculas_conta_por_parametro(df):
+    valores = ["Sim", "Não", "Sim", "Sim", "--", "", None]
+    resultados = levantamento_matriculas_localizacao_diferenciada(
+        df([_aluno_loc_dif(valor) for valor in valores])
+    )
+    assert resultados == [{
+        "codigo_inep": CODIGO,
+        "nome_unidade": NOME,
+        "total": 7,
+        "contagens": {
+            "Sim": 3,
+            "Não": 1,
+            PARAMETRO_SEM_INFORMACAO: 3,
+        },
+    }]
+
+
+def test_quantativo_matriculas_agrega_por_unidade_e_preserva_ordem(df):
+    resultados = levantamento_matriculas_localizacao_diferenciada(df([
+        _aluno_loc_dif("Sim", inep="11111111", nome_unidade="Escola A"),
+        _aluno_loc_dif("Não", inep="11111111", nome_unidade="Escola A"),
+        _aluno_loc_dif("Sim", inep="22222222", nome_unidade="Escola B"),
+    ]))
+    assert resultados == [
+        {
+            "codigo_inep": "11111111",
+            "nome_unidade": "Escola A",
+            "total": 2,
+            "contagens": {"Sim": 1, "Não": 1},
+        },
+        {
+            "codigo_inep": "22222222",
+            "nome_unidade": "Escola B",
+            "total": 1,
+            # As colunas são as mesmas em todas as escolas (os zeros à parte).
+            "contagens": {"Sim": 1, "Não": 0},
+        },
+    ]
+
+
+def test_quantitativo_matriculas_ordena_parametros_desconhecidos_por_alfabeta(df):
+    """Parâmetros fora de Sim/Não vão em ordem alfabética, sem informação por último."""
+    resultados = levantamento_matriculas_localizacao_diferenciada(df([
+        _aluno_loc_dif("Zona urbana"),
+        _aluno_loc_dif("Área rural"),
+        _aluno_loc_dif("Não"),
+        _aluno_loc_dif("Sim"),
+        _aluno_loc_dif(""),
+    ]))
+    assert list(resultados[0]["contagens"]) == [
+        "Sim", "Não", "Área rural", "Zona urbana", PARAMETRO_SEM_INFORMACAO,
+    ]
+
+
+def test_quantitativo_matriculas_sem_alunos_retorna_vazio(df):
+    assert levantamento_matriculas_localizacao_diferenciada(df([])) == []

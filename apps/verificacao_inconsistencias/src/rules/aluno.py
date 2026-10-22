@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import re
+import unicodedata
 from collections import Counter
 
 import pandas as pd
@@ -227,6 +228,84 @@ def extrair_alunos_sem_cpf(df: pd.DataFrame) -> list[dict]:
 
 
 COL_COR_RACA = "Cor/Raça"
+COL_LOCALIZACAO_DIFERENCIADA = "Localização diferenciada de residência"
+
+#: Parâmetros com ordem fixa no quantitativo; os demais valores da coluna
+#: entram em ordem alfabética e "Sem informação" sempre por último.
+_ORDEM_PARAMETROS = ("Sim", "Não")
+
+#: Balde usado quando a coluna está vazia, "--", "-" ou NaN.
+PARAMETRO_SEM_INFORMACAO = "Sem informação"
+
+
+def _parametro_localizacao_diferenciada(valor) -> str:
+    """Valor canônico do parâmetro de localização diferenciada de residência."""
+    if valor is None:
+        return PARAMETRO_SEM_INFORMACAO
+    texto = str(valor).strip()
+    if not texto or texto.lower() in ("--", "-", "nan", "none"):
+        return PARAMETRO_SEM_INFORMACAO
+    return texto
+
+
+def _chave_alfabetica(texto: str) -> str:
+    """Chave de ordenação alfabética que ignora acentos e caixa.
+
+    "Área rural" ordena antes de "Zona urbana" — a comparação por ponto de
+    código colocaria "Z" antes de "Á".
+    """
+    sem_acento = unicodedata.normalize("NFKD", texto)
+    return "".join(c for c in sem_acento if not unicodedata.combining(c)).casefold()
+
+
+def _ordem_parametros(valores: set[str]) -> list[str]:
+    """Ordena os parâmetros: conhecidos, demais em ordem alfabética (sem
+    diferenciar acentos nem caixa) e "Sem informação" por último."""
+    conhecidos = [v for v in _ORDEM_PARAMETROS if v in valores]
+    outros = sorted(
+        (
+            v for v in valores
+            if v not in _ORDEM_PARAMETROS and v != PARAMETRO_SEM_INFORMACAO
+        ),
+        key=_chave_alfabetica,
+    )
+    fim = [PARAMETRO_SEM_INFORMACAO] if PARAMETRO_SEM_INFORMACAO in valores else []
+    return conhecidos + outros + fim
+
+
+def levantamento_matriculas_localizacao_diferenciada(df: pd.DataFrame) -> list[dict]:
+    """Conta matrículas por unidade escolar pelos parâmetros da coluna
+    "Localização diferenciada de residência".
+
+    Uma linha por escola, com a contagem de matrículas em cada parâmetro
+    ("Sim", "Não", demais valores da coluna e "Sem informação") e o total.
+    As escolas entram na ordem de primeira aparição no arquivo.
+    """
+    agregados: dict[tuple[str, str], dict[str, int]] = {}
+    parametros: set[str] = set()
+
+    for _, row in df.iterrows():
+        codigo = str(row.get("Código do Inep", "")).strip()
+        nome = str(row.get("Nome da Unidade", "")).strip()
+        chave = (codigo, nome)
+        if chave not in agregados:
+            agregados[chave] = {}
+        parametro = _parametro_localizacao_diferenciada(
+            row.get(COL_LOCALIZACAO_DIFERENCIADA)
+        )
+        parametros.add(parametro)
+        agregados[chave][parametro] = agregados[chave].get(parametro, 0) + 1
+
+    ordem = _ordem_parametros(parametros)
+    registros: list[dict] = []
+    for (codigo, nome), contagens in agregados.items():
+        registros.append({
+            "codigo_inep": codigo,
+            "nome_unidade": nome,
+            "total": sum(contagens.values()),
+            "contagens": {p: contagens.get(p, 0) for p in ordem},
+        })
+    return registros
 
 
 def _bucket_cor_raca(val) -> str | None:
