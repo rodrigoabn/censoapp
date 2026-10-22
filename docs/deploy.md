@@ -15,7 +15,8 @@ navegador ──http──► Streamlit :<porta>   (servidor local)
 - A aplicação é usada **5 a 15 vezes por ano**, ficando no ar por **5 a 7 dias**
   em cada janela.
 - O operador sobe e derruba manualmente com `uv run streamlit run app.py` e
-  escolhe a porta no momento (`--server.port`; padrão 8501).
+  escolhe a porta no momento (`--server.port`; padrão 8501). A operação usa
+  `--server.fileWatcherType none` (motivo na seção 3.1).
 - **Sem Docker, sem Caddy e sem autenticação própria do HUB.** A aplicação é
   servida em **HTTP puro**; o acesso é controlado pela rede (firewall/VPN) e as
   credenciais do Educacenso protegem as coletas.
@@ -75,7 +76,7 @@ Na raiz do projeto:
 uv sync
 uv run playwright install --with-deps chromium   # uma única vez no host
 mkdir -p logs
-uv run streamlit run app.py --server.port 8501
+uv run streamlit run app.py --server.port 8501 --server.fileWatcherType none
 ```
 
 O Streamlit imprime as URLs (`Local URL` e `Network URL`). Em um servidor sem
@@ -85,13 +86,38 @@ interface gráfica o navegador não abre sozinho (`.streamlit/config.toml` defin
 Se o diretório `logs/` não existir ou não for gravável, o HUB continua no ar e
 o log cai para o stderr do terminal (veja a seção 7).
 
+### 3.1 Watcher de arquivos e inotify
+
+O servidor de operação roda com `--server.fileWatcherType none`: ele **não**
+monitora arquivos. Isso evita o erro `inotify instance limit reached` — o
+Streamlit abre cerca de 25 instâncias de inotify por sessão de navegador, e o
+limite padrão do Linux (`fs.inotify.max_user_instances = 128`) é baixo para uma
+estação com IDE e navegadores abertos. Sem watcher, também não há risco de uma
+gravação em pasta monitorada rerodar o app no meio de uma coleta.
+
+O HUB funciona igual; a única diferença é que alterações no código **não** são
+recarregadas sozinhas — a atualização já exige reiniciar o servidor (seção 5).
+O `.streamlit/config.toml` fica no padrão (`auto`), então quem subir o servidor
+**sem** a flag mantém a recarga automática do ambiente de desenvolvimento.
+
+Se o erro de inotify aparecer no host de desenvolvimento (IDE + navegador +
+Streamlit disputando o limite), aumente o limite uma vez, com `sudo`:
+
+```bash
+sudo sysctl -w fs.inotify.max_user_instances=1024
+echo 'fs.inotify.max_user_instances=1024' | sudo tee /etc/sysctl.d/99-inotify.conf
+sudo sysctl --system
+```
+
+Confira com `cat /proc/sys/fs/inotify/max_user_instances` (deve mostrar 1024).
+
 ## 4. Acesso e porta
 
 - Por padrão o Streamlit escuta em todas as interfaces (`0.0.0.0`). Em host com
   mais de uma interface, limite ao IP da LAN:
 
   ```bash
-  uv run streamlit run app.py --server.address <ip-da-lan> --server.port 8501
+  uv run streamlit run app.py --server.address <ip-da-lan> --server.port 8501 --server.fileWatcherType none
   ```
 
   e acesse `http://<ip-ou-nome-do-servidor>:8501/`.
@@ -99,13 +125,13 @@ o log cai para o stderr do terminal (veja a seção 7).
 - Para escolher outra porta na hora:
 
   ```bash
-  uv run streamlit run app.py --server.port 8510
+  uv run streamlit run app.py --server.port 8510 --server.fileWatcherType none
   ```
 
 - Para permitir acesso **somente da própria máquina** (e usar um túnel SSH):
 
   ```bash
-  uv run streamlit run app.py --server.address 127.0.0.1 --server.port 8501
+  uv run streamlit run app.py --server.address 127.0.0.1 --server.port 8501 --server.fileWatcherType none
   ```
 
 - Libere a porta escolhida no firewall **apenas** para as origens autorizadas.
@@ -155,7 +181,7 @@ Se o servidor já rodava a stack antiga:
 4. **Atualize o script de reinício.** Mantenha a supervisão via journal, mas
    troque o comando para o `uv`, com diretório e usuário corretos:
    `WorkingDirectory=/caminho/censoapp`, `User=<operador>`,
-   `ExecStart=/caminho/uv run streamlit run app.py --server.port 8501`.
+   `ExecStart=/caminho/uv run streamlit run app.py --server.port 8501 --server.fileWatcherType none`.
    Rode `uv sync` como operador antes da primeira subida; não use `sudo`.
 5. **Ajuste o firewall.** Feche 80/443 e libere a porta nova apenas para a rede
    autorizada (seção 4).
@@ -167,7 +193,7 @@ Se o servidor já rodava a stack antiga:
 # pare o HUB (Ctrl+C)
 git pull
 uv sync
-uv run streamlit run app.py --server.port 8501
+uv run streamlit run app.py --server.port 8501 --server.fileWatcherType none
 ```
 
 `uv sync` respeita o `uv.lock` versionado. Se o `git pull` não trouxer mudanças
@@ -244,3 +270,4 @@ rede é o controle compensatório e o HUB não deve ser embutido em iframe.
 | `.venv` com dono root / erros de permissão | `uv`/`uv sync` executado com sudo | remova `.venv` e rode `uv sync` como o usuário operador |
 | Perdeu o acesso remoto após ligar o UFW | regra do SSH não liberada | Acesse pelo console e ajuste `ufw allow 22/tcp` (seção 4) |
 | Página em branco/WebSocket falha | rede/proxy intermediário | Acesse direto pelo IP:porta; não há proxy reverso nesta modalidade |
+| Log repete `inotify instance limit reached` | limite de instâncias de inotify do host esgotado (IDE + navegadores + Streamlit) | O comando de operação já usa `--server.fileWatcherType none`; para desenvolver com recarga, aumente `fs.inotify.max_user_instances` (seção 3.1) |
