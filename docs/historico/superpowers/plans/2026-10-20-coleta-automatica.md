@@ -8,7 +8,7 @@
 
 **Tech Stack:** Python 3.14, Streamlit 1.58 (`playwright.sync_api` via os coletores), `threading` para a rodada, `zipfile` para o pacote, `pytest` + `streamlit.testing.v1.AppTest`.
 
-**Spec:** `docs/superpowers/specs/2026-10-20-coleta-automatica-design.md` — o plano implementa o spec; leia os dois.
+**Spec:** `docs/historico/superpowers/specs/2026-10-20-coleta-automatica-design.md` — o plano implementa o spec; leia os dois.
 
 ## Global Constraints
 
@@ -726,7 +726,7 @@ git commit -m "feat: Coleta Automática no menu de Coleta do Educacenso"
 
 **Files:**
 - Modify: `AGENTS.md`
-- Modify: `docs/plano_de_melhoria.md`
+- Modify: `docs/historico/plano_de_melhoria.md`
 - Modify: `apps/inicio/documentacao.py`
 
 **Interfaces:**
@@ -754,9 +754,9 @@ Expected: PASS já (o smoke não inspeciona o texto) — este passo é só o gua
 - Na lista de `apps/common/`, nenhuma mudança (a skill não cria módulo novo em `common`).
 - Na seção de layout, acrescente uma linha: a Coleta Automática usa o mesmo cabeçalho, o card de Orientações e o relógio, com o tempo particionado por aplicação.
 
-- [ ] **Step 3: Atualize `docs/plano_de_melhoria.md`**
+- [ ] **Step 3: Atualize `docs/historico/plano_de_melhoria.md`**
 
-Acrescente a seção **"## Fase 7 — Coleta Automática"**, seguindo o formato das fases anteriores (lista de itens, foco da revisão e uma linha de status), registrando: a aplicação nova, o arquivo do design (`docs/superpowers/specs/2026-10-20-coleta-automatica-design.md`) e o branch `automacao-coleta`.
+Acrescente a seção **"## Fase 7 — Coleta Automática"**, seguindo o formato das fases anteriores (lista de itens, foco da revisão e uma linha de status), registrando: a aplicação nova, o arquivo do design (`docs/historico/superpowers/specs/2026-10-20-coleta-automatica-design.md`) e o branch `automacao-coleta`.
 
 - [ ] **Step 4: Atualize o PDF de documentação (`apps/inicio/documentacao.py`)**
 
@@ -782,7 +782,7 @@ Expected: o PDF gera, o grep encontra 1+ ocorrências, a suíte passa.
 - [ ] **Step 6: Commit**
 
 ```bash
-git add AGENTS.md docs/plano_de_melhoria.md apps/inicio/documentacao.py tests/test_inicio_documentacao.py
+git add AGENTS.md docs/historico/plano_de_melhoria.md apps/inicio/documentacao.py tests/test_inicio_documentacao.py
 git commit -m "docs: Coleta Automática no AGENTS, no plano e no manual do usuário"
 ```
 

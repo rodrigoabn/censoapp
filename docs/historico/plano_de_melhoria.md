@@ -1,6 +1,9 @@
 # Plano de Melhoria — HUB de Apoio ao Censo Escolar (censoapp)
 
-> **Documento vivo de acompanhamento.** Marque `[x]` conforme cada item for concluído (`[~]` = em andamento).
+> **Documento encerrado (arquivo histórico).** Todas as fases foram concluídas
+> e o projeto foi encerrado em 2026-10-21; este arquivo fica como registro do
+> que foi feito e por quê. O guia vigente do projeto é o `AGENTS.md` (raiz) e o
+> runbook operacional é o `docs/deploy.md`.
 > **Revisão completa de 2026-10-18** feita com 4 auditorias em paralelo: (1) cobertura de testes das regras → Fase 3; (2) duplicação entre apps → Fase 4; (3) hotspots de tempo dos 4 coletores → Fase 5; (4) limpezas/docs/PII → Fase 6.
 > Referências de linha são da data da revisão (podem deslocar).
 
@@ -136,8 +139,8 @@ segundo plano, a partir de um único formulário (login, senha e lista de escola
   etapa) — o pacote só sai quando a rodada termina sem interrupção.
 - [x] **7.5 — Menu, PDF do manual e AGENTS.md**.
 
-**Design e plano:** `docs/superpowers/specs/2026-10-20-coleta-automatica-design.md` e
-`docs/superpowers/plans/2026-10-20-coleta-automatica.md`; branch `automacao-coleta`.
+**Design e plano:** `docs/historico/superpowers/specs/2026-10-20-coleta-automatica-design.md` e
+`docs/historico/superpowers/plans/2026-10-20-coleta-automatica.md`; branch `automacao-coleta`.
 
 ---
 

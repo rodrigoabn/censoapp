@@ -13,6 +13,8 @@ uv run streamlit run app.py --server.port 8501
 
 O HUB roda na rede local, **sem Docker na operação e sem autenticação própria**; a porta pode ser escolhida em cada execução. O tráfego é **HTTP puro**: restrinja a rede/VPN ou use loopback + túnel SSH (credenciais, uploads e relatórios com PII não são criptografados em trânsito). O runbook completo (pré-requisitos, firewall, migração, atualização, logs e troubleshooting) está em [`docs/deploy.md`](docs/deploy.md).
 
+A documentação completa está indexada em [`docs/README.md`](docs/README.md): runbook de operação, guia de desenvolvimento (`AGENTS.md`) e o histórico das fases de construção.
+
 ## ⚖️ Licença / License
 
 [![Licença: AGPL v3](https://img.shields.io/badge/Licença-AGPL_v3-blue.svg)](LICENSE)

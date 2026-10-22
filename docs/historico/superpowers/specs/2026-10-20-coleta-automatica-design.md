@@ -67,7 +67,7 @@ repetir a rodada na mão.
 | Python 3.14, `uv`, Streamlit 1.58 | `pyproject.toml` |
 | `playwright.sync_api` (nunca async), `READ_ONLY = True` | `AGENTS.md`, cláusula pétrea de modo leitura |
 | Login só via Keycloak em `acesso.inep.gov.br`, com CPF e senha | `AGENTS.md` |
-| Coletas em série; sem paralelismo | decisão registrada em `docs/plano_de_melhoria.md` (5.9) |
+| Coletas em série; sem paralelismo | decisão registrada em `docs/historico/plano_de_melhoria.md` (5.9) |
 | Cabeçalho, colunas, botões azuis, card de Orientações e relógio: usar os componentes de `apps/common/` | padronização do HUB (20/10/2026) |
 | Nada de escrita no Educacenso | modo leitura |
 
@@ -356,7 +356,7 @@ Implementar:
      rótulo** (hoje são por índice) e acrescentar o teste da nova aplicação.
    - Manter a suíte existente verde (655 testes hoje) — nada dos coletores muda.
 6. Documentação: `AGENTS.md` (11 apps, o item de menu, a convenção do relógio) e
-   `docs/plano_de_melhoria.md` (seção da Fase 7).
+   `docs/historico/plano_de_melhoria.md` (seção da Fase 7).
 7. O PDF de documentação (`apps/inicio/documentacao.py`): incluir a aplicação na
    tabela da Visão Geral e um parágrafo na seção de Coleta, se couber no padrão
    atual do documento.
